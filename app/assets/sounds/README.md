@@ -1,24 +1,26 @@
-# Enhanced Audio System for 20 Questions Game
+# Audio System for 20 Questions Game
 
 ## Current Implementation
 
-The game features a **sophisticated musical audio system** that generates pleasant sounds programmatically:
+The game features a **pleasant audio system** using actual sound files for a better user experience:
 
-### Musical Sound Effects:
-- **Game Start**: C major chord (523Hz + 659Hz + 784Hz) - Cheerful welcome
-- **Question**: Soft 880Hz A note with harmonics - Gentle inquiry
-- **Answer Yes**: Pleasant 659Hz E note - Positive confirmation  
-- **Answer No**: Neutral 523Hz C note - Gentle negative
-- **Correct Guess**: Ascending C major arpeggio - Victory celebration
-- **Wrong/Game Over**: Soft 392Hz G note - Gentle disappointment (not harsh)
-- **Hint**: Mystical ascending chord (784Hz + 988Hz + 1175Hz) - Magical help
+### Sound Files:
+- **Game Start**: `gameStart.ogg` - Cheerful welcome sound
+- **Question**: `question.wav` - Gentle notification for user input
+- **Answer Yes**: `correct.wav` - Pleasant positive confirmation  
+- **Answer No**: `wrong.wav` - Gentle negative response
+- **Correct Guess**: `correct.wav` - Same as positive answers (victory celebration)
+- **Wrong/Game Over**: `wrong.wav` - Same as negative answers (gentle disappointment)
+- **Hint**: `question.wav` - Same as question sound (helpful notification)
 
-### Advanced Audio Features:
-- **Chord Progressions**: Multi-note harmonies for rich sound
-- **Harmonic Enrichment**: Additional overtones for warmth
-- **Smooth Envelopes**: Fade in/out for professional sound quality
-- **Musical Frequencies**: Notes based on actual musical scale
-- **Volume Balance**: Each sound carefully calibrated for pleasant experience
+### Sound Mapping:
+- **gameStart** → `gameStart.ogg`
+- **question** → `question.wav`
+- **answerYes** → `correct.wav`
+- **answerNo** → `wrong.wav`
+- **correct** → `correct.wav` (same as answerYes)
+- **wrong** → `wrong.wav` (same as answerNo)
+- **hint** → `question.wav` (same as question)
 
 ### Haptic Feedback:
 - **Game Start**: Medium impact vibration
@@ -29,17 +31,14 @@ The game features a **sophisticated musical audio system** that generates pleasa
 - **Hint**: Medium impact vibration
 
 ### Technical Features:
-- ✅ No external files required
+- ✅ High-quality audio files instead of generated tones
 - ✅ Always-on audio (no toggle needed)
 - ✅ Works on all devices
 - ✅ Graceful fallbacks if audio fails
-- ✅ Professional sound quality with envelopes
-- ✅ Musical harmony instead of harsh beeps
+- ✅ Pleasant, cheerful sounds
+- ✅ Optimized file sizes for mobile
 
-## Alternative Implementation
-
-If you prefer using actual sound files instead of generated tones, you can:
-
-1. Add MP3/WAV files named: `question.mp3`, `correct.mp3`, `wrong.mp3`, `hint.mp3`
-2. Update `AudioManager.ts` to load files instead of generating tones
-3. The haptic feedback will still work alongside the audio files
+## File Formats Supported:
+- **OGG**: Good compression and quality
+- **WAV**: Uncompressed, high quality
+- **MP3**: Widely supported (can be added if needed)

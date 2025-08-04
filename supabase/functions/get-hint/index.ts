@@ -65,6 +65,14 @@ ${game.questions_asked >= 5 && game.questions_asked < 10 ? 'Give a hint about it
 ${game.questions_asked >= 10 && game.questions_asked < 15 ? 'Give a more specific hint about its features or usage.' : ''}
 ${game.questions_asked >= 15 ? 'Give a strong hint about context, usage, or where it\'s commonly found.' : ''}
 
+IMPORTANT: Respond with ONLY the hint text - no JSON, no formatting, no extra text. Just a single helpful sentence.
+
+Example good hints:
+- "It's something you'd find in most kitchens"
+- "People use this to stay organized"
+- "It's made primarily of metal and plastic"
+- "You'd typically use this outdoors"
+
 Provide only the hint text, nothing else.`
 
     chatMessages.push({
@@ -97,7 +105,27 @@ Provide only the hint text, nothing else.`
     }
 
     const data = await response.json()
-    const hint = data.content[0].text
+    const rawHint = data.content[0].text
+
+    // Parse hint response in case LLM returns JSON format
+    let hint
+    try {
+      // Try to extract JSON from the response (in case LLM adds JSON format)
+      const jsonMatch = rawHint.match(/\{[^}]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        // If it's JSON, extract the answer or any text field
+        hint = parsed.answer || parsed.hint || parsed.text || rawHint;
+      } else {
+        hint = rawHint;
+      }
+    } catch (error) {
+      // If parsing fails, use the raw text
+      hint = rawHint;
+    }
+
+    // Clean up the hint text
+    hint = hint.replace(/^(Hint:|Answer:)\s*/i, '').trim()
 
     // Save hint message
     await supabase
