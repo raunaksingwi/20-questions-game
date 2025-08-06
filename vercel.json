@@ -1,0 +1,5 @@
+{
+  "buildCommand": "cd app && npx expo export",
+  "outputDirectory": "app/dist",
+  "installCommand": "cd app && npm install"
+}
