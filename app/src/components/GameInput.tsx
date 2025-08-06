@@ -2,6 +2,7 @@ import React from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import VoiceInputButton from './VoiceInputButton';
+import { ProfessionalVoiceButton } from './voice/ProfessionalVoiceButton';
 import { GameStatus } from '../../../../shared/types';
 
 interface GameInputProps {
@@ -31,24 +32,26 @@ export const GameInput: React.FC<GameInputProps> = ({
     <View style={[styles.inputSection, { paddingBottom: insets.bottom }]}>
       <View style={styles.inputContainer}>
         <View style={styles.textInputWrapper}>
-          <TextInput
-            style={styles.textInput}
-            value={question}
-            onChangeText={setQuestion}
-            placeholder="Ask a yes/no question or make a guess..."
-            onSubmitEditing={onTextSubmit}
-            editable={!sending && gameStatus === 'active'}
-            autoCapitalize="sentences"
-          />
-        </View>
-        <View style={styles.voiceButtonContainer}>
-          <VoiceInputButton
-            onTextSubmit={onTextSubmit}
-            onVoiceSubmit={onVoiceSubmit}
-            inputText={question}
-            setInputText={setQuestion}
-            disabled={sending || gameStatus !== 'active'}
-          />
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.textInput}
+              value={question}
+              onChangeText={setQuestion}
+              placeholder="Ask a yes/no question or make a guess..."
+              onSubmitEditing={onTextSubmit}
+              editable={!sending && gameStatus === 'active'}
+              autoCapitalize="sentences"
+            />
+            <View style={styles.voiceButtonContainer}>
+              <ProfessionalVoiceButton
+                onTextSubmit={onTextSubmit}
+                onVoiceSubmit={onVoiceSubmit}
+                inputText={question}
+                setInputText={setQuestion}
+                disabled={sending || gameStatus !== 'active'}
+              />
+            </View>
+          </View>
         </View>
       </View>
       
@@ -79,6 +82,10 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   textInputWrapper: {
+    position: 'relative',
+  },
+  inputRow: {
+    position: 'relative',
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -88,18 +95,19 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     borderRadius: 25,
     paddingHorizontal: 20,
-    paddingRight: 50,
+    paddingRight: 44, // Space for 40px button + 4px padding
     paddingVertical: 12,
     fontSize: 16,
     height: 44,
   },
   voiceButtonContainer: {
     position: 'absolute',
-    right: 17,
-    top: 12,
-    height: 44,
+    right: 2, // 2px from the right edge of the input
+    top: 2,   // 2px from the top to center in the 44px input
+    width: 40,
+    height: 40,
     justifyContent: 'center',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     zIndex: 10,
     pointerEvents: 'box-none',
   },
