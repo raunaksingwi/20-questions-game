@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-import { ScrollView, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useRef, useEffect, useCallback } from 'react';
+import { FlatList, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { GameMessage } from '../../../../shared/types';
 
 interface MessagesListProps {
@@ -11,41 +11,74 @@ export const MessagesList: React.FC<MessagesListProps> = ({
   messages,
   sending,
 }) => {
-  const scrollViewRef = useRef<ScrollView>(null);
+  const flatListRef = useRef<FlatList>(null);
 
+  // Create data array including loading indicator
+  const data = React.useMemo(() => {
+    const items = [...messages];
+    if (sending) {
+      items.push({ role: 'system', content: 'loading', message_type: 'loading' } as any);
+    }
+    return items;
+  }, [messages, sending]);
+
+  const scrollToBottom = useCallback(() => {
+    if (flatListRef.current && data.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [data.length]);
+
+  // Scroll when data changes
   useEffect(() => {
-    scrollViewRef.current?.scrollToEnd({ animated: true });
-  }, [messages]);
+    scrollToBottom();
+  }, [data, scrollToBottom]);
 
-  return (
-    <ScrollView
-      ref={scrollViewRef}
-      style={styles.messagesContainer}
-      contentContainerStyle={styles.messagesContent}
-    >
-      {messages.map((message, index) => (
-        <View
-          key={index}
-          style={[
-            styles.messageBubble,
-            message.role === 'user' ? styles.userMessage : styles.assistantMessage,
-            message.message_type === 'hint' && styles.hintMessage,
-          ]}
-        >
-          <Text style={[
-            styles.messageText,
-            message.role === 'user' && styles.userMessageText,
-          ]}>
-            {message.content}
-          </Text>
-        </View>
-      ))}
-      {sending && (
+  const renderItem = useCallback(({ item, index }: { item: GameMessage | any, index: number }) => {
+    if (item.content === 'loading') {
+      return (
         <View style={styles.loadingBubble}>
           <ActivityIndicator size="small" color="#6366f1" />
         </View>
-      )}
-    </ScrollView>
+      );
+    }
+
+    return (
+      <View
+        style={[
+          styles.messageBubble,
+          item.role === 'user' ? styles.userMessage : styles.assistantMessage,
+          item.message_type === 'hint' && styles.hintMessage,
+        ]}
+      >
+        <Text style={[
+          styles.messageText,
+          item.role === 'user' && styles.userMessageText,
+        ]}>
+          {item.content}
+        </Text>
+      </View>
+    );
+  }, []);
+
+
+  return (
+    <FlatList
+      ref={flatListRef}
+      data={data}
+      renderItem={renderItem}
+      keyExtractor={(item, index) => `message-${index}`}
+      style={styles.messagesContainer}
+      contentContainerStyle={styles.messagesContent}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      onContentSizeChange={scrollToBottom}
+      onLayout={scrollToBottom}
+      maintainVisibleContentPosition={{
+        minIndexForVisible: 0,
+      }}
+    />
   );
 };
 
