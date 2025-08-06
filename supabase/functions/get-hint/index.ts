@@ -53,23 +53,34 @@ serve(async (req) => {
       content: msg.content
     }))
 
-    // Add hint request with context
-    const hintPrompt = `Based on the questions asked so far, provide a helpful hint about the secret item that:
-- Doesn't reveal the answer directly
-- Helps narrow down the possibilities
-- Is appropriate for question #${game.questions_asked}
-- Gets slightly more specific since this is hint #${game.hints_used + 1} out of ${MAX_HINTS_PER_GAME}
+    // Add hint request with context - include conversation history for consistency
+    const hintPrompt = `Based on our conversation so far about the secret item, provide a helpful hint that:
 
-${game.questions_asked < 5 ? 'Since few questions have been asked, give a general category or property hint.' : ''}
+CRITICAL REQUIREMENTS:
+- MUST be consistent with all previous answers you've given
+- Review the conversation to ensure no contradictions
+- Don't reveal the answer directly
+- Helps narrow down the possibilities appropriately
+
+Context:
+- This is hint #${game.hints_used + 1} out of ${MAX_HINTS_PER_GAME}
+- We're on question #${game.questions_asked + 1}
+- The secret item is: ${game.secret_item}
+
+Guidelines for hint specificity:
+${game.questions_asked < 5 ? 'Give a general category or broad property hint.' : ''}
 ${game.questions_asked >= 5 && game.questions_asked < 10 ? 'Give a hint about its characteristics or properties.' : ''}
 ${game.questions_asked >= 10 && game.questions_asked < 15 ? 'Give a more specific hint about its features or usage.' : ''}
 ${game.questions_asked >= 15 ? 'Give a strong hint about context, usage, or where it\'s commonly found.' : ''}
 
-IMPORTANT: Respond with ONLY the hint text - no JSON, no formatting, no extra text. Just a single helpful sentence.
+IMPORTANT: 
+1. Review all previous answers to ensure consistency
+2. The hint should help without contradicting previous answers
+3. Respond with ONLY the hint text - no JSON, no formatting, no extra text
 
-Example good hints:
+Examples of good hints:
 - "It's something you'd find in most kitchens"
-- "People use this to stay organized"
+- "People use this to stay organized" 
 - "It's made primarily of metal and plastic"
 - "You'd typically use this outdoors"
 
@@ -127,23 +138,24 @@ Provide only the hint text, nothing else.`
     // Clean up the hint text
     hint = hint.replace(/^(Hint:|Answer:)\s*/i, '').trim()
 
-    // Save hint message
+    // Save hint message using upsert to prevent duplicates
+    const questionNumber = game.questions_asked + 1
     await supabase
       .from('game_messages')
-      .insert([
+      .upsert([
         {
           game_id: game_id,
           role: 'user',
           content: 'I need a hint!',
           message_type: 'hint',
-          question_number: game.questions_asked
+          question_number: questionNumber
         },
         {
           game_id: game_id,
           role: 'assistant',
           content: hint,
           message_type: 'hint',
-          question_number: game.questions_asked
+          question_number: questionNumber
         }
       ])
 

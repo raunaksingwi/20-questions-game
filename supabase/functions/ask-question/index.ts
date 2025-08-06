@@ -38,7 +38,17 @@ serve(async (req) => {
         .update({ status: 'lost' })
         .eq('id', game_id)
       
-      throw new Error('Game over! You\'ve used all 20 questions.')
+      // Return proper game over response instead of throwing error
+      const responseData: AskQuestionResponse = {
+        answer: `Game over! You've used all 20 questions. The answer was "${game.secret_item}".`,
+        questions_remaining: 0,
+        game_status: 'lost'
+      }
+
+      return new Response(
+        JSON.stringify(responseData),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      )
     }
 
     // Get conversation history
