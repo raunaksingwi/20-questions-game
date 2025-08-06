@@ -362,10 +362,12 @@ const styles = StyleSheet.create({
     padding: 15,
     ...Platform.select({
       web: {
-        overflowY: 'auto',
-        WebkitOverflowScrolling: 'touch',
+        overflowY: 'auto' as any,
+        WebkitOverflowScrolling: 'touch' as any,
         height: '100%',
         maxHeight: '70vh',
+        overflowX: 'hidden' as any,
+        scrollBehavior: 'smooth' as any,
       },
     }),
   },
