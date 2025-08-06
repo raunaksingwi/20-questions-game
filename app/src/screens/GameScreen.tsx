@@ -64,14 +64,20 @@ export default function GameScreen({ route, navigation }: Props) {
         headerLeft: () => (
           <TouchableOpacity
             onPress={() => {
-              Alert.alert(
-                'Quit Game?',
-                'Are you sure you want to quit? Your progress will be lost.',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Quit', style: 'destructive', onPress: () => navigation.goBack() }
-                ]
-              );
+              if (Platform.OS === 'web') {
+                if (window.confirm('Are you sure you want to quit? Your progress will be lost.')) {
+                  navigation.goBack();
+                }
+              } else {
+                Alert.alert(
+                  'Quit Game?',
+                  'Are you sure you want to quit? Your progress will be lost.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Quit', style: 'destructive', onPress: () => navigation.goBack() }
+                  ]
+                );
+              }
             }}
             style={styles.quitButton}
           >
@@ -360,16 +366,6 @@ const styles = StyleSheet.create({
   messagesContainer: {
     flex: 1,
     padding: 15,
-    ...Platform.select({
-      web: {
-        overflowY: 'auto' as any,
-        WebkitOverflowScrolling: 'touch' as any,
-        height: '100%',
-        maxHeight: '70vh',
-        overflowX: 'hidden' as any,
-        scrollBehavior: 'smooth' as any,
-      },
-    }),
   },
   messagesContent: {
     paddingBottom: 20,
