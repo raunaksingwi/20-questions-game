@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
+    "name": "20 Questions",
+    "slug": "20-questions",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -18,7 +18,7 @@
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone to enable voice input for questions.",
         "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition to convert your voice to text."
       },
-      "bundleIdentifier": "com.anonymous.app"
+      "bundleIdentifier": "com.ravi.twentyquestions"
     },
     "android": {
       "adaptiveIcon": {
@@ -29,7 +29,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.anonymous.app"
+      "package": "com.ravi.twentyquestions"
     },
     "web": {
       "favicon": "./assets/favicon.png"
