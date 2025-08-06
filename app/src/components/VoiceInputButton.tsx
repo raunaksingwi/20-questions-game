@@ -7,6 +7,7 @@ import {
   Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { Platform } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { 
   useSharedValue, 
@@ -332,12 +333,13 @@ export default function VoiceInputButton({
 
   // Use proper GestureDetector for press-and-hold functionality
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, Platform.OS === 'web' && styles.webNoSelect]}>
       <GestureDetector gesture={combinedGesture}>
         <Animated.View
           style={[
             getButtonStyle(),
             animatedButtonStyle, // Use reanimated style
+            Platform.OS === 'web' && styles.webNoSelect,
           ]}
         >
           {renderButtonContent()}
@@ -381,5 +383,23 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  iconText: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  webNoSelect: {
+    ...Platform.select({
+      web: {
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none',
+        msUserSelect: 'none',
+        WebkitTouchCallout: 'none',
+        WebkitTapHighlightColor: 'transparent',
+      },
+    }),
   },
 });

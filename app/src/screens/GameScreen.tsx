@@ -73,9 +73,9 @@ export default function GameScreen({ route, navigation }: Props) {
                 ]
               );
             }}
-            style={{ paddingLeft: 15 }}
+            style={styles.quitButton}
           >
-            <Text style={{ color: '#fff', fontSize: 16 }}>Quit</Text>
+            <Text style={styles.quitButtonText}>Quit</Text>
           </TouchableOpacity>
         ),
       });
@@ -360,6 +360,14 @@ const styles = StyleSheet.create({
   messagesContainer: {
     flex: 1,
     padding: 15,
+    ...Platform.select({
+      web: {
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        height: '100%',
+        maxHeight: '70vh',
+      },
+    }),
   },
   messagesContent: {
     paddingBottom: 20,
@@ -460,5 +468,23 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
+  },
+  quitButton: {
+    paddingLeft: 16,
+    paddingRight: 8,
+    paddingVertical: 8,
+    marginLeft: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 8,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  quitButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

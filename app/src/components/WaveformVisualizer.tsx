@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Animated, Platform } from 'react-native';
 
 type WaveformVisualizerProps = {
   isRecording: boolean;
@@ -141,6 +141,7 @@ export default function WaveformVisualizer({
               marginHorizontal: 2,
               width: 3,
             },
+            Platform.OS === 'web' && styles.webNoSelect,
           ]}
         />
       );
@@ -157,7 +158,7 @@ export default function WaveformVisualizer({
   }
 
   return (
-    <View style={[styles.container, { height }]}>
+    <View style={[styles.container, { height }, Platform.OS === 'web' && styles.webNoSelect]}>
       <Animated.View
         style={[
           styles.pulseBackground,
@@ -165,9 +166,10 @@ export default function WaveformVisualizer({
             opacity: pulseOpacity,
             backgroundColor: color,
           },
+          Platform.OS === 'web' && styles.webNoSelect,
         ]}
       />
-      <View style={styles.barsContainer}>
+      <View style={[styles.barsContainer, Platform.OS === 'web' && styles.webNoSelect]}>
         {renderBars()}
       </View>
     </View>
@@ -194,5 +196,17 @@ const styles = StyleSheet.create({
   bar: {
     borderRadius: 1.5,
     minHeight: 4,
+  },
+  webNoSelect: {
+    ...Platform.select({
+      web: {
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none',
+        msUserSelect: 'none',
+        WebkitTouchCallout: 'none',
+        WebkitTapHighlightColor: 'transparent',
+      },
+    }),
   },
 });

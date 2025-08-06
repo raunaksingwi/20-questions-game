@@ -112,12 +112,12 @@ serve(async (req) => {
     const isGuess = llmResponse.is_guess
     const gameOver = llmResponse.game_over
 
-    // Save question and answer
+    // Save question and answer (upsert prevents duplicates)
     const questionNumber = game.questions_asked + 1
     
     await supabase
       .from('game_messages')
-      .insert([
+      .upsert([
         {
           game_id: game_id,
           role: 'user',

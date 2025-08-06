@@ -1,4 +1,4 @@
-package com.anonymous.app
+package com.ravi.twentyquestions
 
 import android.app.Application
 import android.content.res.Configuration
