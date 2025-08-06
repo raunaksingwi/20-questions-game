@@ -32,10 +32,18 @@ class GameService {
   }
 
   async startGame(category?: string): Promise<StartGameResponse> {
-    const { data: { user } } = await supabase.auth.getUser()
+    let user_id: string | undefined
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      user_id = user?.id
+    } catch (error) {
+      // Continue without user ID if auth fails
+      user_id = undefined
+    }
+    
     const request: StartGameRequest = {
       category,
-      user_id: user?.id
+      user_id
     }
     return this.callFunction<StartGameRequest, StartGameResponse>('start-game', request)
   }
@@ -87,17 +95,22 @@ class GameService {
   }
 
   async getCategories() {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .order('name')
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('name')
 
-    if (error) {
+      if (error) {
+        console.error('Error fetching categories:', error)
+        return []
+      }
+
+      return data || []
+    } catch (error) {
       console.error('Error fetching categories:', error)
       return []
     }
-
-    return data || []
   }
 
 }

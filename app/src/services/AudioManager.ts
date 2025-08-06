@@ -47,6 +47,8 @@ class AudioManager {
             player.volume = this.originalVolume;
             this.sounds.set(soundType as SoundType, player);
             console.log(`✅ Loaded ${soundType} sound`);
+          } else {
+            console.warn(`Failed to load ${soundType} sound: Player creation returned null`);
           }
         } catch (error) {
           console.warn(`Failed to load ${soundType} sound:`, error);

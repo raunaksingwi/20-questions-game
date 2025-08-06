@@ -1,0 +1,12 @@
+{
+  "imports": {
+    "@supabase/functions-js": "jsr:@supabase/functions-js@2.4.1",
+    "@std/assert": "jsr:@std/assert@^1.0.2"
+  },
+  "tasks": {
+    "test": "deno test --allow-all",
+    "test:start-game": "deno test --allow-all start-game/",
+    "test:ask-question": "deno test --allow-all ask-question/",
+    "test:get-hint": "deno test --allow-all get-hint/"
+  }
+}
