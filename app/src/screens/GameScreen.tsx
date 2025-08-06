@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   Alert,
   SafeAreaView,
+  StatusBar,
+  Dimensions,
 } from 'react-native';
 import { RouteProp, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -18,6 +20,9 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { gameService } from '../services/gameService';
 import { GameMessage, GameStatus } from '../../../shared/types';
 import { audioManager } from '../services/AudioManager';
+import VoiceInputButton from '../components/VoiceInputButton';
+import GameResultModal from '../components/GameResultModal';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type GameScreenRouteProp = RouteProp<RootStackParamList, 'Game'>;
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -27,8 +32,10 @@ type Props = {
   navigation: GameScreenNavigationProp;
 };
 
+
 export default function GameScreen({ route, navigation }: Props) {
   const { category } = route.params;
+  const insets = useSafeAreaInsets();
   const [gameId, setGameId] = useState<string | null>(null);
   const [messages, setMessages] = useState<GameMessage[]>([]);
   const [question, setQuestion] = useState('');
@@ -37,6 +44,8 @@ export default function GameScreen({ route, navigation }: Props) {
   const [questionsRemaining, setQuestionsRemaining] = useState(20);
   const [hintsRemaining, setHintsRemaining] = useState(3);
   const [gameStatus, setGameStatus] = useState<GameStatus>('active');
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [resultModalData, setResultModalData] = useState({ isWin: false, title: '', message: '' });
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -97,15 +106,15 @@ export default function GameScreen({ route, navigation }: Props) {
     }
   };
 
-  const sendQuestion = async () => {
-    if (!gameId || !question.trim() || sending) return;
+  const sendQuestion = async (questionText?: string) => {
+    const textToSend = questionText || question;
+    if (!gameId || !textToSend.trim() || sending) return;
 
-    // Play question sound
-    audioManager.playSound('question');
+    // Question sound removed per user request
 
     const userMessage: Partial<GameMessage> = {
       role: 'user',
-      content: question,
+      content: textToSend,
       message_type: 'question',
     };
     setMessages(prev => [...prev, userMessage as GameMessage]);
@@ -113,7 +122,7 @@ export default function GameScreen({ route, navigation }: Props) {
     setSending(true);
 
     try {
-      const response = await gameService.askQuestion(gameId, question);
+      const response = await gameService.askQuestion(gameId, textToSend);
       
       // Play appropriate sound based on answer
       const answerText = response.answer.toLowerCase();
@@ -135,11 +144,12 @@ export default function GameScreen({ route, navigation }: Props) {
       if (response.game_status === 'won') {
         // Play victory sound
         audioManager.playSound('correct');
-        Alert.alert(
-          '🎉 Congratulations!',
-          'You guessed it correctly!',
-          [{ text: 'Play Again', onPress: () => navigation.goBack() }]
-        );
+        setResultModalData({
+          isWin: true,
+          title: 'Congratulations!',
+          message: 'You guessed it correctly! Well done!'
+        });
+        setShowResultModal(true);
       } else if (response.game_status === 'lost') {
         // Play loss sound
         audioManager.playSound('wrong');
@@ -150,6 +160,14 @@ export default function GameScreen({ route, navigation }: Props) {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleVoiceSubmit = (voiceText: string) => {
+    sendQuestion(voiceText);
+  };
+
+  const handleTextSubmit = () => {
+    sendQuestion();
   };
 
   const requestHint = async () => {
@@ -187,12 +205,18 @@ export default function GameScreen({ route, navigation }: Props) {
 
   const handleGameOver = (wasGuessed: boolean) => {
     if (!wasGuessed && gameStatus === 'lost') {
-      Alert.alert(
-        'Game Over!',
-        'You\'ve used all 20 questions without guessing correctly.',
-        [{ text: 'Play Again', onPress: () => navigation.goBack() }]
-      );
+      setResultModalData({
+        isWin: false,
+        title: 'Game Over!',
+        message: "You've used all 20 questions without guessing correctly. Better luck next time!"
+      });
+      setShowResultModal(true);
     }
+  };
+
+  const handleResultModalClose = () => {
+    setShowResultModal(false);
+    navigation.goBack();
   };
 
   if (loading) {
@@ -209,6 +233,7 @@ export default function GameScreen({ route, navigation }: Props) {
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <View style={styles.header}>
           <Text style={styles.categoryText}>Category: {category}</Text>
@@ -247,24 +272,28 @@ export default function GameScreen({ route, navigation }: Props) {
           )}
         </ScrollView>
 
-        <View style={styles.inputSection}>
+        <View style={[styles.inputSection, { paddingBottom: insets.bottom }]}>
           <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.textInput}
-              value={question}
-              onChangeText={setQuestion}
-              placeholder="Ask a yes/no question or make a guess..."
-              onSubmitEditing={sendQuestion}
-              editable={!sending && gameStatus === 'active'}
-              autoCapitalize="sentences"
-            />
-            <TouchableOpacity
-              style={[styles.sendButton, (sending || gameStatus !== 'active') && styles.disabledButton]}
-              onPress={sendQuestion}
-              disabled={sending || !question.trim() || gameStatus !== 'active'}
-            >
-              <Text style={styles.sendButtonText}>Send</Text>
-            </TouchableOpacity>
+            <View style={styles.textInputWrapper}>
+              <TextInput
+                style={styles.textInput}
+                value={question}
+                onChangeText={setQuestion}
+                placeholder="Ask a yes/no question or make a guess..."
+                onSubmitEditing={handleTextSubmit}
+                editable={!sending && gameStatus === 'active'}
+                autoCapitalize="sentences"
+              />
+            </View>
+            <View style={styles.voiceButtonContainer}>
+              <VoiceInputButton
+                onTextSubmit={handleTextSubmit}
+                onVoiceSubmit={handleVoiceSubmit}
+                inputText={question}
+                setInputText={setQuestion}
+                disabled={sending || gameStatus !== 'active'}
+              />
+            </View>
           </View>
           
           <View style={styles.actionButtons}>
@@ -279,6 +308,15 @@ export default function GameScreen({ route, navigation }: Props) {
             </TouchableOpacity>
           </View>
         </View>
+        
+        <GameResultModal
+          visible={showResultModal}
+          isWin={resultModalData.isWin}
+          title={resultModalData.title}
+          message={resultModalData.message}
+          buttonText="Play Again"
+          onButtonPress={handleResultModalClose}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -362,12 +400,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
-    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
   },
   inputContainer: {
-    flexDirection: 'row',
+    position: 'relative', // Make this the positioning context
     padding: 15,
     paddingBottom: 10,
+  },
+  textInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   textInput: {
     flex: 1,
@@ -375,9 +416,20 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     borderRadius: 25,
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingRight: 50, // Reduced padding since button is flush with edge
+    paddingVertical: 12,
     fontSize: 16,
-    marginRight: 10,
+    height: 44,
+  },
+  voiceButtonContainer: {
+    position: 'absolute',
+    right: 17, // Align with text input right edge (padding 15 + margin 2)
+    top: 12, // Align with text input top
+    height: 44, // Match text input height
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    zIndex: 10,
+    pointerEvents: 'box-none', // Allow touches to pass through when not recording
   },
   sendButton: {
     backgroundColor: '#6366f1',
