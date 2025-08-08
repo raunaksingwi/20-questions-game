@@ -29,7 +29,8 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.ravi.twentyquestions"
+      "package": "com.ravi.twentyquestions",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png",

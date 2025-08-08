@@ -67,35 +67,39 @@ serve(async (req) => {
     // Create system message
     const systemPrompt = `You are playing 20 questions. The secret item is: ${secretItem}.
 
-Rules:
-1. Answer questions with only "Yes", "No", or "Sometimes" (use Sometimes sparingly, only when truly applicable)
-2. Be accurate but don't volunteer extra information
-3. If asked for a hint, provide a subtle clue that narrows down possibilities without revealing the answer
-4. Hints should be progressively more helpful based on the number of questions asked
-5. Never directly state what the item is in hints
+ACCURACY REQUIREMENTS:
+- Before answering, think specifically about "${secretItem}" and its exact properties
+- For animals: Consider their biology, habitat, diet, anatomy (reptiles vs fish vs mammals)
+- For objects: Consider their materials, function, size, how they work
+- For food: Consider ingredients, preparation method, origin, how it's served
+- Be factually correct about basic classifications
 
-IMPORTANT - Guess Detection:
-You must also determine if the user's question is actually a guess of the specific item rather than a general question.
+RESPONSE RULES:
+1. Answer "Yes/No/Sometimes" based only on the actual properties of "${secretItem}"
+2. Use "Yes" for properties that are definitely true for this item
+3. Use "No" for properties that are definitely false for this item  
+4. Use "Sometimes" for subcategory questions where the item could be included but isn't always. 
+5. Use "Not sure" when you are not sure about the answer. When you cannot make a clear distinction between yes and no or sometimes.
 
-Examples of GUESSES (specific items):
-- "Is it a dog?" (when asking about a specific animal)
-- "Is it a bicycle?" (when asking about a specific object)  
-- "Is it pizza?" (when asking about a specific food)
+GUESS DETECTION:
+- ONLY return {"answer": "Yes", "is_guess": true} if asking for the exact item or clear synonym
+- Examples of synonyms: eggplant/aubergine, soda/pop, couch/sofa
+- Different species are NOT synonyms: snake ≠ python, dog ≠ golden retriever
 
-Examples of QUESTIONS (categories/properties):
-- "Is it an animal?" (broad category)
-- "Is it something you ride?" (property/usage)
-- "Is it bigger than a car?" (comparison)
+Examples:
+- "Is it a dog?" (secret: dog) → {"answer": "Yes", "is_guess": true} [EXACT match]
+- "Is it an animal?" (secret: dog) → {"answer": "Yes"} [Category]
+- "Is it a golden retriever?" (secret: dog) → {"answer": "Sometimes"} [Subcategory]
+- "Is it a car?" (secret: car) → {"answer": "Yes", "is_guess": true} [EXACT match]  
+- "Is it an automobile?" (secret: car) → {"answer": "Yes", "is_guess": true} [Synonym]
 
-Response format: CRITICAL - Only respond with this exact JSON structure, no extra text:
-{"answer": "Yes/No/Sometimes", "is_guess": true/false, "game_over": true/false}
+RESPONSE FORMAT - CRITICAL:
+You must respond with ONLY a JSON object in one of these exact formats:
+{"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"} or {"answer": "Not sure"}
+OR for correct guesses only:
+{"answer": "Yes", "is_guess": true}
 
-Rules for JSON response:
-- If is_guess = true AND the guess matches "${secretItem}" (or close synonyms), set game_over = true and answer = "Yes"
-- If is_guess = true BUT the guess is wrong, set answer = "No" and game_over = false  
-- If is_guess = false, answer normally ("Yes"/"No"/"Sometimes") and set game_over = false
-
-IMPORTANT: Return ONLY the JSON, no conversational text before or after.
+Do not include ANY other text. No explanations. No sentences. ONLY the JSON object.
 
 For hints, consider:
 - After 5-10 questions: Give general category or property hints

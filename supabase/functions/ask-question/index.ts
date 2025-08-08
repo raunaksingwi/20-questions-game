@@ -87,7 +87,7 @@ serve(async (req) => {
           content: msg.content
         })),
         system: chatMessages.find(msg => msg.role === 'system')?.content,
-        temperature: 0.3,
+        temperature: 0.1,
         max_tokens: 50
       }),
     })
@@ -110,21 +110,34 @@ serve(async (req) => {
         throw new Error('No JSON found');
       }
     } catch (error) {
-      // Fallback if LLM doesn't return proper JSON
+      // Fallback if LLM doesn't return proper JSON - extract just the answer portion
+      let cleanAnswer = rawResponse.trim()
+      
+      // Try to extract just the answer from responses like "No, eagle is not a reptile"
+      if (cleanAnswer.toLowerCase().startsWith('yes')) {
+        cleanAnswer = 'Yes'
+      } else if (cleanAnswer.toLowerCase().startsWith('no')) {
+        cleanAnswer = 'No'
+      } else if (cleanAnswer.toLowerCase().startsWith('sometimes')) {
+        cleanAnswer = 'Sometimes'
+      } else if (cleanAnswer.toLowerCase().includes('not sure')) {
+        cleanAnswer = 'Not sure'
+      }
+      
       llmResponse = {
-        answer: rawResponse,
-        is_guess: false,
-        game_over: false
+        answer: cleanAnswer,
+        is_guess: false
       }
     }
 
     const answer = llmResponse.answer
-    const isGuess = llmResponse.is_guess
-    const gameOver = llmResponse.game_over
+    const isGuess = llmResponse.is_guess || false
+    const questionNumber = game.questions_asked + 1
+
+    // Game is won if LLM returned is_guess field (only happens when answer=Yes and correct guess)
+    const gameWon = llmResponse.hasOwnProperty('is_guess') && llmResponse.is_guess
 
     // Save question and answer (upsert prevents duplicates)
-    const questionNumber = game.questions_asked + 1
-    
     await supabase
       .from('game_messages')
       .upsert([
@@ -138,7 +151,7 @@ serve(async (req) => {
         {
           game_id: game_id,
           role: 'assistant',
-          content: gameOver ? `${answer}! You got it! The answer was "${game.secret_item}".` : answer,
+          content: gameWon ? `${answer}! You got it! The answer was "${game.secret_item}".` : answer,
           message_type: 'answer',
           question_number: questionNumber
         }
@@ -146,7 +159,7 @@ serve(async (req) => {
 
     // Determine game status
     let gameStatus: 'active' | 'won' | 'lost' = 'active'
-    if (gameOver) {
+    if (gameWon) {
       gameStatus = 'won'
     } else if (questionNumber >= 20) {
       gameStatus = 'lost'
@@ -189,7 +202,7 @@ serve(async (req) => {
     const questionsRemaining = 20 - questionNumber
 
     const responseData: AskQuestionResponse = {
-      answer: gameOver ? `${answer}! You got it! The answer was "${game.secret_item}".` : answer,
+      answer: gameWon ? `${answer}! You got it! The answer was "${game.secret_item}".` : answer,
       questions_remaining: questionsRemaining,
       game_status: gameStatus
     }
