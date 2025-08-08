@@ -1,11 +1,19 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle, interpolate, runOnJS } from 'react-native-reanimated';
+import Animated, { runOnJS, SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
-import { useAdvancedButtonAnimations } from '../../hooks/useAdvancedButtonAnimations';
+import { useSimpleVoiceOverlay } from '../../hooks/useSimpleVoiceOverlay';
 import { useVoiceRecording } from '../../hooks/useVoiceRecording';
-import { ModernWaveformVisualizer } from './ModernWaveformVisualizer';
+import { ExpandingWaveVisualizer } from './ExpandingWaveVisualizer';
+import { INPUT_DIMENSIONS } from '../../constants/inputDimensions';
+
+type InputDimensions = {
+  width: SharedValue<number>;
+  height: SharedValue<number>;
+  x: SharedValue<number>;
+  y: SharedValue<number>;
+};
 
 type ProfessionalVoiceButtonProps = {
   onTextSubmit: () => void;
@@ -13,6 +21,7 @@ type ProfessionalVoiceButtonProps = {
   inputText: string;
   setInputText: (text: string) => void;
   disabled?: boolean;
+  inputDimensions: InputDimensions;
 };
 
 export const ProfessionalVoiceButton: React.FC<ProfessionalVoiceButtonProps> = ({
@@ -21,6 +30,7 @@ export const ProfessionalVoiceButton: React.FC<ProfessionalVoiceButtonProps> = (
   inputText,
   setInputText,
   disabled = false,
+  inputDimensions,
 }) => {
   const handleVoiceResult = (transcript: string) => {
     if (transcript.trim()) {
@@ -30,40 +40,52 @@ export const ProfessionalVoiceButton: React.FC<ProfessionalVoiceButtonProps> = (
   };
 
   const voiceRecording = useVoiceRecording(handleVoiceResult);
-  const animations = useAdvancedButtonAnimations();
+  const overlay = useSimpleVoiceOverlay();
 
-  // Enhanced gesture handling with professional feedback
+  // Failsafe: Hide overlay when recording stops
+  useEffect(() => {
+    if (voiceRecording.recordingState !== 'recording') {
+      overlay.hideOverlay();
+    }
+  }, [voiceRecording.recordingState, overlay]);
+
+  // Simple gesture handling
   const gesture = Gesture.LongPress()
-    .minDuration(100)
+    .minDuration(200)
     .onBegin(() => {
       'worklet';
       if (!disabled && !inputText.trim()) {
-        animations.pressIn();
+        overlay.buttonPressIn();
       }
     })
     .onStart(() => {
       'worklet';
       if (!disabled && !inputText.trim()) {
-        animations.startRecording();
-        // Use runOnJS for async functions
+        overlay.showOverlay();
         runOnJS(voiceRecording.startRecording)();
       }
     })
     .onEnd(() => {
       'worklet';
-      animations.pressOut();
-      animations.stopRecording();
+      overlay.buttonPressOut();
+      overlay.hideOverlay();
       runOnJS(voiceRecording.stopRecording)();
+    })
+    .onFinalize(() => {
+      'worklet';
+      // Ensure cleanup even if other handlers fail
+      overlay.buttonPressOut();
+      overlay.hideOverlay();
     });
 
   const tapGesture = Gesture.Tap()
     .onBegin(() => {
       'worklet';
-      animations.pressIn();
+      overlay.buttonPressIn();
     })
     .onEnd(() => {
       'worklet';
-      animations.pressOut();
+      overlay.buttonPressOut();
       if (inputText.trim() && !disabled) {
         runOnJS(onTextSubmit)();
       } else if (voiceRecording.recordingState === 'error') {
@@ -115,18 +137,6 @@ export const ProfessionalVoiceButton: React.FC<ProfessionalVoiceButtonProps> = (
   });
 
   const renderButtonContent = () => {
-    if (voiceRecording.recordingState === 'recording') {
-      return (
-        <ModernWaveformVisualizer
-          isRecording={true}
-          volumeLevel={voiceRecording.volumeLevel}
-          barCount={3}
-          color={colors.icon}
-          height={16}
-        />
-      );
-    }
-
     if (voiceRecording.recordingState === 'error') {
       return <Feather name="alert-circle" size={16} color={colors.icon} />;
     }
@@ -140,52 +150,64 @@ export const ProfessionalVoiceButton: React.FC<ProfessionalVoiceButtonProps> = (
 
   return (
     <View style={[styles.container, Platform.OS === 'web' && styles.webNoSelect]}>
-      {/* Glow Effect Layer */}
+      {/* Recording Overlay - appears over entire input when recording */}
       <Animated.View
         style={[
-          styles.glowLayer,
+          styles.recordingOverlay,
           {
             backgroundColor: colors.background,
+            width: inputDimensions.width.value || 280,
+            height: inputDimensions.height.value || INPUT_DIMENSIONS.TEXT_INPUT_HEIGHT,
+            // Simple positioning: align overlay left edge with input left edge
+            left: -(inputDimensions.width.value || 280) + INPUT_DIMENSIONS.VOICE_BUTTON_SIZE,
+            top: -(INPUT_DIMENSIONS.TEXT_INPUT_HEIGHT - INPUT_DIMENSIONS.VOICE_BUTTON_SIZE) / 2,
           },
-          animations.animatedGlowStyle,
+          overlay.overlayAnimatedStyle,
           Platform.OS === 'web' && styles.webNoSelect,
         ]}
-      />
-      
-      {/* Pulse Effect Layer */}
-      <Animated.View
-        style={[
-          styles.pulseLayer,
-          {
-            backgroundColor: colors.background,
-          },
-          animations.animatedPulseStyle,
-          Platform.OS === 'web' && styles.webNoSelect,
-        ]}
-      />
-      
-      {/* Ripple Effect Layer */}
-      <Animated.View
-        style={[
-          styles.rippleLayer,
-          {
-            backgroundColor: colors.background,
-          },
-          animations.animatedRippleStyle,
-          Platform.OS === 'web' && styles.webNoSelect,
-        ]}
-      />
+        pointerEvents={voiceRecording.recordingState === 'recording' ? 'auto' : 'none'}
+        accessible={voiceRecording.recordingState === 'recording'}
+        accessibilityLabel={voiceRecording.recordingState === 'recording' ? 'Recording voice message' : undefined}
+        accessibilityRole={voiceRecording.recordingState === 'recording' ? 'text' : undefined}
+        onContextMenu={Platform.OS === 'web' ? (e: any) => e.preventDefault() : undefined}
+      >
+        <ExpandingWaveVisualizer
+          isRecording={voiceRecording.recordingState === 'recording'}
+          volumeLevel={voiceRecording.volumeLevel}
+          color={colors.icon}
+        />
+      </Animated.View>
 
-      {/* Main Button */}
+      {/* Normal Button - always visible */}
       <GestureDetector gesture={combinedGesture}>
         <Animated.View
           style={[
             styles.button,
-            buttonBackgroundStyle,
-            animations.animatedButtonStyle,
+            {
+              backgroundColor: colors.background,
+            },
+            overlay.buttonAnimatedStyle,
             disabled && styles.disabledButton,
             Platform.OS === 'web' && styles.webNoSelect,
           ]}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={
+            inputText.trim() 
+              ? "Send message" 
+              : voiceRecording.recordingState === 'recording'
+                ? "Stop recording"
+                : "Record voice message"
+          }
+          accessibilityHint={
+            inputText.trim()
+              ? "Tap to send your message"
+              : voiceRecording.recordingState === 'recording'
+                ? "Release to stop recording"
+                : "Hold to record a voice message"
+          }
+          accessibilityState={{ disabled }}
+          onContextMenu={Platform.OS === 'web' ? (e: any) => e.preventDefault() : undefined}
         >
           {renderButtonContent()}
         </Animated.View>
@@ -198,42 +220,32 @@ const styles = StyleSheet.create({
   container: {
     justifyContent: 'center',
     alignItems: 'center',
-    width: 40,
-    height: 40,
+    width: INPUT_DIMENSIONS.VOICE_BUTTON_SIZE,
+    height: INPUT_DIMENSIONS.VOICE_BUTTON_SIZE,
   },
   button: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: INPUT_DIMENSIONS.VOICE_BUTTON_SIZE,
+    height: INPUT_DIMENSIONS.VOICE_BUTTON_SIZE,
+    borderRadius: INPUT_DIMENSIONS.VOICE_BUTTON_BORDER_RADIUS,
     justifyContent: 'center',
     alignItems: 'center',
-    // Professional shadow (iOS-like) - reduced for integrated look
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
   },
-  glowLayer: {
+  recordingOverlay: {
     position: 'absolute',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    opacity: 0,
-  },
-  pulseLayer: {
-    position: 'absolute',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    opacity: 0,
-  },
-  rippleLayer: {
-    position: 'absolute',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    opacity: 0,
+    borderRadius: INPUT_DIMENSIONS.TEXT_INPUT_BORDER_RADIUS,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
   },
   disabledButton: {
     opacity: 0.6,
@@ -247,7 +259,13 @@ const styles = StyleSheet.create({
         msUserSelect: 'none',
         WebkitTouchCallout: 'none',
         WebkitTapHighlightColor: 'transparent',
-      },
+        // Prevent context menu and text selection
+        contextMenu: 'none',
+        WebkitContextMenu: 'none',
+        // Disable drag behaviors
+        draggable: false,
+        WebkitUserDrag: 'none',
+      } as any,
     }),
   },
 });
