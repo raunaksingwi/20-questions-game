@@ -2,6 +2,14 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import { FlatList, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { GameMessage } from '../../../../shared/types';
 
+interface LoadingMessage {
+  role: 'system';
+  content: 'loading';
+  message_type: 'loading';
+}
+
+type MessageItem = GameMessage | LoadingMessage;
+
 interface MessagesListProps {
   messages: GameMessage[];
   sending: boolean;
@@ -15,27 +23,33 @@ export const MessagesList: React.FC<MessagesListProps> = ({
 
   // Create data array including loading indicator
   const data = React.useMemo(() => {
-    const items = [...messages];
+    const items: MessageItem[] = [...messages];
     if (sending) {
-      items.push({ role: 'system', content: 'loading', message_type: 'loading' } as any);
+      items.push({ role: 'system', content: 'loading', message_type: 'loading' });
     }
     return items;
   }, [messages, sending]);
 
+  // Content container style with padding
+  const contentContainerStyle = React.useMemo(() => ({
+    paddingTop: 15,
+    paddingBottom: 20,
+  }), []);
+
   const scrollToBottom = useCallback(() => {
-    if (flatListRef.current && data.length > 0) {
+    if (flatListRef.current) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [data.length]);
+  }, []);
 
   // Scroll when data changes
   useEffect(() => {
     scrollToBottom();
   }, [data, scrollToBottom]);
 
-  const renderItem = useCallback(({ item, index }: { item: GameMessage | any, index: number }) => {
+  const renderItem = useCallback(({ item, index }: { item: MessageItem, index: number }) => {
     if (item.content === 'loading') {
       return (
         <View style={styles.loadingBubble}>
@@ -69,8 +83,8 @@ export const MessagesList: React.FC<MessagesListProps> = ({
       data={data}
       renderItem={renderItem}
       keyExtractor={(item, index) => `message-${index}`}
-      style={styles.messagesContainer}
-      contentContainerStyle={styles.messagesContent}
+      style={styles.flatList}
+      contentContainerStyle={contentContainerStyle}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       onContentSizeChange={scrollToBottom}
@@ -83,12 +97,9 @@ export const MessagesList: React.FC<MessagesListProps> = ({
 };
 
 const styles = StyleSheet.create({
-  messagesContainer: {
+  flatList: {
     flex: 1,
-    padding: 15,
-  },
-  messagesContent: {
-    paddingBottom: 20,
+    paddingHorizontal: 15,
   },
   messageBubble: {
     maxWidth: '80%',
