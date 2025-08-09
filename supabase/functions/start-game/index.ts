@@ -37,18 +37,9 @@ serve(async (req) => {
     }
 
     // Select random item from category
-    let secretItem: string
-    if (categoryData.name === 'Random') {
-      // For random category, select from all other categories
-      const allItems = categories
-        .filter(c => c.name !== 'Random')
-        .flatMap(c => c.sample_items)
-      secretItem = allItems[Math.floor(Math.random() * allItems.length)]
-    } else {
-      secretItem = categoryData.sample_items[
-        Math.floor(Math.random() * categoryData.sample_items.length)
-      ]
-    }
+    const secretItem: string = categoryData.sample_items[
+      Math.floor(Math.random() * categoryData.sample_items.length)
+    ]
 
     // Create game
     const { data: game, error: gameError } = await supabase

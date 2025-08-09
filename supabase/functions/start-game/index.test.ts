@@ -6,9 +6,10 @@ const mockSupabase = {
   from: (table: string) => ({
     select: (fields?: string) => ({
       data: table === 'categories' ? [
+        { name: 'Cricketers', sample_items: ['Virat Kohli', 'MS Dhoni', 'Rohit Sharma'] },
         { name: 'Animals', sample_items: ['dog', 'cat', 'elephant'] },
         { name: 'Food', sample_items: ['pizza', 'burger', 'pasta'] },
-        { name: 'Random', sample_items: [] }
+        { name: 'Objects', sample_items: ['chair', 'computer', 'phone'] }
       ] : null,
       error: null
     }),
@@ -45,7 +46,7 @@ Deno.test('start-game function', async (t) => {
 
   await t.step('should start a new game with specified category', async () => {
     const requestBody = {
-      category: 'Animals',
+      category: 'Cricketers',
       user_id: 'test-user-id'
     };
     
@@ -65,9 +66,9 @@ Deno.test('start-game function', async (t) => {
     
     const data = await response.json();
     assertExists(data.game_id);
-    assertEquals(data.category, 'Animals');
+    assertEquals(data.category, 'Cricketers');
     assertEquals(typeof data.message, 'string');
-    assertEquals(data.message.includes('Animals'), true);
+    assertEquals(data.message.includes('Cricketers'), true);
   });
 
   await t.step('should handle random category when invalid category provided', async () => {
@@ -92,12 +93,12 @@ Deno.test('start-game function', async (t) => {
     const data = await response.json();
     assertExists(data.game_id);
     // Should select a valid category
-    assertEquals(['Animals', 'Food', 'Random'].includes(data.category), true);
+    assertEquals(['Cricketers', 'Animals', 'Food', 'Objects'].includes(data.category), true);
   });
 
-  await t.step('should handle Random category correctly', async () => {
+  await t.step('should handle Cricketers category correctly', async () => {
     const requestBody = {
-      category: 'Random',
+      category: 'Cricketers',
       user_id: 'test-user-id'
     };
     
@@ -116,12 +117,12 @@ Deno.test('start-game function', async (t) => {
     
     const data = await response.json();
     assertExists(data.game_id);
-    assertEquals(data.category, 'Random');
+    assertEquals(data.category, 'Cricketers');
   });
 
   await t.step('should work without user_id (anonymous)', async () => {
     const requestBody = {
-      category: 'Food'
+      category: 'Objects'
     };
     
     const request = new Request('http://localhost:8000', {
@@ -139,7 +140,7 @@ Deno.test('start-game function', async (t) => {
     
     const data = await response.json();
     assertExists(data.game_id);
-    assertEquals(data.category, 'Food');
+    assertEquals(data.category, 'Objects');
   });
 
   await t.step('should handle database errors gracefully', async () => {

@@ -28,18 +28,23 @@ describe('HomeScreen', () => {
   const mockCategories: Category[] = [
     {
       id: '1',
+      name: 'Cricketers',
+      sample_items: ['Virat Kohli', 'MS Dhoni', 'Rohit Sharma', 'Joe Root', 'Steve Smith'],
+    },
+    {
+      id: '2',
       name: 'Animals',
       sample_items: ['dog', 'cat', 'elephant', 'lion', 'tiger'],
     },
     {
-      id: '2',
+      id: '3',
       name: 'Food',
       sample_items: ['pizza', 'burger', 'pasta', 'salad', 'soup'],
     },
     {
-      id: '3',
-      name: 'Random',
-      sample_items: [],
+      id: '4',
+      name: 'Objects',
+      sample_items: ['chair', 'computer', 'phone', 'book', 'car'],
     },
   ];
 
@@ -57,9 +62,10 @@ describe('HomeScreen', () => {
 
       await waitFor(() => {
         expect(mockedGameService.getCategories).toHaveBeenCalled();
+        expect(getByText('Cricketers')).toBeTruthy();
         expect(getByText('Animals')).toBeTruthy();
         expect(getByText('Food')).toBeTruthy();
-        expect(getByText('Random')).toBeTruthy();
+        expect(getByText('Objects')).toBeTruthy();
       });
     });
 
@@ -137,14 +143,17 @@ describe('HomeScreen', () => {
       );
 
       await waitFor(() => {
+        // Cricketers category should show examples
+        expect(getByText('Examples: Virat Kohli, MS Dhoni, Rohit Sharma...')).toBeTruthy();
+        
         // Animals category should show examples
         expect(getByText('Examples: dog, cat, elephant...')).toBeTruthy();
         
         // Food category should show examples
         expect(getByText('Examples: pizza, burger, pasta...')).toBeTruthy();
         
-        // Random category should show special message
-        expect(getByText('I can think of anything!')).toBeTruthy();
+        // Objects category should show examples
+        expect(getByText('Examples: chair, computer, phone...')).toBeTruthy();
       });
     });
   });
@@ -156,14 +165,14 @@ describe('HomeScreen', () => {
       );
 
       await waitFor(() => {
-        expect(getByText('Animals')).toBeTruthy();
+        expect(getByText('Cricketers')).toBeTruthy();
       });
 
-      const animalsButton = getByText('Animals');
-      fireEvent.press(animalsButton);
+      const cricketersButton = getByText('Cricketers');
+      fireEvent.press(cricketersButton);
 
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Game', {
-        category: 'Animals',
+        category: 'Cricketers',
       });
     });
 
@@ -182,10 +191,10 @@ describe('HomeScreen', () => {
         category: 'Food',
       });
 
-      // Test Random category
-      fireEvent.press(getByText('Random'));
+      // Test Objects category
+      fireEvent.press(getByText('Objects'));
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Game', {
-        category: 'Random',
+        category: 'Objects',
       });
     });
   });
@@ -195,13 +204,13 @@ describe('HomeScreen', () => {
       const customCategories: Category[] = [
         {
           id: '1',
-          name: 'Objects',
-          sample_items: ['chair', 'table', 'lamp'],
+          name: 'Cricketers',
+          sample_items: ['Virat Kohli', 'MS Dhoni', 'Rohit Sharma'],
         },
         {
           id: '2',
-          name: 'Places',
-          sample_items: ['park', 'beach', 'mountain'],
+          name: 'Objects',
+          sample_items: ['chair', 'table', 'lamp'],
         },
       ];
 
@@ -212,10 +221,10 @@ describe('HomeScreen', () => {
       );
 
       await waitFor(() => {
+        expect(getByText('Cricketers')).toBeTruthy();
         expect(getByText('Objects')).toBeTruthy();
-        expect(getByText('Places')).toBeTruthy();
+        expect(getByText('Examples: Virat Kohli, MS Dhoni, Rohit Sharma...')).toBeTruthy();
         expect(getByText('Examples: chair, table, lamp...')).toBeTruthy();
-        expect(getByText('Examples: park, beach, mountain...')).toBeTruthy();
       });
     });
 
@@ -229,8 +238,10 @@ describe('HomeScreen', () => {
       await waitFor(() => {
         expect(getByText('Choose a Category')).toBeTruthy();
         // No category buttons should be displayed
+        expect(queryByText('Cricketers')).toBeNull();
         expect(queryByText('Animals')).toBeNull();
         expect(queryByText('Food')).toBeNull();
+        expect(queryByText('Objects')).toBeNull();
       });
     });
   });
