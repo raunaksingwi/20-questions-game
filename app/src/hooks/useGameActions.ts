@@ -18,6 +18,16 @@ export const useGameActions = (
   const startNewGame = async (category: string, onNavigateBack?: () => void) => {
     try {
       actions.setLoading(true);
+      
+      // Reset all game state before starting new game
+      actions.setGameId(null);
+      actions.setMessages([]);
+      actions.setQuestionsRemaining(20);
+      actions.setHintsRemaining(3);
+      actions.setGameStatus('active');
+      actions.setShowResultModal(false);
+      actions.setSending(false);
+      
       const response = await gameService.startGame(category);
       actions.setGameId(response.game_id);
       

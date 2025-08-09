@@ -112,10 +112,19 @@ serve(async (req) => {
     } catch (error) {
       // Fallback if LLM doesn't return proper JSON - extract just the answer portion
       let cleanAnswer = rawResponse.trim()
+      let isGuess = false
       
       // Try to extract just the answer from responses like "No, eagle is not a reptile"
       if (cleanAnswer.toLowerCase().startsWith('yes')) {
         cleanAnswer = 'Yes'
+        // Check if this might be a winning guess (LLM said Yes but didn't format properly)
+        // Look for winning phrases in the raw response
+        if (rawResponse.toLowerCase().includes('correct') || 
+            rawResponse.toLowerCase().includes('you got it') ||
+            rawResponse.toLowerCase().includes('that\'s right') ||
+            rawResponse.toLowerCase().includes('exactly')) {
+          isGuess = true
+        }
       } else if (cleanAnswer.toLowerCase().startsWith('no')) {
         cleanAnswer = 'No'
       } else if (cleanAnswer.toLowerCase().startsWith('sometimes')) {
@@ -126,7 +135,7 @@ serve(async (req) => {
       
       llmResponse = {
         answer: cleanAnswer,
-        is_guess: false
+        is_guess: isGuess
       }
     }
 
@@ -134,8 +143,19 @@ serve(async (req) => {
     const isGuess = llmResponse.is_guess || false
     const questionNumber = game.questions_asked + 1
 
-    // Game is won if LLM returned is_guess field (only happens when answer=Yes and correct guess)
-    const gameWon = llmResponse.hasOwnProperty('is_guess') && llmResponse.is_guess
+    // Game is won if LLM returned is_guess=true (only happens when answer=Yes and correct guess)
+    // Additional validation: is_guess should ONLY be true if answer is Yes
+    const gameWon = llmResponse.is_guess === true && answer.toLowerCase().includes('yes')
+    
+    // Safety validation - log suspicious cases
+    if (llmResponse.is_guess === true && !answer.toLowerCase().includes('yes')) {
+      console.error('VALIDATION ERROR: is_guess=true but answer is not Yes:', {
+        raw_response: rawResponse,
+        parsed_response: llmResponse,
+        question: question,
+        secret_item: game.secret_item
+      })
+    }
 
     // Save question and answer (upsert prevents duplicates)
     await supabase
@@ -151,7 +171,7 @@ serve(async (req) => {
         {
           game_id: game_id,
           role: 'assistant',
-          content: gameWon ? `${answer}! You got it! The answer was "${game.secret_item}".` : answer,
+          content: answer,
           message_type: 'answer',
           question_number: questionNumber
         }

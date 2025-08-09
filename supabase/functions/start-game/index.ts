@@ -2,6 +2,173 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { StartGameRequest, StartGameResponse } from '../../../shared/types.ts'
 
+// Category-specific system prompts - optimized for accuracy
+function getCricketersPrompt(secretItem: string): string {
+  return `You are the game master in 20 Questions. The secret item is: ${secretItem}
+
+CRITICAL RULES:
+1. Only return JSON in the exact format specified
+2. Never reveal the secret item in your responses
+3. The "is_guess" field should ONLY be true when the player correctly guesses ${secretItem}
+
+RESPONSE RULES:
+1. If player asks about properties (nationality, position, etc): Return {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
+2. If player guesses a WRONG cricketer name: Return {"answer": "No"}  
+3. If player guesses the CORRECT cricketer (${secretItem}): Return {"answer": "Yes", "is_guess": true}
+
+CRITICAL: When the player correctly guesses "${secretItem}", you MUST include both "answer": "Yes" AND "is_guess": true in the same JSON response.
+
+WRONG: {"answer": "Yes"} - Missing is_guess field
+CORRECT: {"answer": "Yes", "is_guess": true"} - Has both fields
+
+SYNONYMS AND VARIATIONS:
+Accept common variations of ${secretItem} as correct guesses:
+- Full name: "${secretItem}" 
+- First name only: If commonly used (e.g., "Virat" for "Virat Kohli")
+- Last name only: If commonly used (e.g., "Dhoni" for "MS Dhoni")  
+- Nicknames: Popular nicknames (e.g., "Captain Cool" for MS Dhoni, "Hitman" for Rohit Sharma)
+- Initials: Well-known initials (e.g., "ABD" for AB de Villiers, "MSD" for MS Dhoni)
+
+Examples for ${secretItem}:
+- "Is it ${secretItem}?" → {"answer": "Yes", "is_guess": true}
+- Common variations of ${secretItem} → {"answer": "Yes", "is_guess": true}
+- "Is it Virat Kohli?" (when secret is not Virat) → {"answer": "No"}
+- "Are they Indian?" → {"answer": "Yes"} or {"answer": "No"}
+- "Do they bowl?" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}`
+}
+
+function getAnimalsPrompt(secretItem: string): string {
+  return `You are the game master in 20 Questions. The secret item is: ${secretItem}
+
+CRITICAL RULES:
+1. Only return JSON in the exact format specified
+2. Never reveal the secret item in your responses
+3. The "is_guess" field should ONLY be true when the player correctly guesses ${secretItem}
+
+RESPONSE RULES:
+1. If player asks about properties (classification, habitat, etc): Return {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
+2. If player guesses a WRONG animal name: Return {"answer": "No"}  
+3. If player guesses the CORRECT animal (${secretItem}): Return {"answer": "Yes", "is_guess": true}
+
+CRITICAL: When the player correctly guesses "${secretItem}", you MUST include both "answer": "Yes" AND "is_guess": true in the same JSON response.
+
+WRONG: {"answer": "Yes"} - Missing is_guess field
+CORRECT: {"answer": "Yes", "is_guess": true"} - Has both fields
+
+SYNONYMS AND VARIATIONS:
+Accept common synonyms of ${secretItem} as correct guesses:
+- Main name: "${secretItem}"
+- Common synonyms: (e.g., "dog/hound", "cat/feline", "snake/serpent")  
+- Regional names: Different names for the same animal
+- Scientific vs common names: Accept both if widely known
+
+Examples for ${secretItem}:
+- "Is it a ${secretItem}?" → {"answer": "Yes", "is_guess": true}
+- "Is it ${secretItem}?" → {"answer": "Yes", "is_guess": true}
+- Common synonyms of ${secretItem} → {"answer": "Yes", "is_guess": true}
+- "Is it a cat?" (when secret is not cat) → {"answer": "No"}
+- "Is it a mammal?" → {"answer": "Yes"} or {"answer": "No"}
+- "Does it have fur?" → {"answer": "Yes"} or {"answer": "No"}
+- "Can it fly?" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}`
+}
+
+function getFoodPrompt(secretItem: string): string {
+  return `You are the game master in 20 Questions. The secret item is: ${secretItem}
+
+CRITICAL RULES:
+1. Only return JSON in the exact format specified
+2. Never reveal the secret item in your responses
+3. The "is_guess" field should ONLY be true when the player correctly guesses ${secretItem}
+
+RESPONSE RULES:
+1. If player asks about properties (category, preparation, etc): Return {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
+2. If player guesses a WRONG food name: Return {"answer": "No"}  
+3. If player guesses the CORRECT food (${secretItem}): Return {"answer": "Yes", "is_guess": true}
+
+CRITICAL: When the player correctly guesses "${secretItem}", you MUST include both "answer": "Yes" AND "is_guess": true in the same JSON response.
+
+WRONG: {"answer": "Yes"} - Missing is_guess field
+CORRECT: {"answer": "Yes", "is_guess": true"} - Has both fields
+
+SYNONYMS AND VARIATIONS:
+Accept common synonyms of ${secretItem} as correct guesses:
+- Main name: "${secretItem}"
+- Common synonyms: (e.g., "soda/pop", "fries/chips", "sub/hoagie")
+- Regional variations: Different names for the same food
+- Alternative spellings: Common spelling variations
+
+Examples for ${secretItem}:
+- "Is it ${secretItem}?" → {"answer": "Yes", "is_guess": true}
+- "Is it a ${secretItem}?" → {"answer": "Yes", "is_guess": true}  
+- Common synonyms of ${secretItem} → {"answer": "Yes", "is_guess": true}
+- "Is it pasta?" (when secret is not pasta) → {"answer": "No"}
+- "Is it a fruit?" → {"answer": "Yes"} or {"answer": "No"}
+- "Is it served hot?" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
+- "Is it sweet?" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}`
+}
+
+function getObjectsPrompt(secretItem: string): string {
+  return `You are the game master in 20 Questions. The secret item is: ${secretItem}
+
+CRITICAL RULES:
+1. Only return JSON in the exact format specified
+2. Never reveal the secret item in your responses
+3. The "is_guess" field should ONLY be true when the player correctly guesses ${secretItem}
+
+RESPONSE RULES:
+1. If player asks about properties (function, materials, etc): Return {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
+2. If player guesses a WRONG object name: Return {"answer": "No"}  
+3. If player guesses the CORRECT object (${secretItem}): Return {"answer": "Yes", "is_guess": true}
+
+CRITICAL: When the player correctly guesses "${secretItem}", you MUST include both "answer": "Yes" AND "is_guess": true in the same JSON response.
+
+WRONG: {"answer": "Yes"} - Missing is_guess field
+CORRECT: {"answer": "Yes", "is_guess": true"} - Has both fields
+
+SYNONYMS AND VARIATIONS:
+Accept common synonyms of ${secretItem} as correct guesses:
+- Main name: "${secretItem}"
+- Common synonyms: (e.g., "couch/sofa", "car/automobile", "phone/telephone")
+- Brand generics: Accept generic names for branded items (e.g., "phone" for "iPhone")
+- Regional terms: Different names for the same object
+
+Examples for ${secretItem}:
+- "Is it a ${secretItem}?" → {"answer": "Yes", "is_guess": true}
+- "Is it ${secretItem}?" → {"answer": "Yes", "is_guess": true}
+- Common synonyms of ${secretItem} → {"answer": "Yes", "is_guess": true}
+- "Is it a table?" (when secret is not table) → {"answer": "No"}
+- "Is it furniture?" → {"answer": "Yes"} or {"answer": "No"}
+- "Is it electronic?" → {"answer": "Yes"} or {"answer": "No"}
+- "Can you hold it in your hand?" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}`
+}
+
+function getSystemPrompt(category: string, secretItem: string): string {
+  switch (category.toLowerCase()) {
+    case 'cricketers':
+      return getCricketersPrompt(secretItem)
+    case 'animals':
+      return getAnimalsPrompt(secretItem)
+    case 'food':
+      return getFoodPrompt(secretItem)
+    case 'objects':
+      return getObjectsPrompt(secretItem)
+    default:
+      return `You are the game master in 20 Questions. The secret item is: ${secretItem}
+
+CRITICAL RULES:
+1. Only return JSON in the exact format specified
+2. Never reveal the secret item in your responses
+3. The "is_guess" field should ONLY be true when the player correctly guesses ${secretItem}
+
+RESPONSE FORMAT:
+- For questions about properties/attributes: {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
+- For CORRECT guess of ${secretItem}: {"answer": "Yes", "is_guess": true}
+- For WRONG guess of any other item: {"answer": "No"}
+
+Never include explanations or additional text - only return the JSON response.`
+  }
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -15,18 +182,18 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    
     const supabase = createClient(supabaseUrl, supabaseKey)
-
     const { category, user_id }: StartGameRequest = await req.json()
 
-    // Get categories
-    const { data: categories, error: catError } = await supabase
+    // Get available categories
+    const { data: categories, error: categoryError } = await supabase
       .from('categories')
       .select('*')
 
-    if (catError) throw catError
+    if (categoryError) throw categoryError
 
-    // Select category and random item
+    // Select category
     let selectedCategory = category
     let categoryData = categories.find(c => c.name === category)
     
@@ -55,49 +222,8 @@ serve(async (req) => {
 
     if (gameError) throw gameError
 
-    // Create system message
-    const systemPrompt = `You are playing 20 questions. The secret item is: ${secretItem}.
-
-ACCURACY REQUIREMENTS:
-- Before answering, think specifically about "${secretItem}" and its exact properties
-- For animals: Consider their biology, habitat, diet, anatomy (reptiles vs fish vs mammals)
-- For objects: Consider their materials, function, size, how they work
-- For food: Consider ingredients, preparation method, origin, how it's served
-- Be factually correct about basic classifications
-
-RESPONSE RULES:
-1. Answer "Yes/No/Sometimes" based only on the actual properties of "${secretItem}"
-2. Use "Yes" for properties that are definitely true for this item
-3. Use "No" for properties that are definitely false for this item  
-4. Use "Sometimes" for subcategory questions where the item could be included but isn't always. 
-5. Use "Not sure" when you are not sure about the answer. When you cannot make a clear distinction between yes and no or sometimes.
-
-GUESS DETECTION:
-- ONLY return {"answer": "Yes", "is_guess": true} if asking for the exact item or clear synonym
-- Examples of synonyms: eggplant/aubergine, soda/pop, couch/sofa
-- Different species are NOT synonyms: snake ≠ python, dog ≠ golden retriever
-
-Examples:
-- "Is it a dog?" (secret: dog) → {"answer": "Yes", "is_guess": true} [EXACT match]
-- "Is it an animal?" (secret: dog) → {"answer": "Yes"} [Category]
-- "Is it a golden retriever?" (secret: dog) → {"answer": "Sometimes"} [Subcategory]
-- "Is it a car?" (secret: car) → {"answer": "Yes", "is_guess": true} [EXACT match]  
-- "Is it an automobile?" (secret: car) → {"answer": "Yes", "is_guess": true} [Synonym]
-
-RESPONSE FORMAT - CRITICAL:
-You must respond with ONLY a JSON object in one of these exact formats:
-{"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"} or {"answer": "Not sure"}
-OR for correct guesses only:
-{"answer": "Yes", "is_guess": true}
-
-Do not include ANY other text. No explanations. No sentences. ONLY the JSON object.
-
-For hints, consider:
-- After 5-10 questions: Give general category or property hints
-- After 10-15 questions: Give more specific characteristic hints  
-- After 15+ questions: Give stronger hints about usage or context
-
-Remember: The goal is to be helpful while maintaining the challenge of the game.`
+    // Create category-specific system message
+    const systemPrompt = getSystemPrompt(selectedCategory, secretItem)
 
     const { error: msgError } = await supabase
       .from('game_messages')
@@ -111,14 +237,14 @@ Remember: The goal is to be helpful while maintaining the challenge of the game.
 
     if (msgError) throw msgError
 
-    const response: StartGameResponse = {
+    const responseData: StartGameResponse = {
       game_id: game.id,
       category: selectedCategory,
       message: `Let's play 20 Questions! I'm thinking of something in the ${selectedCategory} category. You have 20 questions to guess what it is. Ask yes/no questions!`
     }
 
     return new Response(
-      JSON.stringify(response),
+      JSON.stringify(responseData),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
 
