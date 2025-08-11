@@ -8,31 +8,24 @@ export class ResponseParser {
       const jsonMatch = rawResponse.match(/\{[^}]*\}/);
       if (jsonMatch) {
         llmResponse = JSON.parse(jsonMatch[0]);
+        // Clean the answer field to remove extra text
+        llmResponse.answer = this.cleanAnswer(llmResponse.answer);
       } else {
         throw new Error('No JSON found');
       }
     } catch (error) {
-      // Fallback if LLM doesn't return proper JSON - extract just the answer portion
-      let cleanAnswer = rawResponse.trim()
+      // Fallback if LLM doesn't return proper JSON
+      const cleanAnswer = this.cleanAnswer(rawResponse.trim());
       let isGuess = false
       
-      // Try to extract just the answer from responses like "No, eagle is not a reptile"
-      if (cleanAnswer.toLowerCase().startsWith('yes')) {
-        cleanAnswer = 'Yes'
-        // Check if this might be a winning guess (LLM said Yes but didn't format properly)
-        // Look for winning phrases in the raw response
-        if (rawResponse.toLowerCase().includes('correct') || 
-            rawResponse.toLowerCase().includes('you got it') ||
-            rawResponse.toLowerCase().includes('that\'s right') ||
-            rawResponse.toLowerCase().includes('exactly')) {
-          isGuess = true
-        }
-      } else if (cleanAnswer.toLowerCase().startsWith('no')) {
-        cleanAnswer = 'No'
-      } else if (cleanAnswer.toLowerCase().startsWith('sometimes')) {
-        cleanAnswer = 'Sometimes'
-      } else if (cleanAnswer.toLowerCase().includes('not sure')) {
-        cleanAnswer = 'Not sure'
+      // Check if this might be a winning guess
+      if (cleanAnswer === 'Yes' && (
+        rawResponse.toLowerCase().includes('correct') || 
+        rawResponse.toLowerCase().includes('you got it') ||
+        rawResponse.toLowerCase().includes('that\'s right') ||
+        rawResponse.toLowerCase().includes('exactly')
+      )) {
+        isGuess = true;
       }
       
       llmResponse = {
@@ -41,31 +34,63 @@ export class ResponseParser {
       }
     }
 
+    // Final cleaning of the answer
+    llmResponse.answer = this.cleanAnswer(llmResponse.answer);
     return llmResponse
   }
 
+  private static cleanAnswer(answer: string): string {
+    const cleaned = answer.trim();
+    
+    // Extract only the core answer from responses
+    if (cleaned.toLowerCase().startsWith('yes')) {
+      return 'Yes';
+    } else if (cleaned.toLowerCase().startsWith('no')) {
+      return 'No';
+    } else if (cleaned.toLowerCase().startsWith('sometimes')) {
+      return 'Sometimes';
+    } else if (cleaned.toLowerCase().includes('not sure') || cleaned.toLowerCase().includes('unsure')) {
+      return 'Not sure';
+    }
+    
+    // Default fallback - try to extract first word if it's a valid response
+    const firstWord = cleaned.split(/\s+/)[0].toLowerCase();
+    if (['yes', 'no', 'sometimes'].includes(firstWord)) {
+      return firstWord.charAt(0).toUpperCase() + firstWord.slice(1);
+    }
+    
+    // If nothing matches, return the original but limit length
+    return cleaned.substring(0, 50);
+  }
+
   static parseHintResponse(rawResponse: string): string {
-    // Parse hint response in case LLM returns JSON format
     let hint: string
     try {
       // Try to extract JSON from the response (in case LLM adds JSON format)
       const jsonMatch = rawResponse.match(/\{[^}]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
-        // If it's JSON, extract the answer or any text field
         hint = parsed.answer || parsed.hint || parsed.text || rawResponse;
       } else {
         hint = rawResponse;
       }
     } catch (error) {
-      // If parsing fails, use the raw text
       hint = rawResponse;
     }
 
-    // Clean up the hint text
-    hint = hint.replace(/^(Hint:|Answer:)\s*/i, '').trim()
+    // Clean up the hint text - remove common prefixes and extra formatting
+    hint = hint
+      .replace(/^(Hint:|Answer:|Here's a hint:|The hint is:)\s*/i, '')
+      .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+      .replace(/\n+/g, ' ') // Replace newlines with spaces
+      .trim();
     
-    return hint
+    // Limit hint length to prevent overly long responses
+    if (hint.length > 200) {
+      hint = hint.substring(0, 200).trim() + '...';
+    }
+    
+    return hint;
   }
 
   static validateGameResponse(

@@ -51,44 +51,69 @@ serve(async (req) => {
 
     if (msgError) throw msgError
 
-    // Prepare hint request
+    // Prepare hint request with full conversation context
     const chatMessages = messages.map(msg => ({
       role: msg.role as 'user' | 'assistant' | 'system',
       content: msg.content
     }))
 
-    // Add hint request with context - include conversation history for consistency
-    const hintPrompt = `Based on our conversation so far about the secret item, provide a helpful hint that:
+    // Extract and summarize key information from conversation
+    const userQuestions = messages.filter(m => m.role === 'user' && m.message_type === 'question')
+    const previousHints = messages.filter(m => m.role === 'assistant' && m.message_type === 'hint')
+    const answers = messages.filter(m => m.role === 'assistant' && m.message_type === 'answer')
+    
+    // Build conversation summary
+    let conversationSummary = `[HINT CONTEXT SUMMARY:
+- Total questions asked: ${userQuestions.length}
+- Previous hints given: ${previousHints.length}
+- Current progress: Question #${game.questions_asked + 1} of 20
+
+PREVIOUS HINTS PROVIDED:`
+
+    if (previousHints.length > 0) {
+      previousHints.forEach((hint, index) => {
+        conversationSummary += `\nHint #${index + 1}: "${hint.content}"`
+      })
+    } else {
+      conversationSummary += `\nNo previous hints given.`
+    }
+
+    conversationSummary += `\n\nKEY ANSWERS FROM CONVERSATION:`
+    
+    // Summarize Yes/No pattern to help generate consistent hints
+    const yesAnswers = answers.filter(a => a.content.toLowerCase().includes('yes')).length
+    const noAnswers = answers.filter(a => a.content.toLowerCase().includes('no')).length
+    conversationSummary += `\n- "Yes" answers: ${yesAnswers}, "No" answers: ${noAnswers}`
+    conversationSummary += `\n\nThe conversation above shows what the player already knows about the secret item.]`
+
+    // Add conversation summary
+    chatMessages.push({
+      role: 'system',
+      content: conversationSummary
+    })
+
+    // Add hint request with enhanced context
+    const hintPrompt = `Based on our conversation so far about the secret item (${game.secret_item}), provide hint #${game.hints_used + 1}:
 
 CRITICAL REQUIREMENTS:
-- MUST be consistent with all previous answers you've given
-- Review the conversation to ensure no contradictions
-- Don't reveal the answer directly
-- Helps narrow down the possibilities appropriately
+1. MUST be consistent with ALL previous answers - review the entire conversation
+2. MUST NOT contradict any previous hints: ${previousHints.map(h => `"${h.content}"`).join(', ') || 'none'}
+3. MUST NOT repeat previous hints - provide NEW information each time
+4. Should build upon what the player already knows
+5. Don't reveal the answer directly
+6. Consider what questions haven't been asked yet
 
-Context:
-- This is hint #${game.hints_used + 1} out of ${MAX_HINTS_PER_GAME}
-- We're on question #${game.questions_asked + 1}
-- The secret item is: ${game.secret_item}
-
-Guidelines for hint specificity:
-${game.questions_asked < 5 ? 'Give a general category or broad property hint.' : ''}
-${game.questions_asked >= 5 && game.questions_asked < 10 ? 'Give a hint about its characteristics or properties.' : ''}
-${game.questions_asked >= 10 && game.questions_asked < 15 ? 'Give a more specific hint about its features or usage.' : ''}
-${game.questions_asked >= 15 ? 'Give a strong hint about context, usage, or where it\'s commonly found.' : ''}
+HINT PROGRESSION GUIDELINES:
+${game.questions_asked < 5 ? '- Early game: Give a general category or broad property hint' : ''}
+${game.questions_asked >= 5 && game.questions_asked < 10 ? '- Mid game: Give a hint about specific characteristics or properties' : ''}
+${game.questions_asked >= 10 && game.questions_asked < 15 ? '- Late game: Give a more specific hint about features, usage, or context' : ''}
+${game.questions_asked >= 15 ? '- Very late game: Give a strong hint that significantly narrows possibilities' : ''}
 
 IMPORTANT: 
-1. Review all previous answers to ensure consistency
-2. The hint should help without contradicting previous answers
-3. Respond with ONLY the hint text - no JSON, no formatting, no extra text
+- Make the hint helpful based on current progress
+- Respond with ONLY the hint text - no JSON, no formatting, no explanations
 
-Examples of good hints:
-- "It's something you'd find in most kitchens"
-- "People use this to stay organized" 
-- "It's made primarily of metal and plastic"
-- "You'd typically use this outdoors"
-
-Provide only the hint text, nothing else.`
+Provide only the hint text:`
 
     chatMessages.push({
       role: 'user',

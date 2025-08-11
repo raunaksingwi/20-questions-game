@@ -64,11 +64,21 @@ serve(async (req) => {
 
     if (msgError) throw msgError
 
-    // Prepare messages for LLM
+    // Prepare messages for LLM with enhanced context
     const chatMessages = messages.map(msg => ({
       role: msg.role as 'user' | 'assistant' | 'system',
       content: msg.content
     }))
+    
+    // Add consistency reminder if there's conversation history
+    if (messages.length > 2) { // Only add if there's actual conversation history
+      const consistencyReminder = `[CONSISTENCY REMINDER: Review all your previous answers above to ensure this response is consistent with what you've already established about the secret item.]`
+      
+      chatMessages.push({
+        role: 'system',
+        content: consistencyReminder
+      })
+    }
     
     // Add new question
     chatMessages.push({

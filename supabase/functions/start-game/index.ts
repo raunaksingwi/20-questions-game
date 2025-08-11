@@ -10,11 +10,19 @@ CRITICAL RULES:
 1. Only return JSON in the exact format specified
 2. Never reveal the secret item in your responses
 3. The "is_guess" field should ONLY be true when the player correctly guesses ${secretItem}
+4. MAINTAIN CONSISTENCY: Every answer must be consistent with all previous answers in the conversation
+5. Track what you've revealed: Remember your previous responses to avoid contradictions
 
 RESPONSE RULES:
-1. If player asks about properties (nationality, position, etc): Return {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
-2. If player guesses a WRONG cricketer name: Return {"answer": "No"}  
-3. If player guesses the CORRECT cricketer (${secretItem}): Return {"answer": "Yes", "is_guess": true}
+1. If player asks about properties (nationality, position, etc): Return ONLY {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
+2. If player guesses a WRONG cricketer name: Return ONLY {"answer": "No"}  
+3. If player guesses the CORRECT cricketer (${secretItem}): Return ONLY {"answer": "Yes", "is_guess": true}
+
+CRITICAL OUTPUT FORMAT:
+- NEVER add explanations, extra text, or commentary
+- NEVER add "because...", "since...", or any reasoning
+- Return ONLY the JSON object specified above
+- NO additional words before or after the JSON
 
 CRITICAL: When the player correctly guesses "${secretItem}", you MUST include both "answer": "Yes" AND "is_guess": true in the same JSON response.
 
@@ -44,6 +52,8 @@ CRITICAL RULES:
 1. Only return JSON in the exact format specified
 2. Never reveal the secret item in your responses
 3. The "is_guess" field should ONLY be true when the player correctly guesses ${secretItem}
+4. MAINTAIN CONSISTENCY: Every answer must be consistent with all previous answers in the conversation
+5. Track what you've revealed: Remember your previous responses to avoid contradictions
 
 RESPONSE RULES:
 1. If player asks about properties (classification, habitat, etc): Return {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
@@ -79,6 +89,8 @@ CRITICAL RULES:
 1. Only return JSON in the exact format specified
 2. Never reveal the secret item in your responses
 3. The "is_guess" field should ONLY be true when the player correctly guesses ${secretItem}
+4. MAINTAIN CONSISTENCY: Every answer must be consistent with all previous answers in the conversation
+5. Track what you've revealed: Remember your previous responses to avoid contradictions
 
 RESPONSE RULES:
 1. If player asks about properties (category, preparation, etc): Return {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
@@ -114,6 +126,8 @@ CRITICAL RULES:
 1. Only return JSON in the exact format specified
 2. Never reveal the secret item in your responses
 3. The "is_guess" field should ONLY be true when the player correctly guesses ${secretItem}
+4. MAINTAIN CONSISTENCY: Every answer must be consistent with all previous answers in the conversation
+5. Track what you've revealed: Remember your previous responses to avoid contradictions
 
 RESPONSE RULES:
 1. If player asks about properties (function, materials, etc): Return {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
@@ -159,13 +173,18 @@ CRITICAL RULES:
 1. Only return JSON in the exact format specified
 2. Never reveal the secret item in your responses
 3. The "is_guess" field should ONLY be true when the player correctly guesses ${secretItem}
+4. MAINTAIN CONSISTENCY: Every answer must be consistent with all previous answers in the conversation
+5. Track what you've revealed: Remember your previous responses to avoid contradictions
 
 RESPONSE FORMAT:
 - For questions about properties/attributes: {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
 - For CORRECT guess of ${secretItem}: {"answer": "Yes", "is_guess": true}
 - For WRONG guess of any other item: {"answer": "No"}
 
-Never include explanations or additional text - only return the JSON response.`
+CRITICAL OUTPUT FORMAT:
+- Return ONLY the JSON object: {"answer": "Yes/No/Sometimes"} or {"answer": "Yes", "is_guess": true}
+- NEVER add explanations, extra text, or commentary
+- NO additional words before or after the JSON`
   }
 }
 
