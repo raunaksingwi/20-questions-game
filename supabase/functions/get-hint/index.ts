@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { GetHintRequest, GetHintResponse } from '../../../shared/types.ts'
+import { LLMConfigLoader, LLMProviderFactory, ResponseParser } from '../_shared/llm/index.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,9 +18,12 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')!
     
     const supabase = createClient(supabaseUrl, supabaseKey)
+    
+    // Initialize LLM provider
+    const llmConfig = LLMConfigLoader.loadConfig('get-hint')
+    const llmProvider = LLMProviderFactory.createProvider(llmConfig)
     const { game_id }: GetHintRequest = await req.json()
 
     // Get game
@@ -49,7 +53,7 @@ serve(async (req) => {
 
     // Prepare hint request
     const chatMessages = messages.map(msg => ({
-      role: msg.role,
+      role: msg.role as 'user' | 'assistant' | 'system',
       content: msg.content
     }))
 
@@ -91,52 +95,17 @@ Provide only the hint text, nothing else.`
       content: hintPrompt
     })
 
-    // Call Anthropic Claude
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-3-haiku-20240307',
-        messages: chatMessages.filter(msg => msg.role !== 'system').map(msg => ({
-          role: msg.role === 'assistant' ? 'assistant' : 'user',
-          content: msg.content
-        })),
-        system: chatMessages.find(msg => msg.role === 'system')?.content,
-        temperature: 0.7,
-        max_tokens: 100
-      }),
+    // Call LLM provider
+    const llmResponse = await llmProvider.generateResponse({
+      messages: chatMessages,
+      temperature: 0.7,
+      maxTokens: 100
     })
 
-    if (!response.ok) {
-      throw new Error('Failed to get hint from Claude')
-    }
+    const rawHint = llmResponse.content
 
-    const data = await response.json()
-    const rawHint = data.content[0].text
-
-    // Parse hint response in case LLM returns JSON format
-    let hint
-    try {
-      // Try to extract JSON from the response (in case LLM adds JSON format)
-      const jsonMatch = rawHint.match(/\{[^}]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        // If it's JSON, extract the answer or any text field
-        hint = parsed.answer || parsed.hint || parsed.text || rawHint;
-      } else {
-        hint = rawHint;
-      }
-    } catch (error) {
-      // If parsing fails, use the raw text
-      hint = rawHint;
-    }
-
-    // Clean up the hint text
-    hint = hint.replace(/^(Hint:|Answer:)\s*/i, '').trim()
+    // Parse hint response
+    const hint = ResponseParser.parseHintResponse(rawHint)
 
     // Save hint message using upsert to prevent duplicates
     const questionNumber = game.questions_asked + 1

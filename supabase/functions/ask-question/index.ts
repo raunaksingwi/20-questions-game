@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { AskQuestionRequest, AskQuestionResponse } from '../../../shared/types.ts'
+import { LLMConfigLoader, LLMProviderFactory, ResponseParser } from '../_shared/llm/index.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -15,9 +16,12 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')!
     
     const supabase = createClient(supabaseUrl, supabaseKey)
+    
+    // Initialize LLM provider
+    const llmConfig = LLMConfigLoader.loadConfig('ask-question')
+    const llmProvider = LLMProviderFactory.createProvider(llmConfig)
     const { game_id, question }: AskQuestionRequest = await req.json()
 
     // Get game
@@ -60,9 +64,9 @@ serve(async (req) => {
 
     if (msgError) throw msgError
 
-    // Prepare messages for OpenAI
+    // Prepare messages for LLM
     const chatMessages = messages.map(msg => ({
-      role: msg.role,
+      role: msg.role as 'user' | 'assistant' | 'system',
       content: msg.content
     }))
     
@@ -72,90 +76,28 @@ serve(async (req) => {
       content: question
     })
 
-    // Call Anthropic Claude
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicKey,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-3-haiku-20240307',
-        messages: chatMessages.filter(msg => msg.role !== 'system').map(msg => ({
-          role: msg.role === 'assistant' ? 'assistant' : 'user',
-          content: msg.content
-        })),
-        system: chatMessages.find(msg => msg.role === 'system')?.content,
-        temperature: 0.1,
-        max_tokens: 50
-      }),
+    // Call LLM provider
+    const llmResponse = await llmProvider.generateResponse({
+      messages: chatMessages,
+      temperature: 0.1,
+      maxTokens: 50
     })
 
-    if (!response.ok) {
-      throw new Error('Failed to get response from Claude')
-    }
+    const rawResponse = llmResponse.content
 
-    const data = await response.json()
-    const rawResponse = data.content[0].text
+    // Parse the response from LLM
+    const parsedResponse = ResponseParser.parseGameResponse(rawResponse)
 
-    // Parse the JSON response from Claude
-    let llmResponse
-    try {
-      // Try to extract JSON from the response (in case LLM adds extra text)
-      const jsonMatch = rawResponse.match(/\{[^}]*\}/);
-      if (jsonMatch) {
-        llmResponse = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('No JSON found');
-      }
-    } catch (error) {
-      // Fallback if LLM doesn't return proper JSON - extract just the answer portion
-      let cleanAnswer = rawResponse.trim()
-      let isGuess = false
-      
-      // Try to extract just the answer from responses like "No, eagle is not a reptile"
-      if (cleanAnswer.toLowerCase().startsWith('yes')) {
-        cleanAnswer = 'Yes'
-        // Check if this might be a winning guess (LLM said Yes but didn't format properly)
-        // Look for winning phrases in the raw response
-        if (rawResponse.toLowerCase().includes('correct') || 
-            rawResponse.toLowerCase().includes('you got it') ||
-            rawResponse.toLowerCase().includes('that\'s right') ||
-            rawResponse.toLowerCase().includes('exactly')) {
-          isGuess = true
-        }
-      } else if (cleanAnswer.toLowerCase().startsWith('no')) {
-        cleanAnswer = 'No'
-      } else if (cleanAnswer.toLowerCase().startsWith('sometimes')) {
-        cleanAnswer = 'Sometimes'
-      } else if (cleanAnswer.toLowerCase().includes('not sure')) {
-        cleanAnswer = 'Not sure'
-      }
-      
-      llmResponse = {
-        answer: cleanAnswer,
-        is_guess: isGuess
-      }
-    }
-
-    const answer = llmResponse.answer
-    const isGuess = llmResponse.is_guess || false
+    const answer = parsedResponse.answer
+    const isGuess = parsedResponse.is_guess || false
     const questionNumber = game.questions_asked + 1
 
     // Game is won if LLM returned is_guess=true (only happens when answer=Yes and correct guess)
     // Additional validation: is_guess should ONLY be true if answer is Yes
-    const gameWon = llmResponse.is_guess === true && answer.toLowerCase().includes('yes')
+    const gameWon = parsedResponse.is_guess === true && answer.toLowerCase().includes('yes')
     
     // Safety validation - log suspicious cases
-    if (llmResponse.is_guess === true && !answer.toLowerCase().includes('yes')) {
-      console.error('VALIDATION ERROR: is_guess=true but answer is not Yes:', {
-        raw_response: rawResponse,
-        parsed_response: llmResponse,
-        question: question,
-        secret_item: game.secret_item
-      })
-    }
+    ResponseParser.validateGameResponse(parsedResponse, rawResponse, question, game.secret_item)
 
     // Save question and answer (upsert prevents duplicates)
     await supabase
