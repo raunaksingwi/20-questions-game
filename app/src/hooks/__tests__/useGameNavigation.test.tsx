@@ -209,9 +209,14 @@ describe('useGameNavigation', () => {
       paddingRight: 16,
       paddingVertical: 8,
       marginRight: 8,
-      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      backgroundColor: '#ef4444',
       borderRadius: 8,
       cursor: 'pointer',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 3,
+      elevation: 3,
     });
 
     // Check text styling

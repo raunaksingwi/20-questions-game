@@ -89,18 +89,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sendButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#6366f1',
   },
   micButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#6366f1',
   },
   recordingButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#ef4444',
   },
   errorButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#f59e0b',
   },
   disabledButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
     opacity: 0.5,
   },
   webNoSelect: {

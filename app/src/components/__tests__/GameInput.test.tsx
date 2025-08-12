@@ -1,19 +1,23 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { GameInput } from '../GameInput';
-import { GameStatus } from '../../../../../shared/types';
+import { GameStatus } from '../../../../shared/types';
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ bottom: 20 }),
 }));
 
 jest.mock('../VoiceInputButton', () => {
-  return jest.fn(() => <div testID="voice-input-button" />);
+  const { View } = require('react-native');
+  return jest.fn(() => <View testID="voice-input-button" />);
 });
 
-jest.mock('../voice/ProfessionalVoiceButton', () => ({
-  ProfessionalVoiceButton: jest.fn(() => <div testID="professional-voice-button" />),
-}));
+jest.mock('../voice/ProfessionalVoiceButton', () => {
+  const { View } = require('react-native');
+  return {
+    ProfessionalVoiceButton: jest.fn(() => <View testID="professional-voice-button" />),
+  };
+});
 
 describe('GameInput', () => {
   const defaultProps = {
@@ -76,7 +80,7 @@ describe('GameInput', () => {
 
   it('disables text input when game is not active', () => {
     const { getByPlaceholderText } = render(
-      <GameInput {...defaultProps} gameStatus="completed" />
+      <GameInput {...defaultProps} gameStatus="lost" />
     );
     const textInput = getByPlaceholderText('Ask a yes/no question or make a guess...');
     

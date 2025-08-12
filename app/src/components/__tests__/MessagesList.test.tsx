@@ -1,29 +1,45 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 import { MessagesList } from '../MessagesList';
-import { GameMessage } from '../../../../../shared/types';
+import { GameMessage } from '../../../../shared/types';
 
 describe('MessagesList', () => {
   const mockMessages: GameMessage[] = [
     {
+      id: '1',
+      game_id: 'test-game',
       role: 'user',
       content: 'Is it an animal?',
       message_type: 'question',
+      question_number: 1,
+      created_at: '2024-01-01T10:00:00Z',
     },
     {
+      id: '2',
+      game_id: 'test-game',
       role: 'assistant',
       content: 'Yes, it is an animal.',
       message_type: 'answer',
+      question_number: 1,
+      created_at: '2024-01-01T10:00:01Z',
     },
     {
+      id: '3',
+      game_id: 'test-game',
       role: 'user',
       content: 'Is it a mammal?',
       message_type: 'question',
+      question_number: 2,
+      created_at: '2024-01-01T10:01:00Z',
     },
     {
+      id: '4',
+      game_id: 'test-game',
       role: 'assistant',
       content: 'No, it is not a mammal.',
       message_type: 'answer',
+      question_number: 2,
+      created_at: '2024-01-01T10:01:01Z',
     },
   ];
 
@@ -63,9 +79,13 @@ describe('MessagesList', () => {
   it('renders hint messages correctly', () => {
     const hintMessages: GameMessage[] = [
       {
+        id: '5',
+        game_id: 'test-game',
         role: 'assistant',
         content: 'Here is a hint: It flies in the sky.',
         message_type: 'hint',
+        question_number: 3,
+        created_at: '2024-01-01T10:02:00Z',
       },
     ];
     
@@ -87,9 +107,13 @@ describe('MessagesList', () => {
   it('renders single message correctly', () => {
     const singleMessage: GameMessage[] = [
       {
+        id: '6',
+        game_id: 'test-game',
         role: 'user',
         content: 'Hello!',
         message_type: 'question',
+        question_number: 1,
+        created_at: '2024-01-01T10:03:00Z',
       },
     ];
     

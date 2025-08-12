@@ -2,12 +2,16 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 import { VoiceButtonContent } from '../VoiceButtonContent';
 
-jest.mock('@expo/vector-icons', () => ({
-  Feather: ({ name, testID }: any) => <div testID={testID || `feather-${name}`} />,
-}));
+jest.mock('@expo/vector-icons', () => {
+  const { View } = require('react-native');
+  return {
+    Feather: ({ name, testID }: any) => <View testID={testID || `feather-${name}`} />,
+  };
+});
 
 jest.mock('../../WaveformVisualizer', () => {
-  return jest.fn(() => <div testID="waveform-visualizer" />);
+  const { View } = require('react-native');
+  return jest.fn(() => <View testID="waveform-visualizer" />);
 });
 
 describe('VoiceButtonContent', () => {

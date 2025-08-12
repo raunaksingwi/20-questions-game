@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react-native';
 import { useGameState } from '../useGameState';
-import { GameMessage } from '../../../../../shared/types';
+import { GameMessage } from '../../../../shared/types';
 
 describe('useGameState', () => {
   it('initializes with correct default values', () => {
@@ -36,9 +36,13 @@ describe('useGameState', () => {
     
     const testMessages: GameMessage[] = [
       {
+        id: '1',
+        game_id: 'test-game',
         role: 'user',
         content: 'Is it an animal?',
         message_type: 'question',
+        question_number: 1,
+        created_at: '2024-01-01T10:00:00Z',
       },
     ];
     
@@ -53,15 +57,23 @@ describe('useGameState', () => {
     const { result } = renderHook(() => useGameState());
     
     const initialMessage: GameMessage = {
+      id: '1',
+      game_id: 'test-game',
       role: 'user',
       content: 'First message',
       message_type: 'question',
+      question_number: 1,
+      created_at: '2024-01-01T10:00:00Z',
     };
     
     const newMessage: GameMessage = {
+      id: '2',
+      game_id: 'test-game',
       role: 'assistant',
       content: 'Second message',
       message_type: 'answer',
+      question_number: 1,
+      created_at: '2024-01-01T10:00:01Z',
     };
     
     act(() => {

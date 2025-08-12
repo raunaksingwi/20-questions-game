@@ -79,11 +79,11 @@ describe('Supabase Configuration (Simple Test)', () => {
         require('../supabase');
       });
 
-      const authConfig = mockCreateClient.mock.calls[0][2].auth;
-      expect(authConfig.storage).toBe(AsyncStorage);
-      expect(authConfig.autoRefreshToken).toBe(true);
-      expect(authConfig.persistSession).toBe(true);
-      expect(authConfig.detectSessionInUrl).toBe(false);
+      const authConfig = mockCreateClient.mock.calls[0]?.[2]?.auth;
+      expect(authConfig?.storage).toBe(AsyncStorage);
+      expect(authConfig?.autoRefreshToken).toBe(true);
+      expect(authConfig?.persistSession).toBe(true);
+      expect(authConfig?.detectSessionInUrl).toBe(false);
     });
 
     it('should handle URL polyfill import', () => {

@@ -169,7 +169,6 @@ export const ProfessionalVoiceButton: React.FC<ProfessionalVoiceButtonProps> = (
         accessible={voiceRecording.recordingState === 'recording'}
         accessibilityLabel={voiceRecording.recordingState === 'recording' ? 'Recording voice message' : undefined}
         accessibilityRole={voiceRecording.recordingState === 'recording' ? 'text' : undefined}
-        onContextMenu={Platform.OS === 'web' ? (e: any) => e.preventDefault() : undefined}
       >
         <ExpandingWaveVisualizer
           isRecording={voiceRecording.recordingState === 'recording'}
@@ -207,8 +206,7 @@ export const ProfessionalVoiceButton: React.FC<ProfessionalVoiceButtonProps> = (
                 : "Hold to record a voice message"
           }
           accessibilityState={{ disabled }}
-          onContextMenu={Platform.OS === 'web' ? (e: any) => e.preventDefault() : undefined}
-        >
+          >
           {renderButtonContent()}
         </Animated.View>
       </GestureDetector>

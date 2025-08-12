@@ -153,8 +153,6 @@ describe('useVoiceRecording', () => {
         lang: 'en-US',
         interimResults: true,
         continuous: false,
-        maxResults: 1,
-        speechTimeoutMs: 30000,
         partialResults: true,
       });
       expect(mockAudioManager.setRecordingMode).toHaveBeenCalledWith(true);

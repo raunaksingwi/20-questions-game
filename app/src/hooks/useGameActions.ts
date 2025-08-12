@@ -1,7 +1,7 @@
 import { Alert } from 'react-native';
 import { gameService } from '../services/gameService';
 import { audioManager } from '../services/AudioManager';
-import { GameMessage } from '../../../../shared/types';
+import { GameMessage } from '../../../shared/types';
 import { GameState, GameStateActions } from './useGameState';
 import { useRef } from 'react';
 

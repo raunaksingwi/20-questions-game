@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSharedValue } from 'react-native-reanimated';
 import VoiceInputButton from './VoiceInputButton';
 import { ProfessionalVoiceButton } from './voice/ProfessionalVoiceButton';
-import { GameStatus } from '../../../../shared/types';
+import { GameStatus } from '../../../shared/types';
 import { INPUT_DIMENSIONS, CALCULATED_DIMENSIONS } from '../constants/inputDimensions';
 
 interface GameInputProps {

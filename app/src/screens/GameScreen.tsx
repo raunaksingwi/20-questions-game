@@ -90,7 +90,6 @@ export default function GameScreen({ route, navigation }: Props) {
             bottom: 120 + insets.bottom, // Footer height + safe area
           }
         ]}
-        accessibilityRole="main"
         accessibilityLabel="Game conversation"
       >
         <MessagesList

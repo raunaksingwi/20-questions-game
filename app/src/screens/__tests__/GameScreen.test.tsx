@@ -110,8 +110,10 @@ describe('GameScreen', () => {
   };
 
   const defaultGameState = {
+    gameId: 'test-game-id',
+    secretItem: null,
     loading: false,
-    gameStatus: 'playing' as const,
+    gameStatus: 'active' as const,
     messages: [],
     questionsRemaining: 20,
     hintsRemaining: 3,
@@ -128,6 +130,21 @@ describe('GameScreen', () => {
     startNewGame: jest.fn(),
     sendQuestion: jest.fn(),
     requestHint: jest.fn(),
+    handleQuit: jest.fn(),
+  };
+
+  const defaultActions = {
+    setGameId: jest.fn(),
+    setSecretItem: jest.fn(),
+    setMessages: jest.fn(),
+    setLoading: jest.fn(),
+    setSending: jest.fn(),
+    setQuestionsRemaining: jest.fn(),
+    setHintsRemaining: jest.fn(),
+    setGameStatus: jest.fn(),
+    setShowResultModal: jest.fn(),
+    setResultModalData: jest.fn(),
+    setBatchState: jest.fn(),
   };
 
   beforeEach(() => {
@@ -135,9 +152,7 @@ describe('GameScreen', () => {
     
     mockedUseGameState.mockReturnValue({
       state: defaultGameState,
-      actions: {
-        setShowResultModal: jest.fn(),
-      },
+      actions: defaultActions,
     });
 
     mockedUseGameActions.mockReturnValue(defaultGameActions);
@@ -147,9 +162,7 @@ describe('GameScreen', () => {
     it('renders loading component when loading is true', () => {
       mockedUseGameState.mockReturnValue({
         state: { ...defaultGameState, loading: true },
-        actions: {
-          setShowResultModal: jest.fn(),
-        },
+        actions: defaultActions,
       });
 
       const { getByTestId } = render(
@@ -162,9 +175,7 @@ describe('GameScreen', () => {
     it('does not render game components when loading', () => {
       mockedUseGameState.mockReturnValue({
         state: { ...defaultGameState, loading: true },
-        actions: {
-          setShowResultModal: jest.fn(),
-        },
+        actions: defaultActions,
       });
 
       const { queryByTestId } = render(
@@ -262,28 +273,24 @@ describe('GameScreen', () => {
     });
 
     it('uses game actions hook with state and actions', () => {
-      const mockActions = { setShowResultModal: jest.fn() };
       mockedUseGameState.mockReturnValue({
         state: defaultGameState,
-        actions: mockActions,
+        actions: defaultActions,
       });
 
       render(
         <GameScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
-      expect(mockedUseGameActions).toHaveBeenCalledWith(defaultGameState, mockActions);
+      expect(mockedUseGameActions).toHaveBeenCalledWith(defaultGameState, defaultActions);
     });
   });
 
   describe('Result Modal Integration', () => {
     it('renders with result modal visible state', () => {
-      const mockSetShowResultModal = jest.fn();
       mockedUseGameState.mockReturnValue({
         state: { ...defaultGameState, showResultModal: true },
-        actions: {
-          setShowResultModal: mockSetShowResultModal,
-        },
+        actions: defaultActions,
       });
 
       const { getByTestId } = render(

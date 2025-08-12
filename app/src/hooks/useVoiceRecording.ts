@@ -139,9 +139,9 @@ export const useVoiceRecording = (
     console.log('🎯 Speech result event:', event);
     const result = event.results[0];
     if (result) {
-      console.log('📝 Transcript:', result.transcript, 'isFinal:', result.isFinal);
+      console.log('📝 Transcript:', result.transcript, 'isFinal:', (result as any).isFinal);
       console.log('📝 Transcript length:', result.transcript.length, 'words:', result.transcript.split(' ').length);
-      if (result.isFinal && result.transcript.trim()) {
+      if ((result as any).isFinal && result.transcript.trim()) {
         console.log('✅ Final result received, processing:', result.transcript);
         setLastInterimResult('');
         onVoiceResult(result.transcript);
@@ -154,7 +154,7 @@ export const useVoiceRecording = (
 
   useSpeechRecognitionEvent('error', (event) => {
     console.error('❌ Speech recognition error:', event.error);
-    console.error('❌ Error type:', event.error?.message || 'Unknown error');
+    console.error('❌ Error type:', (event.error as any)?.message || 'Unknown error');
     
     // Immediately set error state for tests
     isRecordingRef.current = false;
@@ -227,7 +227,7 @@ export const useVoiceRecording = (
   });
 
   useSpeechRecognitionEvent('volumechange', (event) => {
-    const normalizedVolume = Math.max(0, Math.min(1, (event.volume + 2) / 12));
+    const normalizedVolume = Math.max(0, Math.min(1, ((event as any).volume + 2) / 12));
     setVolumeLevel(normalizedVolume);
   });
 
@@ -300,9 +300,6 @@ export const useVoiceRecording = (
         lang: 'en-US',
         interimResults: true,
         continuous: false,
-        maxResults: 1,
-        // Add timeout to prevent hanging sessions
-        speechTimeoutMs: 30000, // 30 second max recording time
         partialResults: true,
       });
       

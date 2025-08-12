@@ -1,4 +1,5 @@
-import { GameState, GameMessage, GameStatus } from '../../../shared/types';
+import { GameMessage, GameStatus } from '../../../shared/types';
+import { GameState } from '../hooks/useGameState';
 
 export interface StateUpdater {
   canUpdate(key: string): boolean;
