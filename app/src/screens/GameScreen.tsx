@@ -38,7 +38,13 @@ export default function GameScreen({ route, navigation }: Props) {
   const { state, actions } = useGameState();
   const gameActions = useGameActions(state, actions);
   
-  useGameNavigation(navigation, gameActions.handleQuit);
+  useGameNavigation(
+    navigation, 
+    gameActions.handleQuit,
+    gameActions.requestHint,
+    state.hintsRemaining,
+    state.sending
+  );
 
   useEffect(() => {
     gameActions.startNewGame(category, () => navigation.goBack());
@@ -113,10 +119,8 @@ export default function GameScreen({ route, navigation }: Props) {
             setQuestion={setQuestion}
             sending={state.sending}
             gameStatus={state.gameStatus}
-            hintsRemaining={state.hintsRemaining}
             onTextSubmit={handleTextSubmit}
             onVoiceSubmit={handleVoiceSubmit}
-            onRequestHint={gameActions.requestHint}
           />
         </View>
       </KeyboardAvoidingView>

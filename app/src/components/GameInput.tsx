@@ -12,10 +12,8 @@ interface GameInputProps {
   setQuestion: (question: string) => void;
   sending: boolean;
   gameStatus: GameStatus;
-  hintsRemaining: number;
   onTextSubmit: () => void;
   onVoiceSubmit: (text: string) => void;
-  onRequestHint: () => void;
 }
 
 export const GameInput: React.FC<GameInputProps> = ({
@@ -23,10 +21,8 @@ export const GameInput: React.FC<GameInputProps> = ({
   setQuestion,
   sending,
   gameStatus,
-  hintsRemaining,
   onTextSubmit,
   onVoiceSubmit,
-  onRequestHint,
 }) => {
   const insets = useSafeAreaInsets();
   
@@ -82,18 +78,6 @@ export const GameInput: React.FC<GameInputProps> = ({
           </View>
         </View>
       </View>
-      
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={[styles.hintButton, (hintsRemaining === 0 || sending) && styles.disabledButton]}
-          onPress={onRequestHint}
-          disabled={hintsRemaining === 0 || sending || gameStatus !== 'active'}
-        >
-          <Text style={styles.hintButtonText}>
-            💡 Get Hint ({hintsRemaining} left)
-          </Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 };
@@ -142,23 +126,5 @@ const styles = StyleSheet.create({
     pointerEvents: 'box-none',
     // Allow overflow for expanding animation
     overflow: 'visible',
-  },
-  actionButtons: {
-    paddingHorizontal: 15,
-    paddingBottom: 10,
-  },
-  hintButton: {
-    backgroundColor: '#fef3c7',
-    padding: 12,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  hintButtonText: {
-    color: '#92400e',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  disabledButton: {
-    opacity: 0.5,
   },
 });
