@@ -25,6 +25,8 @@ describe('GameService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (global.fetch as jest.Mock).mockClear();
+    // Clear cache between tests
+    gameService.invalidateCategoriesCache();
   });
 
   describe('startGame', () => {

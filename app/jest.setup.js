@@ -82,11 +82,11 @@ jest.mock('react-native-reanimated', () => {
     default: {
       View,
     },
-    useSharedValue: (value) => ({ value }),
-    useAnimatedStyle: (callback) => callback(),
-    withSpring: (value) => value,
-    withTiming: (value) => value,
-    runOnJS: (fn) => fn,
+    useSharedValue: jest.fn((value) => ({ value })),
+    useAnimatedStyle: jest.fn((callback) => callback()),
+    withSpring: jest.fn((value) => value),
+    withTiming: jest.fn((value) => value),
+    runOnJS: jest.fn((fn) => fn),
   };
 });
 
@@ -115,22 +115,19 @@ jest.mock('@expo/vector-icons', () => ({
   Feather: 'Feather',
 }));
 
-// Silence console warnings during tests
+// Mock Vercel Analytics
+jest.mock('@vercel/analytics/react', () => ({
+  Analytics: () => null,
+}));
+
+// Silence console warnings during tests (only Reanimated warnings)
 const originalConsoleWarn = console.warn;
-const originalConsoleError = console.error;
 
 console.warn = (...args) => {
   if (typeof args[0] === 'string' && args[0].includes('[Reanimated]')) {
     return;
   }
   originalConsoleWarn(...args);
-};
-
-console.error = (...args) => {
-  if (typeof args[0] === 'string' && args[0].includes('[Reanimated]')) {
-    return;
-  }
-  originalConsoleError(...args);
 };
 
 // Audio assets are handled by moduleNameMapper in jest.config.js

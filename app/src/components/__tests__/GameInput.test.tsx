@@ -11,6 +11,10 @@ jest.mock('../VoiceInputButton', () => {
   return jest.fn(() => <div testID="voice-input-button" />);
 });
 
+jest.mock('../voice/ProfessionalVoiceButton', () => ({
+  ProfessionalVoiceButton: jest.fn(() => <div testID="professional-voice-button" />),
+}));
+
 describe('GameInput', () => {
   const defaultProps = {
     question: '',
