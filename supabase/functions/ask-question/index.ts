@@ -1,49 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { AskQuestionRequest, AskQuestionResponse } from '../../../shared/types.ts'
-import { LLMConfigLoader, LLMProviderFactory, ResponseParser } from '../_shared/llm/index.ts'
+import { ResponseParser } from '../_shared/llm/index.ts'
+import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
+import { DEFAULT_GAME_LIMITS } from '../_shared/common/GameConfig.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-// Create Supabase client once outside the handler for connection reuse
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  db: { schema: 'public' },
-  global: { headers: { 'x-statement-timeout': '5s' } }
-})
-
-// Lazy initialization for LLM provider - initialized once but with proper error handling
-let llmProvider: any = null
-let llmProviderError: string | null = null
-
-const getLLMProvider = () => {
-  if (llmProviderError) {
-    throw new Error(llmProviderError)
-  }
-  
-  if (!llmProvider) {
-    try {
-      const llmConfig = LLMConfigLoader.loadConfig('ask-question')
-      llmProvider = LLMProviderFactory.createProvider(llmConfig)
-      console.log('✅ LLM provider initialized successfully for ask-question')
-    } catch (error) {
-      llmProviderError = `Failed to initialize LLM provider: ${error.message}`
-      console.error('❌ LLM provider initialization failed:', error)
-      throw new Error(llmProviderError)
-    }
-  }
-  
-  return llmProvider
-}
+// Initialize shared services
+const supabase = EdgeFunctionBase.initialize()
 
 const handler = async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const corsResponse = EdgeFunctionBase.handleCors(req)
+  if (corsResponse) return corsResponse
 
   try {
     const { game_id, question }: AskQuestionRequest = await req.json()
@@ -70,7 +36,7 @@ const handler = async (req: Request) => {
     )
 
     // Check if game is over
-    if (game.questions_asked >= 20) {
+    if (game.questions_asked >= DEFAULT_GAME_LIMITS.questionsPerGame) {
       await supabase
         .from('games')
         .update({ status: 'lost' })
@@ -78,15 +44,12 @@ const handler = async (req: Request) => {
       
       // Return proper game over response instead of throwing error
       const responseData: AskQuestionResponse = {
-        answer: `Game over! You've used all 20 questions. The answer was "${game.secret_item}".`,
+        answer: `Game over! You've used all ${DEFAULT_GAME_LIMITS.questionsPerGame} questions. The answer was "${game.secret_item}".`,
         questions_remaining: 0,
         game_status: 'lost'
       }
 
-      return new Response(
-        JSON.stringify(responseData),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
+      return EdgeFunctionBase.createSuccessResponse(responseData)
     }
 
     // Messages already fetched in the combined query above
@@ -114,7 +77,7 @@ const handler = async (req: Request) => {
     })
 
     // Get LLM provider (lazy initialization with caching)
-    const provider = getLLMProvider()
+    const provider = EdgeFunctionBase.getLLMProvider('ask-question')
 
     // Call LLM provider
     const llmResponse = await provider.generateResponse({
@@ -143,7 +106,7 @@ const handler = async (req: Request) => {
     let gameStatus: 'active' | 'won' | 'lost' = 'active'
     if (gameWon) {
       gameStatus = 'won'
-    } else if (questionNumber >= 20) {
+    } else if (questionNumber >= DEFAULT_GAME_LIMITS.questionsPerGame) {
       gameStatus = 'lost'
     }
 
@@ -183,28 +146,22 @@ const handler = async (req: Request) => {
     // Game cleanup is now handled by database triggers
     // No need for setTimeout - triggers will handle cleanup automatically
 
-    const questionsRemaining = 20 - questionNumber
+    const questionsRemaining = DEFAULT_GAME_LIMITS.questionsPerGame - questionNumber
 
     const responseData: AskQuestionResponse = {
       answer: gameWon 
         ? `${answer}! You got it! The answer was "${game.secret_item}".`
         : gameStatus === 'lost' 
-          ? `${answer} Game over! You've used all 20 questions. The answer was "${game.secret_item}".`
+          ? `${answer} Game over! You've used all ${DEFAULT_GAME_LIMITS.questionsPerGame} questions. The answer was "${game.secret_item}".`
           : answer,
       questions_remaining: questionsRemaining,
       game_status: gameStatus
     }
 
-    return new Response(
-      JSON.stringify(responseData),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
+    return EdgeFunctionBase.createSuccessResponse(responseData)
 
   } catch (error) {
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 },
-    )
+    return EdgeFunctionBase.createErrorResponse(error)
   }
 }
 

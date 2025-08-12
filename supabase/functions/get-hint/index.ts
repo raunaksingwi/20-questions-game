@@ -1,51 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { GetHintRequest, GetHintResponse } from '../../../shared/types.ts'
-import { LLMConfigLoader, LLMProviderFactory, ResponseParser } from '../_shared/llm/index.ts'
+import { ResponseParser } from '../_shared/llm/index.ts'
+import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
+import { DEFAULT_GAME_LIMITS } from '../_shared/common/GameConfig.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-const MAX_HINTS_PER_GAME = 3
-
-// Create Supabase client once outside the handler for connection reuse
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  db: { schema: 'public' },
-  global: { headers: { 'x-statement-timeout': '5s' } }
-})
-
-// Lazy initialization for LLM provider - initialized once but with proper error handling
-let llmProvider: any = null
-let llmProviderError: string | null = null
-
-const getLLMProvider = () => {
-  if (llmProviderError) {
-    throw new Error(llmProviderError)
-  }
-  
-  if (!llmProvider) {
-    try {
-      const llmConfig = LLMConfigLoader.loadConfig('get-hint')
-      llmProvider = LLMProviderFactory.createProvider(llmConfig)
-      console.log('✅ LLM provider initialized successfully for get-hint')
-    } catch (error) {
-      llmProviderError = `Failed to initialize LLM provider: ${error.message}`
-      console.error('❌ LLM provider initialization failed:', error)
-      throw new Error(llmProviderError)
-    }
-  }
-  
-  return llmProvider
-}
+// Initialize shared services
+const supabase = EdgeFunctionBase.initialize()
 
 const handler = async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const corsResponse = EdgeFunctionBase.handleCors(req)
+  if (corsResponse) return corsResponse
 
   try {
     const { game_id }: GetHintRequest = await req.json()
@@ -72,8 +36,8 @@ const handler = async (req: Request) => {
     )
 
     // Check hint limit
-    if (game.hints_used >= MAX_HINTS_PER_GAME) {
-      throw new Error(`You've already used all ${MAX_HINTS_PER_GAME} hints!`)
+    if (game.hints_used >= DEFAULT_GAME_LIMITS.hintsPerGame) {
+      throw new Error(`You've already used all ${DEFAULT_GAME_LIMITS.hintsPerGame} hints!`)
     }
 
     // Prepare hint request with full conversation context
@@ -146,7 +110,7 @@ Provide only the hint text:`
     })
 
     // Get LLM provider (lazy initialization with caching)
-    const provider = getLLMProvider()
+    const provider = EdgeFunctionBase.getLLMProvider('get-hint')
 
     // Call LLM provider
     const llmResponse = await provider.generateResponse({
@@ -197,7 +161,7 @@ Provide only the hint text:`
     if (updateResult.error) throw updateResult.error
 
     // Check if game should end due to no more questions
-    const gameStatus = newQuestionsAsked >= 20 ? 'lost' : 'active'
+    const gameStatus = newQuestionsAsked >= DEFAULT_GAME_LIMITS.questionsPerGame ? 'lost' : 'active'
     if (gameStatus === 'lost') {
       await supabase
         .from('games')
@@ -208,22 +172,16 @@ Provide only the hint text:`
     }
 
     const responseData: GetHintResponse = {
-      hint: gameStatus === 'lost' ? `${hint} Game over! You've used all 20 questions. The answer was "${game.secret_item}".` : hint,
-      hints_remaining: MAX_HINTS_PER_GAME - game.hints_used - 1,
-      questions_remaining: 20 - newQuestionsAsked,
+      hint: gameStatus === 'lost' ? `${hint} Game over! You've used all ${DEFAULT_GAME_LIMITS.questionsPerGame} questions. The answer was "${game.secret_item}".` : hint,
+      hints_remaining: DEFAULT_GAME_LIMITS.hintsPerGame - game.hints_used - 1,
+      questions_remaining: DEFAULT_GAME_LIMITS.questionsPerGame - newQuestionsAsked,
       game_status: gameStatus
     }
 
-    return new Response(
-      JSON.stringify(responseData),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
+    return EdgeFunctionBase.createSuccessResponse(responseData)
 
   } catch (error) {
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 },
-    )
+    return EdgeFunctionBase.createErrorResponse(error)
   }
 }
 
