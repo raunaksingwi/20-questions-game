@@ -1,22 +1,17 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, ScrollView } from 'react-native';
 
-export type QuickAnswerType = 'yes' | 'no' | 'maybe' | 'dont_know' | 'irrelevant' | 'you_won';
+export type QuickAnswerType = 'yes' | 'no' | 'maybe' | 'dont_know' | 'you_won';
 
-interface QuickAnswerChip {
-  type: QuickAnswerType;
-  label: string;
-  canonical: string;
-}
+// Move quick answers to constants for better maintainability
+const QUICK_ANSWER_CHIPS = [
+  { type: 'yes' as const, label: 'Yes', canonical: 'Yes' },
+  { type: 'no' as const, label: 'No', canonical: 'No' },
+  { type: 'maybe' as const, label: 'Maybe', canonical: 'Maybe' },
+  { type: 'dont_know' as const, label: "Don't know", canonical: "Don't know" },
+  { type: 'you_won' as const, label: 'You won!', canonical: 'You won!' },
+] as const;
 
-const QUICK_ANSWERS: QuickAnswerChip[] = [
-  { type: 'yes', label: 'Yes', canonical: 'Yes' },
-  { type: 'no', label: 'No', canonical: 'No' },
-  { type: 'maybe', label: 'Maybe', canonical: 'Maybe' },
-  { type: 'dont_know', label: "Don't know", canonical: "Don't know" },
-  { type: 'irrelevant', label: 'Irrelevant', canonical: 'Irrelevant' },
-  { type: 'you_won', label: 'You won!', canonical: 'You won!' },
-];
 
 interface QuickAnswerChipsProps {
   onChipPress: (answer: string, type: QuickAnswerType) => void;
@@ -37,7 +32,7 @@ export const QuickAnswerChips: React.FC<QuickAnswerChipsProps> = ({
         contentContainerStyle={styles.scrollContainer}
         style={styles.scrollView}
       >
-        {QUICK_ANSWERS.map((chip) => {
+        {QUICK_ANSWER_CHIPS.map((chip) => {
           const isWinButton = chip.type === 'you_won';
           const handlePress = isWinButton 
             ? onWinPress 

@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { StartThinkRoundRequest, StartThinkRoundResponse } from '../../../shared/types.ts'
+import { StartThinkRoundRequest, StartThinkRoundResponse, isValidCategory, isValidString, isValidUUID } from '../../../shared/types.ts'
 import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
 
 // Initialize shared Supabase client
@@ -11,7 +11,27 @@ const handler = async (req: Request) => {
 
   try {
     const requestStart = Date.now()
-    const { category, user_id }: StartThinkRoundRequest = await req.json()
+    const body = await req.json()
+    
+    // Validate request body structure
+    if (!body || typeof body !== 'object') {
+      throw new Error('Invalid request body: must be a JSON object')
+    }
+    
+    const { category, user_id }: StartThinkRoundRequest = body
+    
+    // Validate required fields
+    if (!category || !isValidString(category, 1, 50)) {
+      throw new Error('Invalid category: must be a non-empty string with max 50 characters')
+    }
+    
+    // Validate user_id if provided
+    if (user_id !== undefined && user_id !== null) {
+      if (!isValidString(user_id, 1, 100) && !isValidUUID(user_id)) {
+        throw new Error('Invalid user_id: must be a valid string or UUID')
+      }
+    }
+    
     console.log(`[start-think-round] Starting Think mode session with category: ${category}`)
 
     // Get available categories
@@ -49,7 +69,14 @@ const handler = async (req: Request) => {
       .single()
     console.log(`[start-think-round] Session created in ${Date.now() - sessionStart}ms`)
 
-    if (sessionError) throw sessionError
+    if (sessionError) {
+      console.error('[start-think-round] Database error creating session:', sessionError)
+      throw new Error(`Failed to create game session: ${sessionError.message}`)
+    }
+    
+    if (!session?.id) {
+      throw new Error('Failed to create game session: no session ID returned')
+    }
 
     // Generate LLM's first question using Think mode prompting
     const llmStart = Date.now()

@@ -106,6 +106,7 @@ describe('GameScreen', () => {
   const mockRoute = {
     params: {
       category: 'Animals',
+      mode: 'guess' as const,
     },
   };
 
@@ -114,6 +115,7 @@ describe('GameScreen', () => {
     secretItem: null,
     loading: false,
     gameStatus: 'active' as const,
+    mode: 'guess' as const,
     messages: [],
     questionsRemaining: 20,
     hintsRemaining: 3,
@@ -131,6 +133,8 @@ describe('GameScreen', () => {
     sendQuestion: jest.fn(),
     requestHint: jest.fn(),
     handleQuit: jest.fn(),
+    submitUserAnswer: jest.fn(),
+    handleWin: jest.fn(),
   };
 
   const defaultActions = {
@@ -145,6 +149,7 @@ describe('GameScreen', () => {
     setShowResultModal: jest.fn(),
     setResultModalData: jest.fn(),
     setBatchState: jest.fn(),
+    setMode: jest.fn(),
   };
 
   beforeEach(() => {
@@ -241,6 +246,7 @@ describe('GameScreen', () => {
       await waitFor(() => {
         expect(defaultGameActions.startNewGame).toHaveBeenCalledWith(
           'Animals',
+          'guess',
           expect.any(Function)
         );
       });
@@ -255,8 +261,8 @@ describe('GameScreen', () => {
         expect(defaultGameActions.startNewGame).toHaveBeenCalled();
       });
 
-      // Get the callback passed to startNewGame and call it
-      const callback = defaultGameActions.startNewGame.mock.calls[0][1];
+      // Get the callback passed to startNewGame and call it (third parameter)
+      const callback = defaultGameActions.startNewGame.mock.calls[0][2];
       callback();
 
       expect(mockNavigation.goBack).toHaveBeenCalled();
@@ -325,6 +331,7 @@ describe('GameScreen', () => {
       // Verify that startNewGame is called during initialization
       expect(defaultGameActions.startNewGame).toHaveBeenCalledWith(
         'Animals',
+        'guess',
         expect.any(Function)
       );
     });

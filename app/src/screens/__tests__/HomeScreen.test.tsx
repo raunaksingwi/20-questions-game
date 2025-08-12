@@ -101,7 +101,7 @@ describe('HomeScreen', () => {
 
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          'Error loading categories:',
+          '[HomeScreen] Error loading categories:',
           expect.any(Error)
         );
       });
@@ -119,7 +119,7 @@ describe('HomeScreen', () => {
       await waitFor(() => {
         expect(getByText('Welcome to 20 Questions!')).toBeTruthy();
         expect(
-          getByText("I'll think of something from your chosen category - try to guess it!")
+          getByText("I'll think of something - you guess it!")
         ).toBeTruthy();
       });
     });
@@ -130,7 +130,7 @@ describe('HomeScreen', () => {
       );
 
       await waitFor(() => {
-        expect(getByText('How to Play')).toBeTruthy();
+        expect(getByText('How to Play Guess Mode')).toBeTruthy();
         expect(getByText(/I'll think of something from the chosen category/)).toBeTruthy();
         expect(getByText(/Ask me yes\/no questions to narrow it down/)).toBeTruthy();
         expect(getByText(/You have 20 questions to guess correctly/)).toBeTruthy();
@@ -175,6 +175,7 @@ describe('HomeScreen', () => {
 
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Game', {
         category: 'Cricketers',
+        mode: 'guess',
       });
     });
 
@@ -191,12 +192,14 @@ describe('HomeScreen', () => {
       fireEvent.press(getByText('Food'));
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Game', {
         category: 'Food',
+        mode: 'guess',
       });
 
       // Test Objects category
       fireEvent.press(getByText('Objects'));
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Game', {
         category: 'Objects',
+        mode: 'guess',
       });
     });
   });

@@ -21,7 +21,6 @@ describe('QuickAnswerChips', () => {
     expect(getByText('No')).toBeTruthy();
     expect(getByText('Maybe')).toBeTruthy();
     expect(getByText("Don't know")).toBeTruthy();
-    expect(getByText('Irrelevant')).toBeTruthy();
   });
 
   it('calls onChipPress with correct answer and type when chip is pressed', () => {
@@ -38,9 +37,6 @@ describe('QuickAnswerChips', () => {
     
     fireEvent.press(getByText("Don't know"));
     expect(mockOnChipPress).toHaveBeenCalledWith("Don't know", 'dont_know');
-    
-    fireEvent.press(getByText('Irrelevant'));
-    expect(mockOnChipPress).toHaveBeenCalledWith('Irrelevant', 'irrelevant');
   });
 
   it('does not call onChipPress when disabled', () => {
@@ -83,13 +79,12 @@ describe('QuickAnswerChips', () => {
     expect(getByLabelText('Quick answer: No')).toBeTruthy();
     expect(getByLabelText('Quick answer: Maybe')).toBeTruthy();
     expect(getByLabelText("Quick answer: Don't know")).toBeTruthy();
-    expect(getByLabelText('Quick answer: Irrelevant')).toBeTruthy();
   });
 
   it('has proper accessibility hints', () => {
     const { getAllByA11yHint } = render(<QuickAnswerChips {...defaultProps} />);
     
     const elementsWithHint = getAllByA11yHint('Tap to send this answer immediately');
-    expect(elementsWithHint).toHaveLength(5); // Should have 5 chips with the hint
+    expect(elementsWithHint).toHaveLength(4); // Should have 4 chips with the hint (removed Irrelevant)
   });
 });

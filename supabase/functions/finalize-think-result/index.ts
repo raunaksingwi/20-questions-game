@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { FinalizeThinkResultRequest, FinalizeThinkResultResponse } from '../../../shared/types.ts'
+import { FinalizeThinkResultRequest, FinalizeThinkResultResponse, isValidUUID, isValidThinkResultType } from '../../../shared/types.ts'
 import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
 
 // Initialize shared Supabase client
@@ -11,7 +11,24 @@ const handler = async (req: Request) => {
 
   try {
     const requestStart = Date.now()
-    const { session_id, result }: FinalizeThinkResultRequest = await req.json()
+    const body = await req.json()
+    
+    // Validate request body structure
+    if (!body || typeof body !== 'object') {
+      throw new Error('Invalid request body: must be a JSON object')
+    }
+    
+    const { session_id, result }: FinalizeThinkResultRequest = body
+    
+    // Validate required fields
+    if (!session_id || !isValidUUID(session_id)) {
+      throw new Error('Invalid session_id: must be a valid UUID')
+    }
+    
+    if (!result || !isValidThinkResultType(result)) {
+      throw new Error('Invalid result: must be either llm_win or llm_loss')
+    }
+    
     console.log(`[finalize-think-result] Finalizing session with result: ${result}`)
 
     // Get session data

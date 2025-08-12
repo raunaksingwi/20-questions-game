@@ -2,6 +2,34 @@ export type GameStatus = 'active' | 'won' | 'lost';
 export type GameMode = 'guess' | 'think';
 export type MessageRole = 'system' | 'user' | 'assistant';
 export type MessageType = 'question' | 'answer' | 'hint' | 'guess';
+export type AnswerType = 'chip' | 'text' | 'voice';
+export type ThinkResultType = 'llm_win' | 'llm_loss';
+
+// Validation helpers
+export const GAME_MODES: GameMode[] = ['guess', 'think'];
+export const GAME_STATUSES: GameStatus[] = ['active', 'won', 'lost'];
+export const ANSWER_TYPES: AnswerType[] = ['chip', 'text', 'voice'];
+export const THINK_RESULT_TYPES: ThinkResultType[] = ['llm_win', 'llm_loss'];
+
+// UUID validation regex
+export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+// Input validation functions
+export const isValidUUID = (value: string): boolean => UUID_REGEX.test(value);
+export const isValidGameMode = (value: string): value is GameMode => GAME_MODES.includes(value as GameMode);
+export const isValidAnswerType = (value: string): value is AnswerType => ANSWER_TYPES.includes(value as AnswerType);
+export const isValidThinkResultType = (value: string): value is ThinkResultType => THINK_RESULT_TYPES.includes(value as ThinkResultType);
+
+// String validation
+export const isValidString = (value: any, minLength = 1, maxLength = 1000): boolean => {
+  return typeof value === 'string' && value.trim().length >= minLength && value.length <= maxLength;
+};
+
+// Category validation
+export const isValidCategory = (value: string): boolean => {
+  const allowedCategories = ['Animals', 'Food', 'Objects', 'Places', 'Random'];
+  return allowedCategories.includes(value);
+};
 
 export interface Game {
   id: string;
@@ -99,7 +127,7 @@ export interface LLMQuestionResponse {
 export interface SubmitUserAnswerRequest {
   session_id: string;
   answer: string;
-  answer_type: 'chip' | 'text' | 'voice';
+  answer_type: AnswerType;
 }
 
 export interface SubmitUserAnswerResponse {
@@ -111,7 +139,7 @@ export interface SubmitUserAnswerResponse {
 
 export interface FinalizeThinkResultRequest {
   session_id: string;
-  result: 'llm_win' | 'llm_loss';
+  result: ThinkResultType;
 }
 
 export interface FinalizeThinkResultResponse {

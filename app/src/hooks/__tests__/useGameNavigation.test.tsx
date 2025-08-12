@@ -49,7 +49,7 @@ describe('useGameNavigation', () => {
   });
 
   it('sets up navigation options with quit button', () => {
-    renderHook(() => useGameNavigation(mockNavigation as any));
+    renderHook(() => useGameNavigation(mockNavigation as any, jest.fn(), undefined, undefined, undefined, true));
 
     expect(mockedUseFocusEffect).toHaveBeenCalled();
     expect(mockNavigation.setOptions).toHaveBeenCalledWith({
@@ -59,7 +59,7 @@ describe('useGameNavigation', () => {
   });
 
   it('calls useFocusEffect with callback function', () => {
-    renderHook(() => useGameNavigation(mockNavigation as any));
+    renderHook(() => useGameNavigation(mockNavigation as any, jest.fn(), undefined, undefined, undefined, true));
 
     // Get the callback passed to useFocusEffect
     const focusEffectCallback = mockedUseFocusEffect.mock.calls[0][0];
@@ -70,14 +70,15 @@ describe('useGameNavigation', () => {
 
   it('creates quit button that shows alert on native platforms', () => {
     Platform.OS = 'ios';
-    renderHook(() => useGameNavigation(mockNavigation as any));
+    renderHook(() => useGameNavigation(mockNavigation as any, jest.fn(), undefined, undefined, undefined, true));
 
     // Get the headerRight function
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
     const headerRightElement = headerRightFn();
 
-    // Find the quit button (second TouchableOpacity child)
-    const quitButton = headerRightElement.props.children[1];
+    // Find the quit button (filter out falsy values and get the quit button)
+    const buttons = headerRightElement.props.children.filter(Boolean);
+    const quitButton = buttons.find(btn => btn.props.children?.props?.children === 'Quit');
     
     // Simulate press on the quit button
     const onPress = quitButton.props.onPress;
@@ -95,11 +96,12 @@ describe('useGameNavigation', () => {
 
   it('does not navigate back when quit is confirmed on native (modal handles navigation)', () => {
     Platform.OS = 'android';
-    renderHook(() => useGameNavigation(mockNavigation as any));
+    renderHook(() => useGameNavigation(mockNavigation as any, jest.fn(), undefined, undefined, undefined, true));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
     const headerRightElement = headerRightFn();
-    const quitButton = headerRightElement.props.children[1];
+    const buttons = headerRightElement.props.children.filter(Boolean);
+    const quitButton = buttons.find(btn => btn.props.children?.props?.children === 'Quit');
     const onPress = quitButton.props.onPress;
     
     onPress();
@@ -115,11 +117,12 @@ describe('useGameNavigation', () => {
   it('calls onQuit handler when quit is confirmed on native', () => {
     Platform.OS = 'android';
     const mockOnQuit = jest.fn();
-    renderHook(() => useGameNavigation(mockNavigation as any, mockOnQuit));
+    renderHook(() => useGameNavigation(mockNavigation as any, mockOnQuit, undefined, undefined, undefined, true));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
     const headerRightElement = headerRightFn();
-    const quitButton = headerRightElement.props.children[1];
+    const buttons = headerRightElement.props.children.filter(Boolean);
+    const quitButton = buttons.find(btn => btn.props.children?.props?.children === 'Quit');
     const onPress = quitButton.props.onPress;
     
     onPress();
@@ -138,11 +141,12 @@ describe('useGameNavigation', () => {
     const mockOnQuit = jest.fn();
     (global.window.confirm as jest.Mock).mockReturnValue(true);
 
-    renderHook(() => useGameNavigation(mockNavigation as any, mockOnQuit));
+    renderHook(() => useGameNavigation(mockNavigation as any, mockOnQuit, undefined, undefined, undefined, true));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
     const headerRightElement = headerRightFn();
-    const quitButton = headerRightElement.props.children[1];
+    const buttons = headerRightElement.props.children.filter(Boolean);
+    const quitButton = buttons.find(btn => btn.props.children?.props?.children === 'Quit');
     const onPress = quitButton.props.onPress;
     
     onPress();
@@ -152,35 +156,28 @@ describe('useGameNavigation', () => {
     expect(mockNavigation.goBack).not.toHaveBeenCalled();
   });
 
-  it('does not call onQuit when handler is not provided', () => {
+  it('does not show quit button when onQuit handler is not provided', () => {
     Platform.OS = 'android';
-    renderHook(() => useGameNavigation(mockNavigation as any));
+    renderHook(() => useGameNavigation(mockNavigation as any, undefined, undefined, undefined, undefined, true));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
     const headerRightElement = headerRightFn();
-    const quitButton = headerRightElement.props.children[1];
-    const onPress = quitButton.props.onPress;
     
-    onPress();
-
-    // Get the quit confirmation callback
-    const quitCallback = mockedAlert.alert.mock.calls[0][2][1].onPress;
-    
-    // Should not throw when onQuit is not provided
-    expect(() => quitCallback()).not.toThrow();
-    // Navigation should NOT be called here - the modal will handle it when "Play Again" is clicked
-    expect(mockNavigation.goBack).not.toHaveBeenCalled();
+    // Should only have hint button (if any), no quit button
+    // Since we didn't provide onRequestHint either, should just be an empty View
+    expect(headerRightElement.props.children.filter(Boolean)).toHaveLength(0);
   });
 
   it('handles web platform with window.confirm', () => {
     Platform.OS = 'web';
     (global.window.confirm as jest.Mock).mockReturnValue(true);
 
-    renderHook(() => useGameNavigation(mockNavigation as any));
+    renderHook(() => useGameNavigation(mockNavigation as any, jest.fn(), undefined, undefined, undefined, true));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
     const headerRightElement = headerRightFn();
-    const quitButton = headerRightElement.props.children[1];
+    const buttons = headerRightElement.props.children.filter(Boolean);
+    const quitButton = buttons.find(btn => btn.props.children?.props?.children === 'Quit');
     const onPress = quitButton.props.onPress;
     
     onPress();
@@ -197,11 +194,12 @@ describe('useGameNavigation', () => {
     Platform.OS = 'web';
     (global.window.confirm as jest.Mock).mockReturnValue(false);
 
-    renderHook(() => useGameNavigation(mockNavigation as any));
+    renderHook(() => useGameNavigation(mockNavigation as any, jest.fn(), undefined, undefined, undefined, true));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
     const headerRightElement = headerRightFn();
-    const quitButton = headerRightElement.props.children[1];
+    const buttons = headerRightElement.props.children.filter(Boolean);
+    const quitButton = buttons.find(btn => btn.props.children?.props?.children === 'Quit');
     const onPress = quitButton.props.onPress;
     
     onPress();
@@ -213,11 +211,12 @@ describe('useGameNavigation', () => {
   it('creates quit button with correct styling', () => {
     Platform.OS = 'web';
     
-    renderHook(() => useGameNavigation(mockNavigation as any));
+    renderHook(() => useGameNavigation(mockNavigation as any, jest.fn(), undefined, undefined, undefined, true));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
     const headerRightElement = headerRightFn();
-    const quitButton = headerRightElement.props.children[1];
+    const buttons = headerRightElement.props.children.filter(Boolean);
+    const quitButton = buttons.find(btn => btn.props.children?.props?.children === 'Quit');
 
     expect(quitButton.props.style).toEqual({
       paddingHorizontal: 12,
@@ -248,17 +247,19 @@ describe('useGameNavigation', () => {
   it('sets cursor pointer only on web platform', () => {
     Platform.OS = 'ios';
     
-    renderHook(() => useGameNavigation(mockNavigation as any));
+    renderHook(() => useGameNavigation(mockNavigation as any, jest.fn(), undefined, undefined, undefined, true));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
-    const quitButtonElement = headerRightFn();
+    const headerElement = headerRightFn();
+    const buttons = headerElement.props.children.filter(Boolean);
+    const quitButton = buttons.find(btn => btn.props.children?.props?.children === 'Quit');
 
-    expect(quitButtonElement.props.style.cursor).toBeUndefined();
+    expect(quitButton.props.style.cursor).toBeUndefined();
   });
 
   it('handles navigation object changes', () => {
     const { rerender } = renderHook(
-      (props) => useGameNavigation(props.navigation),
+      (props) => useGameNavigation(props.navigation, jest.fn(), undefined, undefined, undefined, true),
       { initialProps: { navigation: mockNavigation } }
     );
 
@@ -276,7 +277,7 @@ describe('useGameNavigation', () => {
   });
 
   it('handles multiple renders correctly', () => {
-    const { rerender } = renderHook(() => useGameNavigation(mockNavigation as any));
+    const { rerender } = renderHook(() => useGameNavigation(mockNavigation as any, jest.fn(), undefined, undefined, undefined, true));
 
     rerender();
     rerender();
@@ -286,7 +287,7 @@ describe('useGameNavigation', () => {
   });
 
   it('cleans up properly on unmount', () => {
-    const { unmount } = renderHook(() => useGameNavigation(mockNavigation as any));
+    const { unmount } = renderHook(() => useGameNavigation(mockNavigation as any, jest.fn(), undefined, undefined, undefined, true));
 
     expect(() => unmount()).not.toThrow();
   });

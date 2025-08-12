@@ -619,7 +619,7 @@ describe('GameService', () => {
           }),
         });
 
-        await gameService.submitUserAnswer('game-123', answer, type);
+        await gameService.submitUserAnswer('game-123', answer, type as 'chip' | 'text' | 'voice');
 
         expect(global.fetch).toHaveBeenLastCalledWith(
           expect.any(String),
@@ -650,7 +650,7 @@ describe('GameService', () => {
     it('should finalize Think mode with WIN button', async () => {
       const mockResponse = {
         message: 'You win! I couldn\'t guess what you were thinking of.',
-        questions_asked: 12,
+        questions_used: 12,
       };
 
       (global.fetch as jest.Mock).mockResolvedValue({
@@ -682,7 +682,7 @@ describe('GameService', () => {
     it('should handle WIN button pressed immediately (before any questions)', async () => {
       const mockResponse = {
         message: 'You win! I give up before even starting.',
-        questions_asked: 0,
+        questions_used: 0,
       };
 
       (global.fetch as jest.Mock).mockResolvedValue({
@@ -692,7 +692,7 @@ describe('GameService', () => {
 
       const result = await gameService.finalizeThinkResult('think-game-123', 'llm_loss');
 
-      expect(result.questions_asked).toBe(0);
+      expect(result.questions_used).toBe(0);
       expect(result.message).toContain('give up');
     });
 
@@ -727,14 +727,14 @@ describe('GameService', () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: true,
         json: async () => ({
-          // Missing game_id field
-          message: 'Is it alive?',
+          // Missing session_id field
+          first_question: 'Is it alive?',
         }),
       });
 
       const result = await gameService.startThinkRound('Animals');
-      expect(result.message).toBe('Is it alive?');
-      expect(result.game_id).toBeUndefined();
+      expect(result.first_question).toBe('Is it alive?');
+      expect(result.session_id).toBeUndefined();
     });
 
     it('should handle ambiguous answers in submitUserAnswer', async () => {
@@ -814,7 +814,7 @@ describe('GameService', () => {
         ok: true,
         json: async () => ({
           message: 'You win!',
-          questions_asked: 8,
+          questions_used: 8,
         }),
       });
 
@@ -970,6 +970,7 @@ describe('GameService', () => {
           ok: true,
           json: async () => ({
             game_id: 'game-123',
+            category: 'Animals',
             message: 'Welcome!',
           }),
         });
@@ -1093,6 +1094,7 @@ describe('GameService', () => {
           ok: true,
           json: async () => ({
             game_id: 'game-123',
+            category: 'Animals',
             message: 'Welcome!',
           }),
         });
@@ -1121,6 +1123,7 @@ describe('GameService', () => {
           ok: true,
           json: async () => ({
             game_id: 'game-123',
+            category: 'Animals',
             message: 'Welcome!',
           }),
         });

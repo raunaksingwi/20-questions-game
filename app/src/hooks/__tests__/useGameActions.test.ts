@@ -46,7 +46,7 @@ describe('useGameActions', () => {
     gameId: 'test-game-123',
     secretItem: 'elephant',
     loading: false,
-    gameStatus: 'playing' as const,
+    gameStatus: 'active' as const,
     mode: 'guess' as const,
     messages: [],
     questionsRemaining: 20,
@@ -83,6 +83,7 @@ describe('useGameActions', () => {
     it('successfully starts a new game', async () => {
       const mockResponse = {
         game_id: 'new-game-456',
+        category: 'Animals',
         message: 'Welcome! I\'m thinking of an animal. Ask me yes/no questions!'
       };
 
@@ -125,7 +126,7 @@ describe('useGameActions', () => {
       // Should call setBatchState for initial reset and setLoading for cleanup
       expect(defaultActions.setBatchState).toHaveBeenCalledTimes(1);
       expect(defaultActions.setLoading).toHaveBeenCalledWith(false);
-      expect(mockedAlert.alert).toHaveBeenCalledWith('Error', 'Failed to start game. Please try again.');
+      expect(mockedAlert.alert).toHaveBeenCalledWith('Error', 'start guess mode game failed: Network error');
       expect(onNavigateBack).toHaveBeenCalled();
     });
 
@@ -133,6 +134,7 @@ describe('useGameActions', () => {
       const onNavigateBack = jest.fn();
       const mockResponse = {
         game_id: 'new-game-789',
+        category: 'Food',
         message: 'Welcome to the food category!'
       };
 
@@ -257,7 +259,7 @@ describe('useGameActions', () => {
         await result.current.sendQuestion('Test question');
       });
 
-      expect(mockedAlert.alert).toHaveBeenCalledWith('Error', 'Failed to send question. Please try again.');
+      expect(mockedAlert.alert).toHaveBeenCalledWith('Error', 'send question failed: Network error');
       expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
         sending: false
       }));
@@ -394,7 +396,7 @@ describe('useGameActions', () => {
         await result.current.requestHint();
       });
 
-      expect(mockedAlert.alert).toHaveBeenCalledWith('Error', 'Failed to get hint. Please try again.');
+      expect(mockedAlert.alert).toHaveBeenCalledWith('Error', 'get hint failed: Network error');
       expect(defaultActions.setSending).toHaveBeenCalledWith(false);
     });
 
@@ -453,12 +455,15 @@ describe('useGameActions', () => {
 
       expect(mockedGameService.quitGame).toHaveBeenCalledWith('test-game-123');
       expect(mockedAudioManager.playSound).toHaveBeenCalledWith('wrong');
-      expect(defaultActions.setResultModalData).toHaveBeenCalledWith({
-        isWin: false,
-        title: 'Game Ended',
-        message: 'You have left the game. The answer was "elephant".'
+      expect(defaultActions.setBatchState).toHaveBeenCalledWith({
+        resultModalData: {
+          isWin: false,
+          title: 'Game Ended',
+          message: 'You have left the game. The answer was "elephant".'
+        },
+        showResultModal: true,
+        gameStatus: 'lost'
       });
-      expect(defaultActions.setShowResultModal).toHaveBeenCalledWith(true);
     });
 
     it('handles quit game API failure with fallback', async () => {
@@ -472,12 +477,15 @@ describe('useGameActions', () => {
 
       expect(mockedGameService.quitGame).toHaveBeenCalledWith('test-game-123');
       expect(mockedAudioManager.playSound).toHaveBeenCalledWith('wrong');
-      expect(defaultActions.setResultModalData).toHaveBeenCalledWith({
-        isWin: false,
-        title: 'Game Ended',
-        message: 'You have left the game.'
+      expect(defaultActions.setBatchState).toHaveBeenCalledWith({
+        resultModalData: {
+          isWin: false,
+          title: 'Game Ended',
+          message: 'You have left the game.'
+        },
+        showResultModal: true,
+        gameStatus: 'lost'
       });
-      expect(defaultActions.setShowResultModal).toHaveBeenCalledWith(true);
     });
 
     it('does not quit when no game ID', async () => {
@@ -585,7 +593,7 @@ describe('useGameActions', () => {
         await result.current.submitUserAnswer('Yes', 'chip');
       });
 
-      expect(mockedAlert.alert).toHaveBeenCalledWith('Error', 'Failed to submit answer. Please try again.');
+      expect(mockedAlert.alert).toHaveBeenCalledWith('Error', 'submit answer failed: Network error');
       expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
         sending: false
       }));
@@ -634,11 +642,11 @@ describe('useGameActions', () => {
       });
 
       expect(mockedGameService.finalizeThinkResult).toHaveBeenCalledWith('test-game-123', 'llm_win');
-      expect(mockedAudioManager.playSound).toHaveBeenCalledWith('wrong');
+      expect(mockedAudioManager.playSound).toHaveBeenCalledWith('correct');
       expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
         resultModalData: {
-          isWin: false,
-          title: 'LLM guessed it!',
+          isWin: true,
+          title: 'Amazing! I guessed it!',
           message: 'You win! I couldn\'t guess what you were thinking of.'
         },
         showResultModal: true,
@@ -662,8 +670,8 @@ describe('useGameActions', () => {
 
       expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
         resultModalData: {
-          isWin: false,
-          title: 'LLM guessed it!',
+          isWin: true,
+          title: 'Amazing! I guessed it!',
           message: 'You win! I give up.'
         },
         showResultModal: true
@@ -679,7 +687,7 @@ describe('useGameActions', () => {
         await result.current.handleWin();
       });
 
-      expect(mockedAlert.alert).toHaveBeenCalledWith('Error', 'Failed to finalize game. Please try again.');
+      expect(mockedAlert.alert).toHaveBeenCalledWith('Error', 'finalize game failed: Network error');
       expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
         sending: false
       }));

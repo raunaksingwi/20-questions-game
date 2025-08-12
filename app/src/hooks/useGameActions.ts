@@ -1,9 +1,16 @@
 import { Alert } from 'react-native';
 import { gameService } from '../services/gameService';
 import { audioManager } from '../services/AudioManager';
-import { GameMessage, GameMode } from '../../../shared/types';
+import { GameMessage, GameMode, AnswerType } from '../../../shared/types';
 import { GameState, GameStateActions } from './useGameState';
 import { useRef } from 'react';
+
+// Standard error handling
+const handleError = (error: any, operation: string, fallbackMessage?: string) => {
+  console.error(`[${operation.toUpperCase()} ERROR]`, error);
+  const message = error?.message || fallbackMessage || 'An unexpected error occurred';
+  Alert.alert('Error', `${operation} failed: ${message}`);
+};
 
 export interface GameActionsHook {
   startNewGame: (category: string, mode?: GameMode, onNavigateBack?: () => void) => Promise<void>;
@@ -11,7 +18,7 @@ export interface GameActionsHook {
   requestHint: () => Promise<void>;
   handleQuit: () => void;
   // Think mode specific methods
-  submitUserAnswer: (answer: string, answerType: 'chip' | 'text' | 'voice') => Promise<void>;
+  submitUserAnswer: (answer: string, answerType: AnswerType) => Promise<void>;
   handleWin: () => Promise<void>;
 }
 
@@ -64,9 +71,7 @@ export const useGameActions = (
 
       if (mode === 'think') {
         // Think mode: Start a think round
-        console.log('[THINK START] Calling startThinkRound with category:', category);
         const response = await gameService.startThinkRound(category);
-        console.log('[THINK START] startThinkRound response:', response);
         
         audioManager.playSound('gameStart');
         
@@ -84,7 +89,6 @@ export const useGameActions = (
           questionsRemaining: 19, // LLM asked first question
           loading: false
         });
-        console.log('[THINK START] Think mode game started successfully');
       } else {
         // Guess mode: Original logic
         const response = await gameService.startGame(category);
@@ -106,14 +110,7 @@ export const useGameActions = (
         });
       }
     } catch (error) {
-      console.error('[START GAME ERROR] Failed to start game:', error);
-      console.error('[START GAME ERROR] Error details:', {
-        message: error.message,
-        stack: error.stack,
-        mode,
-        category
-      });
-      Alert.alert('Error', `Failed to start ${mode} mode game. Please try again.\n\nError: ${error.message}`);
+      handleError(error, `start ${mode} mode game`);
       onNavigateBack?.();
       actions.setLoading(false);
     }
@@ -183,7 +180,7 @@ export const useGameActions = (
       
       actions.setBatchState(batchUpdates);
     } catch (error) {
-      Alert.alert('Error', 'Failed to send question. Please try again.');
+      handleError(error, 'send question', 'Please try again.');
       // Rollback optimistic update
       actions.setBatchState({
         messages: state.messages, // Remove the optimistic user message
@@ -232,24 +229,20 @@ export const useGameActions = (
       
       actions.setBatchState(batchUpdates);
     } catch (error) {
-      Alert.alert('Error', 'Failed to get hint. Please try again.');
+      handleError(error, 'get hint', 'Please try again.');
       actions.setSending(false);
     }
   };
 
   const handleQuit = async () => {
     if (!state.gameId) {
-      console.log('[QUIT DEBUG] No gameId, returning early');
       return;
     }
     
-    console.log('[QUIT DEBUG] Starting quit process, gameId:', state.gameId, 'mode:', state.mode);
-    console.log('[QUIT DEBUG] Current modal state - showResultModal:', state.showResultModal, 'resultModalData:', state.resultModalData);
     audioManager.playSound('wrong');
     
     if (state.mode === 'think') {
       // Think mode: No secret item to reveal, just end the game
-      console.log('[QUIT DEBUG] Think mode - setting result modal directly');
       actions.setBatchState({
         gameStatus: 'lost', // User loses by quitting
         resultModalData: {
@@ -261,13 +254,8 @@ export const useGameActions = (
       });
     } else {
       // Guess mode: Show loading then reveal secret item
-      console.log('[QUIT DEBUG] Guess mode - showing loading modal first');
-      
-      // Use a simpler approach - skip the loading state and go directly to API call
       try {
-        console.log('[QUIT DEBUG] Calling quitGame API...');
         const response = await gameService.quitGame(state.gameId);
-        console.log('[QUIT DEBUG] quitGame API response:', response);
         
         // Show modal with the actual response
         actions.setBatchState({
@@ -279,9 +267,8 @@ export const useGameActions = (
           showResultModal: true,
           gameStatus: 'lost'
         });
-        console.log('[QUIT DEBUG] Showed modal with API response');
       } catch (error) {
-        console.error('[QUIT DEBUG] quitGame API failed:', error);
+        handleError(error, 'quit game');
         // Show modal with fallback message
         actions.setBatchState({
           resultModalData: {
@@ -292,13 +279,12 @@ export const useGameActions = (
           showResultModal: true,
           gameStatus: 'lost'
         });
-        console.log('[QUIT DEBUG] Showed modal with fallback message');
       }
     }
   };
 
   // Think mode specific methods
-  const submitUserAnswer = async (answer: string, answerType: 'chip' | 'text' | 'voice') => {
+  const submitUserAnswer = async (answer: string, answerType: AnswerType) => {
     if (!state.gameId || !answer.trim() || state.sending || state.mode !== 'think') return;
 
     // Prevent duplicate answers
@@ -351,7 +337,7 @@ export const useGameActions = (
         });
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to submit answer. Please try again.');
+      handleError(error, 'submit answer', 'Please try again.');
       actions.setBatchState({
         messages: state.messages, // Remove optimistic update
         sending: false
@@ -382,7 +368,7 @@ export const useGameActions = (
         sending: false
       });
     } catch (error) {
-      Alert.alert('Error', 'Failed to finalize game. Please try again.');
+      handleError(error, 'finalize game', 'Please try again.');
       actions.setBatchState({
         sending: false
       });

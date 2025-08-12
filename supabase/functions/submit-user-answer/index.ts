@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { SubmitUserAnswerRequest, SubmitUserAnswerResponse } from '../../../shared/types.ts'
+import { SubmitUserAnswerRequest, SubmitUserAnswerResponse, isValidUUID, isValidString, isValidAnswerType } from '../../../shared/types.ts'
 import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
 
 // Initialize shared Supabase client
@@ -11,7 +11,28 @@ const handler = async (req: Request) => {
 
   try {
     const requestStart = Date.now()
-    const { session_id, answer, answer_type }: SubmitUserAnswerRequest = await req.json()
+    const body = await req.json()
+    
+    // Validate request body structure
+    if (!body || typeof body !== 'object') {
+      throw new Error('Invalid request body: must be a JSON object')
+    }
+    
+    const { session_id, answer, answer_type }: SubmitUserAnswerRequest = body
+    
+    // Validate required fields
+    if (!session_id || !isValidUUID(session_id)) {
+      throw new Error('Invalid session_id: must be a valid UUID')
+    }
+    
+    if (!answer || !isValidString(answer, 1, 500)) {
+      throw new Error('Invalid answer: must be a non-empty string with max 500 characters')
+    }
+    
+    if (!answer_type || !isValidAnswerType(answer_type)) {
+      throw new Error('Invalid answer_type: must be one of chip, text, or voice')
+    }
+    
     console.log(`[submit-user-answer] Processing answer: "${answer}" (${answer_type})`)
 
     // Get session data and conversation history
@@ -39,7 +60,18 @@ const handler = async (req: Request) => {
 
     if (messagesError) throw messagesError
 
-    const currentQuestionCount = session.questions_asked + 1
+    // Check if answer is "Don't know" - these shouldn't count toward question limit
+    const isDontKnow = answer.toLowerCase().trim() === "don't know"
+    
+    // Find the highest question number in the messages to determine next question number
+    const maxQuestionNumber = messages.length > 0 
+      ? Math.max(...messages.map(m => m.question_number || 0))
+      : 0
+    const currentQuestionNumber = maxQuestionNumber
+    const nextQuestionNumber = maxQuestionNumber + 1
+    
+    // For game state tracking: only count non-"Don't know" answers toward the limit
+    const questionsCountedForLimit = isDontKnow ? session.questions_asked : session.questions_asked + 1
     
     // Store user's answer
     const msgStart = Date.now()
@@ -50,13 +82,13 @@ const handler = async (req: Request) => {
         role: 'user',
         content: answer,
         message_type: 'answer',
-        question_number: currentQuestionCount,
+        question_number: currentQuestionNumber,
         created_at: new Date().toISOString()
       })
     console.log(`[submit-user-answer] User answer stored in ${Date.now() - msgStart}ms`)
 
-    // Check if we've reached the 20 question limit
-    if (currentQuestionCount >= 20) {
+    // Check if we've reached the 20 question limit (only for answers that count)
+    if (!isDontKnow && questionsCountedForLimit >= 20) {
       // Auto-lose: LLM used all questions without guessing correctly
       await supabase
         .from('games')
@@ -92,8 +124,10 @@ const handler = async (req: Request) => {
     })
     
     // Add current answer
-    conversationContext += `A${currentQuestionCount}: ${answer}\n`
+    conversationContext += `A${currentQuestionNumber}: ${answer}\n`
 
+    const totalQuestionsUsed = questionsCountedForLimit
+    
     const systemPrompt = `You are playing 20 Questions in Think mode. The user has thought of an item within the category: ${session.category}.
 Your job is to ask up to 20 yes/no questions to identify the item. Rules:
 - Ask exactly one yes/no question per turn.
@@ -101,14 +135,15 @@ Your job is to ask up to 20 yes/no questions to identify the item. Rules:
 - Stay strictly within the category.
 - Use the user's answers to narrow down quickly.
 - You may ask a yes/no confirmation like "Is it <specific item>?" when confident.
+- User can answer: Yes, No, Maybe, or "Don't know" (Don't know responses don't count toward the 20 question limit).
 - Do not reveal internal reasoning. Do not output multiple questions at once.
-- Stop asking after 20 questions; await result.
-Current question count: ${currentQuestionCount + 1} of 20.
+- Stop asking after 20 meaningful questions; await result.
+Current meaningful question count: ${totalQuestionsUsed} of 20.
 Output only the next yes/no question.
 
 ${conversationContext}`
 
-    const userPrompt = `Based on my previous answers, ask your next yes/no question (question ${currentQuestionCount + 1}).`
+    const userPrompt = `Based on my previous answers, ask your next yes/no question (question ${nextQuestionNumber}).`
 
     const llmResponse = await llmProvider.generateResponse({
       messages: [{ role: 'user', content: userPrompt }],
@@ -119,33 +154,57 @@ ${conversationContext}`
     const nextQuestion = llmResponse.content
     console.log(`[submit-user-answer] Next question generated in ${Date.now() - llmStart}ms`)
 
-    // Store LLM's next question and update game state
+    // Store LLM's next question and update game state using transaction
     const updateStart = Date.now()
-    await Promise.all([
-      supabase
-        .from('game_messages')
-        .insert({
-          game_id: session_id,
-          role: 'assistant',
-          content: nextQuestion,
-          message_type: 'question',
-          question_number: currentQuestionCount + 1,
-          created_at: new Date().toISOString()
-        }),
-      supabase
-        .from('games')
-        .update({ 
-          questions_asked: currentQuestionCount + 1,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', session_id)
-    ])
+    const { error: updateError } = await supabase.rpc('submit_user_answer_transaction', {
+      p_session_id: session_id,
+      p_next_question: nextQuestion,
+      p_questions_asked: questionsCountedForLimit,
+      p_question_number: nextQuestionNumber,
+      p_timestamp: new Date().toISOString()
+    });
+    
+    if (updateError) {
+      // Fallback to individual operations if RPC fails
+      console.warn('[submit-user-answer] RPC failed, using fallback approach:', updateError);
+      
+      const [messageResult, gameResult] = await Promise.all([
+        supabase
+          .from('game_messages')
+          .insert({
+            game_id: session_id,
+            role: 'assistant',
+            content: nextQuestion,
+            message_type: 'question',
+            question_number: nextQuestionNumber,
+            created_at: new Date().toISOString()
+          }),
+        supabase
+          .from('games')
+          .update({ 
+            questions_asked: questionsCountedForLimit,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', session_id)
+      ]);
+      
+      if (messageResult.error) {
+        console.error('[submit-user-answer] Failed to store LLM question:', messageResult.error);
+        throw new Error(`Failed to store LLM question: ${messageResult.error.message}`);
+      }
+      
+      if (gameResult.error) {
+        console.error('[submit-user-answer] Failed to update game state:', gameResult.error);
+        throw new Error(`Failed to update game state: ${gameResult.error.message}`);
+      }
+    }
+    
     console.log(`[submit-user-answer] Updates completed in ${Date.now() - updateStart}ms`)
 
     const responseData: SubmitUserAnswerResponse = {
       next_question: nextQuestion,
-      questions_asked: currentQuestionCount + 1,
-      questions_remaining: 20 - (currentQuestionCount + 1),
+      questions_asked: questionsCountedForLimit,
+      questions_remaining: 20 - questionsCountedForLimit,
       game_status: 'active'
     }
     
