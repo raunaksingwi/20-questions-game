@@ -40,6 +40,7 @@ const mockedAlert = Alert as jest.Mocked<typeof Alert>;
 describe('useGameActions', () => {
   const defaultState = {
     gameId: 'test-game-123',
+    secretItem: 'elephant',
     loading: false,
     gameStatus: 'playing' as const,
     messages: [],
@@ -57,6 +58,7 @@ describe('useGameActions', () => {
   const defaultActions = {
     setLoading: jest.fn(),
     setGameId: jest.fn(),
+    setSecretItem: jest.fn(),
     setMessages: jest.fn(),
     setSending: jest.fn(),
     setQuestionsRemaining: jest.fn(),
@@ -74,7 +76,8 @@ describe('useGameActions', () => {
     it('successfully starts a new game', async () => {
       const mockResponse = {
         game_id: 'new-game-456',
-        message: 'Welcome! I\'m thinking of an animal. Ask me yes/no questions!'
+        message: 'Welcome! I\'m thinking of an animal. Ask me yes/no questions!',
+        secret_item: 'dog'
       };
 
       mockedGameService.startGame.mockResolvedValue(mockResponse);
@@ -88,6 +91,7 @@ describe('useGameActions', () => {
       expect(defaultActions.setLoading).toHaveBeenCalledWith(true);
       expect(mockedGameService.startGame).toHaveBeenCalledWith('Animals');
       expect(defaultActions.setGameId).toHaveBeenCalledWith('new-game-456');
+      expect(defaultActions.setSecretItem).toHaveBeenCalledWith('dog');
       expect(mockedAudioManager.playSound).toHaveBeenCalledWith('gameStart');
       expect(defaultActions.setMessages).toHaveBeenCalledWith([{
         role: 'assistant',
@@ -117,7 +121,8 @@ describe('useGameActions', () => {
       const onNavigateBack = jest.fn();
       const mockResponse = {
         game_id: 'new-game-789',
-        message: 'Welcome to the food category!'
+        message: 'Welcome to the food category!',
+        secret_item: 'pizza'
       };
 
       mockedGameService.startGame.mockResolvedValue(mockResponse);
@@ -179,7 +184,7 @@ describe('useGameActions', () => {
 
     it('handles winning game', async () => {
       const mockResponse = {
-        answer: 'Correct! It was a dog!',
+        answer: 'Yes! You got it! The answer was "dog".',
         questions_remaining: 15,
         game_status: 'won' as const,
       };
@@ -196,14 +201,14 @@ describe('useGameActions', () => {
       expect(defaultActions.setResultModalData).toHaveBeenCalledWith({
         isWin: true,
         title: 'Congratulations!',
-        message: 'You guessed it correctly! Well done!'
+        message: 'Yes! You got it! The answer was "dog".'
       });
       expect(defaultActions.setShowResultModal).toHaveBeenCalledWith(true);
     });
 
-    it('handles losing game', async () => {
+    it('handles losing game via sendQuestion', async () => {
       const mockResponse = {
-        answer: 'Game over! You ran out of questions.',
+        answer: 'Game over! You\'ve used all 20 questions. The answer was "elephant".',
         questions_remaining: 0,
         game_status: 'lost' as const,
       };
@@ -217,7 +222,12 @@ describe('useGameActions', () => {
       });
 
       expect(mockedAudioManager.playSound).toHaveBeenCalledWith('wrong');
-      // handleGameOver should be called internally
+      expect(defaultActions.setResultModalData).toHaveBeenCalledWith({
+        isWin: false,
+        title: 'Game Over!',
+        message: 'Game over! You\'ve used all 20 questions. The answer was "elephant".'
+      });
+      expect(defaultActions.setShowResultModal).toHaveBeenCalledWith(true);
     });
 
     it('handles send question failure', async () => {
@@ -296,7 +306,7 @@ describe('useGameActions', () => {
 
     it('handles hint resulting in game over', async () => {
       const mockResponse = {
-        hint: 'Final hint: It barks.',
+        hint: 'Final hint: It barks. Game over! You\'ve used all 20 questions. The answer was "elephant".',
         hints_remaining: 0,
         questions_remaining: 0,
         game_status: 'lost' as const,
@@ -311,6 +321,12 @@ describe('useGameActions', () => {
       });
 
       expect(mockedAudioManager.playSound).toHaveBeenCalledWith('wrong');
+      expect(defaultActions.setResultModalData).toHaveBeenCalledWith({
+        isWin: false,
+        title: 'Game Over!',
+        message: 'Final hint: It barks. Game over! You\'ve used all 20 questions. The answer was "elephant".'
+      });
+      expect(defaultActions.setShowResultModal).toHaveBeenCalledWith(true);
     });
 
     it('handles hint request failure', async () => {
@@ -363,46 +379,39 @@ describe('useGameActions', () => {
     });
   });
 
-  describe('handleGameOver', () => {
-    it('shows game over modal for lost game', () => {
-      const lostState = { ...defaultState, gameStatus: 'lost' as const };
 
-      const { result } = renderHook(() => useGameActions(lostState, defaultActions));
+  describe('handleQuit', () => {
+    it('shows quit modal with secret item when called', () => {
+      const { result } = renderHook(() => useGameActions(defaultState, defaultActions));
 
       act(() => {
-        result.current.handleGameOver(false);
+        result.current.handleQuit();
       });
 
+      expect(mockedAudioManager.playSound).toHaveBeenCalledWith('wrong');
       expect(defaultActions.setResultModalData).toHaveBeenCalledWith({
         isWin: false,
-        title: 'Game Over!',
-        message: "You've used all 20 questions without guessing correctly. Better luck next time!"
+        title: 'Game Ended',
+        message: 'You have left the game. The answer was "elephant".'
       });
       expect(defaultActions.setShowResultModal).toHaveBeenCalledWith(true);
     });
 
-    it('does not show modal if game was guessed', () => {
-      const lostState = { ...defaultState, gameStatus: 'lost' as const };
-
-      const { result } = renderHook(() => useGameActions(lostState, defaultActions));
-
-      act(() => {
-        result.current.handleGameOver(true);
-      });
-
-      expect(defaultActions.setResultModalData).not.toHaveBeenCalled();
-      expect(defaultActions.setShowResultModal).not.toHaveBeenCalled();
-    });
-
-    it('does not show modal if game is not lost', () => {
-      const { result } = renderHook(() => useGameActions(defaultState, defaultActions));
+    it('shows quit modal without secret item when not available', () => {
+      const stateWithoutSecret = { ...defaultState, secretItem: null };
+      const { result } = renderHook(() => useGameActions(stateWithoutSecret, defaultActions));
 
       act(() => {
-        result.current.handleGameOver(false);
+        result.current.handleQuit();
       });
 
-      expect(defaultActions.setResultModalData).not.toHaveBeenCalled();
-      expect(defaultActions.setShowResultModal).not.toHaveBeenCalled();
+      expect(mockedAudioManager.playSound).toHaveBeenCalledWith('wrong');
+      expect(defaultActions.setResultModalData).toHaveBeenCalledWith({
+        isWin: false,
+        title: 'Game Ended',
+        message: 'You have left the game.'
+      });
+      expect(defaultActions.setShowResultModal).toHaveBeenCalledWith(true);
     });
   });
 
@@ -413,7 +422,7 @@ describe('useGameActions', () => {
       expect(typeof result.current.startNewGame).toBe('function');
       expect(typeof result.current.sendQuestion).toBe('function');
       expect(typeof result.current.requestHint).toBe('function');
-      expect(typeof result.current.handleGameOver).toBe('function');
+      expect(typeof result.current.handleQuit).toBe('function');
     });
   });
 });

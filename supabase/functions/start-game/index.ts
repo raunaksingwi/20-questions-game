@@ -259,7 +259,8 @@ serve(async (req) => {
     const responseData: StartGameResponse = {
       game_id: game.id,
       category: selectedCategory,
-      message: `Let's play 20 Questions! I'm thinking of something in the ${selectedCategory} category. You have 20 questions to guess what it is. Ask yes/no questions!`
+      message: `Let's play 20 Questions! I'm thinking of something in the ${selectedCategory} category. You have 20 questions to guess what it is. Ask yes/no questions!`,
+      secret_item: secretItem
     }
 
     return new Response(

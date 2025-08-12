@@ -3,6 +3,7 @@ import { GameMessage, GameStatus } from '../../../../shared/types';
 
 export interface GameState {
   gameId: string | null;
+  secretItem: string | null;
   messages: GameMessage[];
   loading: boolean;
   sending: boolean;
@@ -19,6 +20,7 @@ export interface GameState {
 
 export interface GameStateActions {
   setGameId: (id: string | null) => void;
+  setSecretItem: (item: string | null) => void;
   setMessages: (messages: GameMessage[] | ((prev: GameMessage[]) => GameMessage[])) => void;
   setLoading: (loading: boolean) => void;
   setSending: (sending: boolean) => void;
@@ -31,6 +33,7 @@ export interface GameStateActions {
 
 export const useGameState = () => {
   const [gameId, setGameId] = useState<string | null>(null);
+  const [secretItem, setSecretItem] = useState<string | null>(null);
   const [messages, setMessages] = useState<GameMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -46,6 +49,7 @@ export const useGameState = () => {
 
   const state: GameState = {
     gameId,
+    secretItem,
     messages,
     loading,
     sending,
@@ -58,6 +62,7 @@ export const useGameState = () => {
 
   const actions: GameStateActions = {
     setGameId,
+    setSecretItem,
     setMessages,
     setLoading,
     setSending,

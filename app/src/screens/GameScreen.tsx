@@ -38,7 +38,7 @@ export default function GameScreen({ route, navigation }: Props) {
   const { state, actions } = useGameState();
   const gameActions = useGameActions(state, actions);
   
-  useGameNavigation(navigation);
+  useGameNavigation(navigation, gameActions.handleQuit);
 
   useEffect(() => {
     gameActions.startNewGame(category, () => navigation.goBack());

@@ -133,11 +133,7 @@ console.error = (...args) => {
   originalConsoleError(...args);
 };
 
-// Mock audio assets
-jest.mock('../assets/sounds/gameStart.ogg', () => 'gameStart.ogg');
-jest.mock('../assets/sounds/question.wav', () => 'question.wav');
-jest.mock('../assets/sounds/correct.wav', () => 'correct.wav');
-jest.mock('../assets/sounds/wrong.wav', () => 'wrong.wav');
+// Audio assets are handled by moduleNameMapper in jest.config.js
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({

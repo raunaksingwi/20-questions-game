@@ -8,7 +8,7 @@ export interface GameActionsHook {
   startNewGame: (category: string, onNavigateBack?: () => void) => Promise<void>;
   sendQuestion: (questionText?: string, currentQuestion?: string) => Promise<void>;
   requestHint: () => Promise<void>;
-  handleGameOver: (wasGuessed: boolean) => void;
+  handleQuit: () => void;
 }
 
 export const useGameActions = (
@@ -21,6 +21,7 @@ export const useGameActions = (
       
       // Reset all game state before starting new game
       actions.setGameId(null);
+      actions.setSecretItem(null);
       actions.setMessages([]);
       actions.setQuestionsRemaining(20);
       actions.setHintsRemaining(3);
@@ -30,6 +31,7 @@ export const useGameActions = (
       
       const response = await gameService.startGame(category);
       actions.setGameId(response.game_id);
+      actions.setSecretItem(response.secret_item);
       
       audioManager.playSound('gameStart');
       
@@ -83,12 +85,17 @@ export const useGameActions = (
         actions.setResultModalData({
           isWin: true,
           title: 'Congratulations!',
-          message: 'You guessed it correctly! Well done!'
+          message: response.answer
         });
         actions.setShowResultModal(true);
       } else if (response.game_status === 'lost') {
         audioManager.playSound('wrong');
-        handleGameOver(false);
+        actions.setResultModalData({
+          isWin: false,
+          title: 'Game Over!',
+          message: response.answer
+        });
+        actions.setShowResultModal(true);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to send question. Please try again.');
@@ -118,7 +125,12 @@ export const useGameActions = (
 
       if (response.game_status === 'lost') {
         audioManager.playSound('wrong');
-        handleGameOver(false);
+        actions.setResultModalData({
+          isWin: false,
+          title: 'Game Over!',
+          message: response.hint
+        });
+        actions.setShowResultModal(true);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to get hint. Please try again.');
@@ -127,21 +139,24 @@ export const useGameActions = (
     }
   };
 
-  const handleGameOver = (wasGuessed: boolean) => {
-    if (!wasGuessed && state.gameStatus === 'lost') {
-      actions.setResultModalData({
-        isWin: false,
-        title: 'Game Over!',
-        message: "You've used all 20 questions without guessing correctly. Better luck next time!"
-      });
-      actions.setShowResultModal(true);
-    }
+  const handleQuit = () => {
+    audioManager.playSound('wrong');
+    const secretItemMessage = state.secretItem 
+      ? `You have left the game. The answer was "${state.secretItem}".`
+      : 'You have left the game.';
+    
+    actions.setResultModalData({
+      isWin: false,
+      title: 'Game Ended',
+      message: secretItemMessage
+    });
+    actions.setShowResultModal(true);
   };
 
   return {
     startNewGame,
     sendQuestion,
     requestHint,
-    handleGameOver,
+    handleQuit,
   };
 };

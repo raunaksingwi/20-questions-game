@@ -38,6 +38,7 @@ export interface StartGameResponse {
   game_id: string;
   category: string;
   message: string;
+  secret_item: string;
 }
 
 export interface AskQuestionRequest {

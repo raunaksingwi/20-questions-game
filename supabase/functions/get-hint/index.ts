@@ -195,7 +195,7 @@ Provide only the hint text:`
     }
 
     const responseData: GetHintResponse = {
-      hint,
+      hint: gameStatus === 'lost' ? `${hint} Game over! You've used all 20 questions. The answer was "${game.secret_item}".` : hint,
       hints_remaining: MAX_HINTS_PER_GAME - game.hints_used - 1,
       questions_remaining: 20 - newQuestionsAsked,
       game_status: gameStatus

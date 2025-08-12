@@ -6,7 +6,10 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
-export const useGameNavigation = (navigation: GameScreenNavigationProp) => {
+export const useGameNavigation = (
+  navigation: GameScreenNavigationProp, 
+  onQuit?: () => void
+) => {
   useFocusEffect(
     React.useCallback(() => {
       navigation.setOptions({
@@ -15,7 +18,8 @@ export const useGameNavigation = (navigation: GameScreenNavigationProp) => {
             onPress={() => {
               if (Platform.OS === 'web') {
                 if (window.confirm('Are you sure you want to quit? Your progress will be lost.')) {
-                  navigation.goBack();
+                  onQuit?.();
+                  // Don't navigate back here - let the modal handle it when "Play Again" is clicked
                 }
               } else {
                 Alert.alert(
@@ -23,7 +27,14 @@ export const useGameNavigation = (navigation: GameScreenNavigationProp) => {
                   'Are you sure you want to quit? Your progress will be lost.',
                   [
                     { text: 'Cancel', style: 'cancel' },
-                    { text: 'Quit', style: 'destructive', onPress: () => navigation.goBack() }
+                    { 
+                      text: 'Quit', 
+                      style: 'destructive', 
+                      onPress: () => {
+                        onQuit?.();
+                        // Don't navigate back here - let the modal handle it when "Play Again" is clicked
+                      }
+                    }
                   ]
                 );
               }
@@ -46,7 +57,7 @@ export const useGameNavigation = (navigation: GameScreenNavigationProp) => {
           </TouchableOpacity>
         ),
       });
-    }, [navigation])
+    }, [navigation, onQuit])
   );
 };
 

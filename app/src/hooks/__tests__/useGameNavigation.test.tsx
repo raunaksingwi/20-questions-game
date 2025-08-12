@@ -85,7 +85,7 @@ describe('useGameNavigation', () => {
     );
   });
 
-  it('navigates back when quit is confirmed on native', () => {
+  it('does not navigate back when quit is confirmed on native (modal handles navigation)', () => {
     Platform.OS = 'android';
     renderHook(() => useGameNavigation(mockNavigation as any));
 
@@ -99,7 +99,65 @@ describe('useGameNavigation', () => {
     const quitCallback = mockedAlert.alert.mock.calls[0][2][1].onPress;
     quitCallback();
 
-    expect(mockNavigation.goBack).toHaveBeenCalled();
+    // Navigation should NOT be called here - the modal will handle it when "Play Again" is clicked
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
+  });
+
+  it('calls onQuit handler when quit is confirmed on native', () => {
+    Platform.OS = 'android';
+    const mockOnQuit = jest.fn();
+    renderHook(() => useGameNavigation(mockNavigation as any, mockOnQuit));
+
+    const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
+    const quitButtonElement = headerRightFn();
+    const onPress = quitButtonElement.props.onPress;
+    
+    onPress();
+
+    // Get the quit confirmation callback
+    const quitCallback = mockedAlert.alert.mock.calls[0][2][1].onPress;
+    quitCallback();
+
+    expect(mockOnQuit).toHaveBeenCalled();
+    // Navigation should NOT be called here - the modal will handle it when "Play Again" is clicked
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
+  });
+
+  it('calls onQuit handler when quit is confirmed on web', () => {
+    Platform.OS = 'web';
+    const mockOnQuit = jest.fn();
+    (global.window.confirm as jest.Mock).mockReturnValue(true);
+
+    renderHook(() => useGameNavigation(mockNavigation as any, mockOnQuit));
+
+    const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
+    const quitButtonElement = headerRightFn();
+    const onPress = quitButtonElement.props.onPress;
+    
+    onPress();
+
+    expect(mockOnQuit).toHaveBeenCalled();
+    // Navigation should NOT be called here - the modal will handle it when "Play Again" is clicked
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
+  });
+
+  it('does not call onQuit when handler is not provided', () => {
+    Platform.OS = 'android';
+    renderHook(() => useGameNavigation(mockNavigation as any));
+
+    const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
+    const quitButtonElement = headerRightFn();
+    const onPress = quitButtonElement.props.onPress;
+    
+    onPress();
+
+    // Get the quit confirmation callback
+    const quitCallback = mockedAlert.alert.mock.calls[0][2][1].onPress;
+    
+    // Should not throw when onQuit is not provided
+    expect(() => quitCallback()).not.toThrow();
+    // Navigation should NOT be called here - the modal will handle it when "Play Again" is clicked
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
   });
 
   it('handles web platform with window.confirm', () => {
@@ -117,7 +175,8 @@ describe('useGameNavigation', () => {
     expect(global.window.confirm).toHaveBeenCalledWith(
       'Are you sure you want to quit? Your progress will be lost.'
     );
-    expect(mockNavigation.goBack).toHaveBeenCalled();
+    // Navigation should NOT be called here - the modal will handle it when "Play Again" is clicked
+    expect(mockNavigation.goBack).not.toHaveBeenCalled();
     expect(mockedAlert.alert).not.toHaveBeenCalled();
   });
 

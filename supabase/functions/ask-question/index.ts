@@ -174,7 +174,11 @@ serve(async (req) => {
     const questionsRemaining = 20 - questionNumber
 
     const responseData: AskQuestionResponse = {
-      answer: gameWon ? `${answer}! You got it! The answer was "${game.secret_item}".` : answer,
+      answer: gameWon 
+        ? `${answer}! You got it! The answer was "${game.secret_item}".`
+        : gameStatus === 'lost' 
+          ? `${answer} Game over! You've used all 20 questions. The answer was "${game.secret_item}".`
+          : answer,
       questions_remaining: questionsRemaining,
       game_status: gameStatus
     }
