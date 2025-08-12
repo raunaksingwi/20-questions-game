@@ -3,6 +3,7 @@ import { gameService } from '../services/gameService';
 import { audioManager } from '../services/AudioManager';
 import { GameMessage } from '../../../../shared/types';
 import { GameState, GameStateActions } from './useGameState';
+import { useRef } from 'react';
 
 export interface GameActionsHook {
   startNewGame: (category: string, onNavigateBack?: () => void) => Promise<void>;
@@ -15,23 +16,49 @@ export const useGameActions = (
   state: GameState,
   actions: GameStateActions
 ): GameActionsHook => {
+  // Request deduplication
+  const lastRequestRef = useRef<{ type: string; content: string; timestamp: number } | null>(null);
+  
+  const isDuplicateRequest = (type: string, content: string): boolean => {
+    const now = Date.now();
+    const lastRequest = lastRequestRef.current;
+    
+    if (!lastRequest) return false;
+    
+    // Consider duplicate if same type+content within 2 seconds
+    return (
+      lastRequest.type === type &&
+      lastRequest.content === content &&
+      now - lastRequest.timestamp < 2000
+    );
+  };
+  
+  const recordRequest = (type: string, content: string) => {
+    lastRequestRef.current = {
+      type,
+      content,
+      timestamp: Date.now()
+    };
+  };
   const startNewGame = async (category: string, onNavigateBack?: () => void) => {
+    if (isDuplicateRequest('start', category)) return;
+    recordRequest('start', category);
+    
     try {
-      actions.setLoading(true);
-      
-      // Reset all game state before starting new game
-      actions.setGameId(null);
-      actions.setSecretItem(null);
-      actions.setMessages([]);
-      actions.setQuestionsRemaining(20);
-      actions.setHintsRemaining(3);
-      actions.setGameStatus('active');
-      actions.setShowResultModal(false);
-      actions.setSending(false);
+      // Batch initial state reset
+      actions.setBatchState({
+        loading: true,
+        gameId: null,
+        secretItem: null,
+        messages: [],
+        questionsRemaining: 20,
+        hintsRemaining: 3,
+        gameStatus: 'active',
+        showResultModal: false,
+        sending: false
+      });
       
       const response = await gameService.startGame(category);
-      actions.setGameId(response.game_id);
-      actions.setSecretItem(response.secret_item);
       
       audioManager.playSound('gameStart');
       
@@ -40,11 +67,17 @@ export const useGameActions = (
         content: response.message,
         message_type: 'answer',
       };
-      actions.setMessages([welcomeMessage as GameMessage]);
+      
+      // Batch final state update
+      actions.setBatchState({
+        gameId: response.game_id,
+        secretItem: response.secret_item,
+        messages: [welcomeMessage as GameMessage],
+        loading: false
+      });
     } catch (error) {
       Alert.alert('Error', 'Failed to start game. Please try again.');
       onNavigateBack?.();
-    } finally {
       actions.setLoading(false);
     }
   };
@@ -52,14 +85,22 @@ export const useGameActions = (
   const sendQuestion = async (questionText?: string, currentQuestion?: string) => {
     const textToSend = questionText || currentQuestion;
     if (!state.gameId || !textToSend?.trim() || state.sending) return;
+    
+    // Prevent duplicate questions
+    if (isDuplicateRequest('question', textToSend)) return;
+    recordRequest('question', textToSend);
 
     const userMessage: Partial<GameMessage> = {
       role: 'user',
       content: textToSend,
       message_type: 'question',
     };
-    actions.setMessages(prev => [...prev, userMessage as GameMessage]);
-    actions.setSending(true);
+    
+    // Optimistic update with batched state
+    actions.setBatchState({
+      messages: [...state.messages, userMessage as GameMessage],
+      sending: true
+    });
 
     try {
       const response = await gameService.askQuestion(state.gameId, textToSend);
@@ -76,36 +117,50 @@ export const useGameActions = (
         content: response.answer,
         message_type: 'answer',
       };
-      actions.setMessages(prev => [...prev, assistantMessage as GameMessage]);
-      actions.setQuestionsRemaining(response.questions_remaining);
-      actions.setGameStatus(response.game_status);
+      
+      // Batch all updates together
+      const batchUpdates: any = {
+        messages: [...state.messages, userMessage as GameMessage, assistantMessage as GameMessage],
+        questionsRemaining: response.questions_remaining,
+        gameStatus: response.game_status,
+        sending: false
+      };
 
       if (response.game_status === 'won') {
         audioManager.playSound('correct');
-        actions.setResultModalData({
+        batchUpdates.resultModalData = {
           isWin: true,
           title: 'Congratulations!',
           message: response.answer
-        });
-        actions.setShowResultModal(true);
+        };
+        batchUpdates.showResultModal = true;
       } else if (response.game_status === 'lost') {
         audioManager.playSound('wrong');
-        actions.setResultModalData({
+        batchUpdates.resultModalData = {
           isWin: false,
           title: 'Game Over!',
           message: response.answer
-        });
-        actions.setShowResultModal(true);
+        };
+        batchUpdates.showResultModal = true;
       }
+      
+      actions.setBatchState(batchUpdates);
     } catch (error) {
       Alert.alert('Error', 'Failed to send question. Please try again.');
-    } finally {
-      actions.setSending(false);
+      // Rollback optimistic update
+      actions.setBatchState({
+        messages: state.messages, // Remove the optimistic user message
+        sending: false
+      });
     }
   };
 
   const requestHint = async () => {
     if (!state.gameId || state.hintsRemaining === 0 || state.sending) return;
+    
+    // Prevent duplicate hint requests
+    if (isDuplicateRequest('hint', state.gameId)) return;
+    recordRequest('hint', state.gameId);
 
     actions.setSending(true);
     try {
@@ -118,23 +173,29 @@ export const useGameActions = (
         content: `💡 Hint: ${response.hint}`,
         message_type: 'hint',
       };
-      actions.setMessages(prev => [...prev, hintMessage as GameMessage]);
-      actions.setHintsRemaining(response.hints_remaining);
-      actions.setQuestionsRemaining(response.questions_remaining);
-      actions.setGameStatus(response.game_status);
+      
+      // Batch all hint updates together
+      const batchUpdates: any = {
+        messages: [...state.messages, hintMessage as GameMessage],
+        hintsRemaining: response.hints_remaining,
+        questionsRemaining: response.questions_remaining,
+        gameStatus: response.game_status,
+        sending: false
+      };
 
       if (response.game_status === 'lost') {
         audioManager.playSound('wrong');
-        actions.setResultModalData({
+        batchUpdates.resultModalData = {
           isWin: false,
           title: 'Game Over!',
           message: response.hint
-        });
-        actions.setShowResultModal(true);
+        };
+        batchUpdates.showResultModal = true;
       }
+      
+      actions.setBatchState(batchUpdates);
     } catch (error) {
       Alert.alert('Error', 'Failed to get hint. Please try again.');
-    } finally {
       actions.setSending(false);
     }
   };

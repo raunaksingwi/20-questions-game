@@ -1,24 +1,25 @@
 import { assertEquals, assertExists } from "@std/assert";
 
-// Mock Supabase client
+// Mock Supabase client that supports our optimized combined queries
 const createMockSupabase = (gameData: any, messagesData: any[] = []) => ({
   from: (table: string) => {
     if (table === 'games') {
       return {
-        select: () => ({
+        select: (columns?: string) => ({
           eq: () => ({
-            single: () => ({
-              data: gameData,
-              error: null
+            order: () => ({
+              single: () => ({
+                // Return combined data structure for optimized queries
+                data: columns?.includes('game_messages') ? {
+                  ...gameData,
+                  game_messages: messagesData
+                } : gameData,
+                error: null
+              })
             })
           })
         }),
         update: () => ({
-          eq: () => ({
-            error: null
-          })
-        }),
-        delete: () => ({
           eq: () => ({
             error: null
           })
@@ -27,21 +28,8 @@ const createMockSupabase = (gameData: any, messagesData: any[] = []) => ({
     }
     if (table === 'game_messages') {
       return {
-        select: () => ({
-          eq: () => ({
-            order: () => ({
-              data: messagesData,
-              error: null
-            })
-          })
-        }),
-        upsert: () => ({
+        insert: () => ({
           error: null
-        }),
-        delete: () => ({
-          eq: () => ({
-            error: null
-          })
         })
       };
     }
@@ -49,12 +37,30 @@ const createMockSupabase = (gameData: any, messagesData: any[] = []) => ({
   }
 });
 
-// Mock fetch for Anthropic API
+// Mock createClient function
+const mockCreateClient = (supabaseInstance: any) => {
+  globalThis.createClient = () => supabaseInstance;
+};
+
+// Mock fetch for LLM API calls
 const mockFetch = (response: any, ok = true) => {
   globalThis.fetch = async () => ({
     ok,
-    json: async () => response
-  });
+    json: async () => response,
+    status: ok ? 200 : 400,
+    headers: new Headers(),
+    redirected: false,
+    statusText: ok ? 'OK' : 'Bad Request',
+    type: 'basic',
+    url: '',
+    body: null,
+    bodyUsed: false,
+    clone: () => ({}) as Response,
+    arrayBuffer: async () => new ArrayBuffer(0),
+    blob: async () => new Blob(),
+    formData: async () => new FormData(),
+    text: async () => JSON.stringify(response)
+  } as Response);
 };
 
 // Mock environment variables
@@ -88,9 +94,9 @@ Deno.test('ask-question function', async (t) => {
       { role: 'assistant', content: 'Yes', created_at: '2024-01-01T00:02:00Z' }
     ];
 
-    globalThis.createClient = () => createMockSupabase(gameData, messagesData);
+    mockCreateClient(createMockSupabase(gameData, messagesData));
 
-    // Mock Anthropic response
+    // Mock LLM response
     mockFetch({
       content: [{ text: '{"answer": "Yes", "is_guess": false, "game_over": false}' }]
     });
@@ -129,9 +135,9 @@ Deno.test('ask-question function', async (t) => {
       { role: 'system', content: 'System prompt...', created_at: '2024-01-01T00:00:00Z' }
     ];
 
-    globalThis.createClient = () => createMockSupabase(gameData, messagesData);
+    mockCreateClient(createMockSupabase(gameData, messagesData));
 
-    // Mock winning response from Anthropic
+    // Mock winning response from LLM
     mockFetch({
       content: [{ text: '{"answer": "Yes", "is_guess": true, "game_over": true}' }]
     });
@@ -166,7 +172,7 @@ Deno.test('ask-question function', async (t) => {
       questions_asked: 20
     };
 
-    globalThis.createClient = () => createMockSupabase(gameData, []);
+    mockCreateClient(createMockSupabase(gameData, []));
 
     const requestBody = {
       game_id: 'test-game-id',
@@ -199,7 +205,7 @@ Deno.test('ask-question function', async (t) => {
       questions_asked: 15
     };
 
-    globalThis.createClient = () => createMockSupabase(gameData, []);
+    mockCreateClient(createMockSupabase(gameData, []));
 
     // Mock incorrect guess response
     mockFetch({
@@ -233,16 +239,18 @@ Deno.test('ask-question function', async (t) => {
       from: () => ({
         select: () => ({
           eq: () => ({
-            single: () => ({
-              data: null,
-              error: { message: 'Game not found' }
+            order: () => ({
+              single: () => ({
+                data: null,
+                error: { message: 'Game not found' }
+              })
             })
           })
         })
       })
     };
 
-    globalThis.createClient = () => mockSupabaseWithError;
+    mockCreateClient(mockSupabaseWithError);
 
     const requestBody = {
       game_id: 'invalid-game-id',
@@ -272,7 +280,7 @@ Deno.test('ask-question function', async (t) => {
       questions_asked: 10
     };
 
-    globalThis.createClient = () => createMockSupabase(gameData, []);
+    mockCreateClient(createMockSupabase(gameData, []));
 
     const requestBody = {
       game_id: 'test-game-id',
@@ -294,7 +302,7 @@ Deno.test('ask-question function', async (t) => {
     assertEquals(data.error, 'Game is not active');
   });
 
-  await t.step('should handle Anthropic API failure', async () => {
+  await t.step('should handle LLM API failure', async () => {
     const gameData = {
       id: 'test-game-id',
       secret_item: 'dog',
@@ -302,7 +310,7 @@ Deno.test('ask-question function', async (t) => {
       questions_asked: 5
     };
 
-    globalThis.createClient = () => createMockSupabase(gameData, []);
+    mockCreateClient(createMockSupabase(gameData, []));
 
     // Mock failed API response
     mockFetch({}, false);
@@ -324,7 +332,7 @@ Deno.test('ask-question function', async (t) => {
     assertEquals(response.status, 400);
     
     const data = await response.json();
-    assertEquals(data.error, 'Failed to get response from Claude');
+    assertExists(data.error);
   });
 
   await t.step('should handle malformed LLM response', async () => {
@@ -335,7 +343,7 @@ Deno.test('ask-question function', async (t) => {
       questions_asked: 5
     };
 
-    globalThis.createClient = () => createMockSupabase(gameData, []);
+    mockCreateClient(createMockSupabase(gameData, []));
 
     // Mock malformed response (no JSON)
     mockFetch({

@@ -8,32 +8,66 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+// Create Supabase client once outside the handler for connection reuse
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  db: { schema: 'public' },
+  global: { headers: { 'x-statement-timeout': '5s' } }
+})
+
+// Lazy initialization for LLM provider - initialized once but with proper error handling
+let llmProvider: any = null
+let llmProviderError: string | null = null
+
+const getLLMProvider = () => {
+  if (llmProviderError) {
+    throw new Error(llmProviderError)
+  }
+  
+  if (!llmProvider) {
+    try {
+      const llmConfig = LLMConfigLoader.loadConfig('ask-question')
+      llmProvider = LLMProviderFactory.createProvider(llmConfig)
+      console.log('✅ LLM provider initialized successfully for ask-question')
+    } catch (error) {
+      llmProviderError = `Failed to initialize LLM provider: ${error.message}`
+      console.error('❌ LLM provider initialization failed:', error)
+      throw new Error(llmProviderError)
+    }
+  }
+  
+  return llmProvider
+}
+
+const handler = async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    
-    const supabase = createClient(supabaseUrl, supabaseKey)
-    
-    // Initialize LLM provider
-    const llmConfig = LLMConfigLoader.loadConfig('ask-question')
-    const llmProvider = LLMProviderFactory.createProvider(llmConfig)
     const { game_id, question }: AskQuestionRequest = await req.json()
 
-    // Get game
-    const { data: game, error: gameError } = await supabase
+    // Get game and messages in a single query for better performance
+    const { data, error: gameError } = await supabase
       .from('games')
-      .select('*')
+      .select(`
+        *,
+        game_messages (
+          id, role, content, message_type, question_number, created_at
+        )
+      `)
       .eq('id', game_id)
       .single()
 
     if (gameError) throw gameError
-    if (!game) throw new Error('Game not found')
-    if (game.status !== 'active') throw new Error('Game is not active')
+    if (!data) throw new Error('Game not found')
+    if (data.status !== 'active') throw new Error('Game is not active')
+    
+    const game = data
+    const messages = (data.game_messages || []).sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
 
     // Check if game is over
     if (game.questions_asked >= 20) {
@@ -55,14 +89,7 @@ serve(async (req) => {
       )
     }
 
-    // Get conversation history
-    const { data: messages, error: msgError } = await supabase
-      .from('game_messages')
-      .select('*')
-      .eq('game_id', game_id)
-      .order('created_at', { ascending: true })
-
-    if (msgError) throw msgError
+    // Messages already fetched in the combined query above
 
     // Prepare messages for LLM with enhanced context
     const chatMessages = messages.map(msg => ({
@@ -86,8 +113,11 @@ serve(async (req) => {
       content: question
     })
 
+    // Get LLM provider (lazy initialization with caching)
+    const provider = getLLMProvider()
+
     // Call LLM provider
-    const llmResponse = await llmProvider.generateResponse({
+    const llmResponse = await provider.generateResponse({
       messages: chatMessages,
       temperature: 0.1,
       maxTokens: 50
@@ -109,26 +139,6 @@ serve(async (req) => {
     // Safety validation - log suspicious cases
     ResponseParser.validateGameResponse(parsedResponse, rawResponse, question, game.secret_item)
 
-    // Save question and answer (upsert prevents duplicates)
-    await supabase
-      .from('game_messages')
-      .upsert([
-        {
-          game_id: game_id,
-          role: 'user',
-          content: question,
-          message_type: isGuess ? 'guess' : 'question',
-          question_number: questionNumber
-        },
-        {
-          game_id: game_id,
-          role: 'assistant',
-          content: answer,
-          message_type: 'answer',
-          question_number: questionNumber
-        }
-      ])
-
     // Determine game status
     let gameStatus: 'active' | 'won' | 'lost' = 'active'
     if (gameWon) {
@@ -137,39 +147,41 @@ serve(async (req) => {
       gameStatus = 'lost'
     }
 
-    // Update game
-    const { error: updateError } = await supabase
-      .from('games')
-      .update({ 
-        questions_asked: questionNumber,
-        status: gameStatus,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', game_id)
+    // Batch insert messages and update game in parallel for better performance
+    const [insertResult, updateResult] = await Promise.all([
+      supabase
+        .from('game_messages')
+        .insert([
+          {
+            game_id: game_id,
+            role: 'user',
+            content: question,
+            message_type: isGuess ? 'guess' : 'question',
+            question_number: questionNumber
+          },
+          {
+            game_id: game_id,
+            role: 'assistant',
+            content: answer,
+            message_type: 'answer',
+            question_number: questionNumber
+          }
+        ]),
+      supabase
+        .from('games')
+        .update({ 
+          questions_asked: questionNumber,
+          status: gameStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', game_id)
+    ])
 
-    if (updateError) throw updateError
+    if (insertResult.error) throw insertResult.error
+    if (updateResult.error) throw updateResult.error
 
-    // If game is over, delete the game and all messages after response is sent
-    if (gameStatus === 'won' || gameStatus === 'lost') {
-      // Delete in background (don't wait for it to complete the response)
-      setTimeout(async () => {
-        try {
-          // Delete messages first (due to foreign key constraint)
-          await supabase
-            .from('game_messages')
-            .delete()
-            .eq('game_id', game_id)
-          
-          // Then delete the game
-          await supabase
-            .from('games')
-            .delete()
-            .eq('id', game_id)
-        } catch (error) {
-          console.error('Failed to cleanup game data:', error)
-        }
-      }, 1000) // 1 second delay to ensure response is sent first
-    }
+    // Game cleanup is now handled by database triggers
+    // No need for setTimeout - triggers will handle cleanup automatically
 
     const questionsRemaining = 20 - questionNumber
 
@@ -194,4 +206,10 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 },
     )
   }
-})
+}
+
+// Export handler for tests
+export default handler
+
+// Start server
+serve(handler)

@@ -10,46 +10,71 @@ const corsHeaders = {
 
 const MAX_HINTS_PER_GAME = 3
 
-serve(async (req) => {
+// Create Supabase client once outside the handler for connection reuse
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  db: { schema: 'public' },
+  global: { headers: { 'x-statement-timeout': '5s' } }
+})
+
+// Lazy initialization for LLM provider - initialized once but with proper error handling
+let llmProvider: any = null
+let llmProviderError: string | null = null
+
+const getLLMProvider = () => {
+  if (llmProviderError) {
+    throw new Error(llmProviderError)
+  }
+  
+  if (!llmProvider) {
+    try {
+      const llmConfig = LLMConfigLoader.loadConfig('get-hint')
+      llmProvider = LLMProviderFactory.createProvider(llmConfig)
+      console.log('✅ LLM provider initialized successfully for get-hint')
+    } catch (error) {
+      llmProviderError = `Failed to initialize LLM provider: ${error.message}`
+      console.error('❌ LLM provider initialization failed:', error)
+      throw new Error(llmProviderError)
+    }
+  }
+  
+  return llmProvider
+}
+
+const handler = async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    
-    const supabase = createClient(supabaseUrl, supabaseKey)
-    
-    // Initialize LLM provider
-    const llmConfig = LLMConfigLoader.loadConfig('get-hint')
-    const llmProvider = LLMProviderFactory.createProvider(llmConfig)
     const { game_id }: GetHintRequest = await req.json()
 
-    // Get game
-    const { data: game, error: gameError } = await supabase
+    // Get game and messages in a single query for better performance
+    const { data, error: gameError } = await supabase
       .from('games')
-      .select('*')
+      .select(`
+        *,
+        game_messages (
+          id, role, content, message_type, question_number, created_at
+        )
+      `)
       .eq('id', game_id)
       .single()
 
     if (gameError) throw gameError
-    if (!game) throw new Error('Game not found')
-    if (game.status !== 'active') throw new Error('Game is not active')
+    if (!data) throw new Error('Game not found')
+    if (data.status !== 'active') throw new Error('Game is not active')
+    
+    const game = data
+    const messages = (data.game_messages || []).sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
 
     // Check hint limit
     if (game.hints_used >= MAX_HINTS_PER_GAME) {
       throw new Error(`You've already used all ${MAX_HINTS_PER_GAME} hints!`)
     }
-
-    // Get conversation history
-    const { data: messages, error: msgError } = await supabase
-      .from('game_messages')
-      .select('*')
-      .eq('game_id', game_id)
-      .order('created_at', { ascending: true })
-
-    if (msgError) throw msgError
 
     // Prepare hint request with full conversation context
     const chatMessages = messages.map(msg => ({
@@ -120,8 +145,11 @@ Provide only the hint text:`
       content: hintPrompt
     })
 
+    // Get LLM provider (lazy initialization with caching)
+    const provider = getLLMProvider()
+
     // Call LLM provider
-    const llmResponse = await llmProvider.generateResponse({
+    const llmResponse = await provider.generateResponse({
       messages: chatMessages,
       temperature: 0.7,
       maxTokens: 100
@@ -132,39 +160,41 @@ Provide only the hint text:`
     // Parse hint response
     const hint = ResponseParser.parseHintResponse(rawHint)
 
-    // Save hint message using upsert to prevent duplicates
+    // Save hint message and update game in parallel for better performance
     const questionNumber = game.questions_asked + 1
-    await supabase
-      .from('game_messages')
-      .upsert([
-        {
-          game_id: game_id,
-          role: 'user',
-          content: 'I need a hint!',
-          message_type: 'hint',
-          question_number: questionNumber
-        },
-        {
-          game_id: game_id,
-          role: 'assistant',
-          content: hint,
-          message_type: 'hint',
-          question_number: questionNumber
-        }
-      ])
-
-    // Update game hints count AND questions count (hint costs a question)
     const newQuestionsAsked = game.questions_asked + 1
-    const { error: updateError } = await supabase
-      .from('games')
-      .update({ 
-        hints_used: game.hints_used + 1,
-        questions_asked: newQuestionsAsked,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', game_id)
+    
+    const [insertResult, updateResult] = await Promise.all([
+      supabase
+        .from('game_messages')
+        .insert([
+          {
+            game_id: game_id,
+            role: 'user',
+            content: 'I need a hint!',
+            message_type: 'hint',
+            question_number: questionNumber
+          },
+          {
+            game_id: game_id,
+            role: 'assistant',
+            content: hint,
+            message_type: 'hint',
+            question_number: questionNumber
+          }
+        ]),
+      supabase
+        .from('games')
+        .update({ 
+          hints_used: game.hints_used + 1,
+          questions_asked: newQuestionsAsked,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', game_id)
+    ])
 
-    if (updateError) throw updateError
+    if (insertResult.error) throw insertResult.error
+    if (updateResult.error) throw updateResult.error
 
     // Check if game should end due to no more questions
     const gameStatus = newQuestionsAsked >= 20 ? 'lost' : 'active'
@@ -174,24 +204,7 @@ Provide only the hint text:`
         .update({ status: 'lost' })
         .eq('id', game_id)
       
-      // Delete game data in background after response is sent
-      setTimeout(async () => {
-        try {
-          // Delete messages first (due to foreign key constraint)
-          await supabase
-            .from('game_messages')
-            .delete()
-            .eq('game_id', game_id)
-          
-          // Then delete the game
-          await supabase
-            .from('games')
-            .delete()
-            .eq('id', game_id)
-        } catch (error) {
-          console.error('Failed to cleanup game data:', error)
-        }
-      }, 1000) // 1 second delay to ensure response is sent first
+      // Game cleanup is now handled by database triggers
     }
 
     const responseData: GetHintResponse = {
@@ -212,4 +225,10 @@ Provide only the hint text:`
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 },
     )
   }
-})
+}
+
+// Export handler for tests
+export default handler
+
+// Start server
+serve(handler)

@@ -66,6 +66,7 @@ describe('useGameActions', () => {
     setGameStatus: jest.fn(),
     setShowResultModal: jest.fn(),
     setResultModalData: jest.fn(),
+    setBatchState: jest.fn(),
   };
 
   beforeEach(() => {
@@ -88,17 +89,22 @@ describe('useGameActions', () => {
         await result.current.startNewGame('Animals');
       });
 
-      expect(defaultActions.setLoading).toHaveBeenCalledWith(true);
+      // Should call setBatchState twice: once for initial reset, once for final state
+      expect(defaultActions.setBatchState).toHaveBeenCalledTimes(2);
       expect(mockedGameService.startGame).toHaveBeenCalledWith('Animals');
-      expect(defaultActions.setGameId).toHaveBeenCalledWith('new-game-456');
-      expect(defaultActions.setSecretItem).toHaveBeenCalledWith('dog');
       expect(mockedAudioManager.playSound).toHaveBeenCalledWith('gameStart');
-      expect(defaultActions.setMessages).toHaveBeenCalledWith([{
-        role: 'assistant',
-        content: mockResponse.message,
-        message_type: 'answer',
-      }]);
-      expect(defaultActions.setLoading).toHaveBeenCalledWith(false);
+      
+      // Check the final state update
+      expect(defaultActions.setBatchState).toHaveBeenCalledWith({
+        gameId: 'new-game-456',
+        secretItem: 'dog',
+        messages: [{
+          role: 'assistant',
+          content: mockResponse.message,
+          message_type: 'answer',
+        }],
+        loading: false
+      });
     });
 
     it('handles start game failure', async () => {
@@ -111,10 +117,11 @@ describe('useGameActions', () => {
         await result.current.startNewGame('Food', onNavigateBack);
       });
 
-      expect(defaultActions.setLoading).toHaveBeenCalledWith(true);
+      // Should call setBatchState for initial reset and setLoading for cleanup
+      expect(defaultActions.setBatchState).toHaveBeenCalledTimes(1);
+      expect(defaultActions.setLoading).toHaveBeenCalledWith(false);
       expect(mockedAlert.alert).toHaveBeenCalledWith('Error', 'Failed to start game. Please try again.');
       expect(onNavigateBack).toHaveBeenCalled();
-      expect(defaultActions.setLoading).toHaveBeenCalledWith(false);
     });
 
     it('calls onNavigateBack when provided on success', async () => {

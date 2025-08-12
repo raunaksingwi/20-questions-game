@@ -2,6 +2,14 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { StartGameRequest, StartGameResponse } from '../../../shared/types.ts'
 
+// Create Supabase client once outside the handler for connection reuse
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  db: { schema: 'public' },
+  global: { headers: { 'x-statement-timeout': '5s' } }
+})
+
 // Category-specific system prompts - optimized for accuracy
 function getCricketersPrompt(secretItem: string): string {
   return `You are the game master in 20 Questions. The secret item is: ${secretItem}
@@ -193,16 +201,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+const handler = async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    
-    const supabase = createClient(supabaseUrl, supabaseKey)
     const { category, user_id }: StartGameRequest = await req.json()
 
     // Get available categories
@@ -274,4 +278,10 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 },
     )
   }
-})
+}
+
+// Export handler for tests
+export default handler
+
+// Start server
+serve(handler)

@@ -29,6 +29,7 @@ export interface GameStateActions {
   setGameStatus: (status: GameStatus) => void;
   setShowResultModal: (show: boolean) => void;
   setResultModalData: (data: { isWin: boolean; title: string; message: string }) => void;
+  setBatchState: (updates: Partial<GameState>) => void;
 }
 
 export const useGameState = () => {
@@ -60,6 +61,45 @@ export const useGameState = () => {
     resultModalData,
   };
 
+  // Batch state update function to reduce re-renders
+  const setBatchState = (updates: Partial<GameState>) => {
+    // Use functional updates to ensure all changes are applied together
+    Object.entries(updates).forEach(([key, value]) => {
+      switch (key) {
+        case 'gameId':
+          setGameId(value as string | null);
+          break;
+        case 'secretItem':
+          setSecretItem(value as string | null);
+          break;
+        case 'messages':
+          setMessages(value as GameMessage[]);
+          break;
+        case 'loading':
+          setLoading(value as boolean);
+          break;
+        case 'sending':
+          setSending(value as boolean);
+          break;
+        case 'questionsRemaining':
+          setQuestionsRemaining(value as number);
+          break;
+        case 'hintsRemaining':
+          setHintsRemaining(value as number);
+          break;
+        case 'gameStatus':
+          setGameStatus(value as GameStatus);
+          break;
+        case 'showResultModal':
+          setShowResultModal(value as boolean);
+          break;
+        case 'resultModalData':
+          setResultModalData(value as { isWin: boolean; title: string; message: string });
+          break;
+      }
+    });
+  };
+
   const actions: GameStateActions = {
     setGameId,
     setSecretItem,
@@ -71,6 +111,7 @@ export const useGameState = () => {
     setGameStatus,
     setShowResultModal,
     setResultModalData,
+    setBatchState,
   };
 
   return { state, actions };

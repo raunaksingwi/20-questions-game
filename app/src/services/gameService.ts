@@ -13,6 +13,11 @@ import {
 const FUNCTIONS_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1`
 
 class GameService {
+  // Cache for categories to avoid unnecessary API calls
+  private categoriesCache: any[] | null = null;
+  private categoriesCacheTimestamp: number = 0;
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  
   private async callFunction<T, R>(functionName: string, data: T): Promise<R> {
     const response = await fetch(`${FUNCTIONS_URL}/${functionName}`, {
       method: 'POST',
@@ -96,6 +101,12 @@ class GameService {
 
   async getCategories() {
     try {
+      // Check if cache is valid
+      const now = Date.now();
+      if (this.categoriesCache && (now - this.categoriesCacheTimestamp) < this.CACHE_DURATION) {
+        return this.categoriesCache;
+      }
+      
       const { data, error } = await supabase
         .from('categories')
         .select('*')
@@ -103,14 +114,26 @@ class GameService {
 
       if (error) {
         console.error('Error fetching categories:', error)
-        return []
+        // Return cached data if available, even if stale
+        return this.categoriesCache || []
       }
 
-      return data || []
+      // Update cache
+      this.categoriesCache = data || [];
+      this.categoriesCacheTimestamp = now;
+      
+      return this.categoriesCache;
     } catch (error) {
       console.error('Error fetching categories:', error)
-      return []
+      // Return cached data if available, even if stale
+      return this.categoriesCache || []
     }
+  }
+  
+  // Method to invalidate categories cache if needed
+  invalidateCategoriesCache() {
+    this.categoriesCache = null;
+    this.categoriesCacheTimestamp = 0;
   }
 
 }
