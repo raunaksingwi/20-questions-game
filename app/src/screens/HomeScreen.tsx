@@ -7,7 +7,9 @@ import {
   ScrollView,
   SafeAreaView,
   Platform,
+  Dimensions,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Category, GameMode } from '../../../shared/types';
@@ -24,6 +26,30 @@ export default function HomeScreen({ navigation }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMode, setSelectedMode] = useState<GameMode>('guess');
+  
+  const screenWidth = Dimensions.get('window').width;
+  
+  // Animation values for categories slide-in
+  const categoriesTranslateX = useSharedValue(0);
+  const categoriesOpacity = useSharedValue(1);
+  
+  // Trigger animation when mode changes
+  useEffect(() => {
+    // Slide out to the right, then slide in from the left
+    categoriesOpacity.value = withTiming(0.3, { duration: 200 });
+    categoriesTranslateX.value = withTiming(screenWidth * 0.3, { duration: 200 }, () => {
+      // Reset position off-screen left, then slide in
+      categoriesTranslateX.value = -screenWidth * 0.3;
+      categoriesTranslateX.value = withTiming(0, { duration: 300 });
+      categoriesOpacity.value = withTiming(1, { duration: 300 });
+    });
+  }, [selectedMode, screenWidth]);
+  
+  // Animated style for categories
+  const categoriesAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: categoriesTranslateX.value }],
+    opacity: categoriesOpacity.value,
+  }));
 
   useEffect(() => {
     loadCategories();
@@ -127,7 +153,7 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
         </View>
 
-        <View style={styles.categoriesContainer}>
+        <Animated.View style={[styles.categoriesContainer, categoriesAnimatedStyle]}>
           <Text style={styles.sectionTitle}>Choose a Category</Text>
           {categories.map((category) => (
             <TouchableOpacity
@@ -145,7 +171,7 @@ export default function HomeScreen({ navigation }: Props) {
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </Animated.View>
 
         <View style={styles.rulesContainer}>
           <Text style={styles.rulesTitle}>How to Play {selectedMode === 'guess' ? 'Guess' : 'Think'} Mode</Text>

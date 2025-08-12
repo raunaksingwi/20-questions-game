@@ -82,10 +82,14 @@ jest.mock('react-native-reanimated', () => {
     default: {
       View,
     },
+    View,
     useSharedValue: jest.fn((value) => ({ value })),
     useAnimatedStyle: jest.fn((callback) => callback()),
     withSpring: jest.fn((value) => value),
-    withTiming: jest.fn((value) => value),
+    withTiming: jest.fn((value, config, callback) => {
+      if (callback) callback();
+      return value;
+    }),
     runOnJS: jest.fn((fn) => fn),
   };
 });
