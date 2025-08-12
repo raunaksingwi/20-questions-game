@@ -50,17 +50,18 @@ describe('GameService', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'https://test.supabase.co/functions/v1/start-game',
-        {
+        expect.objectContaining({
           method: 'POST',
-          headers: {
+          headers: expect.objectContaining({
             'Content-Type': 'application/json',
             'Authorization': 'Bearer test-anon-key',
-          },
+          }),
           body: JSON.stringify({
             category: 'Animals',
             user_id: 'user-123',
           }),
-        }
+          signal: expect.any(AbortSignal),
+        })
       );
 
       expect(result).toEqual(mockResponse);
@@ -86,10 +87,16 @@ describe('GameService', () => {
       expect(global.fetch).toHaveBeenCalledWith(
         'https://test.supabase.co/functions/v1/start-game',
         expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-anon-key',
+          }),
           body: JSON.stringify({
             category: undefined,
             user_id: undefined,
           }),
+          signal: expect.any(AbortSignal),
         })
       );
 
@@ -129,17 +136,18 @@ describe('GameService', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'https://test.supabase.co/functions/v1/ask-question',
-        {
+        expect.objectContaining({
           method: 'POST',
-          headers: {
+          headers: expect.objectContaining({
             'Content-Type': 'application/json',
             'Authorization': 'Bearer test-anon-key',
-          },
+          }),
           body: JSON.stringify({
             game_id: 'game-123',
             question: 'Does it have four legs?',
           }),
-        }
+          signal: expect.any(AbortSignal),
+        })
       );
 
       expect(result).toEqual(mockResponse);
@@ -192,16 +200,17 @@ describe('GameService', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'https://test.supabase.co/functions/v1/get-hint',
-        {
+        expect.objectContaining({
           method: 'POST',
-          headers: {
+          headers: expect.objectContaining({
             'Content-Type': 'application/json',
             'Authorization': 'Bearer test-anon-key',
-          },
+          }),
           body: JSON.stringify({
             game_id: 'game-123',
           }),
-        }
+          signal: expect.any(AbortSignal),
+        })
       );
 
       expect(result).toEqual(mockResponse);
@@ -235,16 +244,17 @@ describe('GameService', () => {
 
       expect(global.fetch).toHaveBeenCalledWith(
         'https://test.supabase.co/functions/v1/quit-game',
-        {
+        expect.objectContaining({
           method: 'POST',
-          headers: {
+          headers: expect.objectContaining({
             'Content-Type': 'application/json',
             'Authorization': 'Bearer test-anon-key',
-          },
+          }),
           body: JSON.stringify({
             game_id: 'game-123',
           }),
-        }
+          signal: expect.any(AbortSignal),
+        })
       );
 
       expect(result).toEqual(mockResponse);

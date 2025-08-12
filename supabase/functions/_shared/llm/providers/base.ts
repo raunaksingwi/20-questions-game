@@ -17,29 +17,47 @@ export abstract class BaseLLMProvider implements LLMProvider {
   protected async makeRequest(
     url: string, 
     options: RequestInit,
-    retries = 3
+    retries = 2 // Reduced retries for faster failure
   ): Promise<Response> {
+    const startTime = Date.now()
+    
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        const response = await fetch(url, options)
+        // Add request timeout to prevent hanging
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 8000) // 8s timeout
+        
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal
+        })
+        
+        clearTimeout(timeout)
         
         if (response.ok) {
+          const duration = Date.now() - startTime
+          console.log(`[${this.name}] Request completed in ${duration}ms`)
           return response
         }
 
         if (response.status === 429 && attempt < retries) {
-          const delay = Math.pow(2, attempt - 1) * 1000
+          const delay = 500 + Math.random() * 1000 // Randomized shorter delay
+          console.log(`[${this.name}] Rate limited, retrying in ${delay}ms`)
           await new Promise(resolve => setTimeout(resolve, delay))
           continue
         }
 
         throw new Error(`HTTP ${response.status}: ${await response.text()}`)
       } catch (error) {
+        const duration = Date.now() - startTime
+        
         if (attempt === retries) {
+          console.error(`[${this.name}] Request failed after ${duration}ms and ${retries} attempts`)
           throw new Error(`${this.name} API request failed after ${retries} attempts: ${error.message}`)
         }
         
-        const delay = Math.pow(2, attempt - 1) * 1000
+        const delay = 200 + Math.random() * 300 // Shorter randomized delay
+        console.log(`[${this.name}] Request failed, retrying in ${delay}ms`)
         await new Promise(resolve => setTimeout(resolve, delay))
       }
     }

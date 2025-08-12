@@ -13,7 +13,9 @@ const handler = async (req: Request) => {
   if (corsResponse) return corsResponse
 
   try {
+    const requestStart = Date.now()
     const { game_id, question }: AskQuestionRequest = await req.json()
+    console.log(`[ask-question] Processing question: "${question.substring(0, 50)}..."`)
 
     // Get game and messages in a single query for better performance
     const { data, error: gameError } = await supabase
@@ -25,6 +27,7 @@ const handler = async (req: Request) => {
         )
       `)
       .eq('id', game_id)
+      .limit(1) // Explicit limit for performance
       .single()
 
     if (gameError) throw gameError
@@ -78,16 +81,20 @@ const handler = async (req: Request) => {
     })
 
     // Get LLM provider (lazy initialization with caching)
+    const llmStart = Date.now()
     const provider = EdgeFunctionBase.getLLMProvider('ask-question')
+    console.log(`[ask-question] LLM provider ready in ${Date.now() - llmStart}ms`)
 
     // Call LLM provider with search function available
+    const llmCallStart = Date.now()
     let llmResponse = await provider.generateResponse({
       messages: chatMessages,
       temperature: 0.1,
-      maxTokens: 100, // Allow some tokens for function calls
+      maxTokens: 80, // Reduced for faster responses
       functions: [SEARCH_FUNCTION],
       function_call: 'auto'
     })
+    console.log(`[ask-question] LLM response received in ${Date.now() - llmCallStart}ms`)
 
     // Handle function calls
     if (llmResponse.function_call) {
@@ -108,11 +115,13 @@ const handler = async (req: Request) => {
       })
       
       // Call LLM again with search results
+      const secondCallStart = Date.now()
       llmResponse = await provider.generateResponse({
         messages: chatMessages,
         temperature: 0.1,
-        maxTokens: 50
+        maxTokens: 40 // Reduced for faster responses
       })
+      console.log(`[ask-question] Second LLM call completed in ${Date.now() - secondCallStart}ms`)
     }
 
     const rawResponse = llmResponse.content
@@ -140,6 +149,7 @@ const handler = async (req: Request) => {
     }
 
     // Batch insert messages and update game in parallel for better performance
+    const dbStart = Date.now()
     const [insertResult, updateResult] = await Promise.all([
       supabase
         .from('game_messages')
@@ -158,7 +168,8 @@ const handler = async (req: Request) => {
             message_type: 'answer',
             question_number: questionNumber
           }
-        ]),
+        ])
+        .select('id'), // Only return IDs for performance
       supabase
         .from('games')
         .update({ 
@@ -167,7 +178,9 @@ const handler = async (req: Request) => {
           updated_at: new Date().toISOString()
         })
         .eq('id', game_id)
+        .select('id') // Only return ID for performance
     ])
+    console.log(`[ask-question] Database operations completed in ${Date.now() - dbStart}ms`)
 
     if (insertResult.error) throw insertResult.error
     if (updateResult.error) throw updateResult.error
@@ -186,6 +199,9 @@ const handler = async (req: Request) => {
       questions_remaining: questionsRemaining,
       game_status: gameStatus
     }
+    
+    const totalTime = Date.now() - requestStart
+    console.log(`[ask-question] Total request completed in ${totalTime}ms`)
 
     return EdgeFunctionBase.createSuccessResponse(responseData)
 

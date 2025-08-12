@@ -30,17 +30,23 @@ export default function HomeScreen({ navigation }: Props) {
 
   const loadCategories = async () => {
     try {
+      const startTime = Date.now();
+      console.log('[HomeScreen] Loading categories...');
       const data = await gameService.getCategories();
+      console.log(`[HomeScreen] Categories loaded in ${Date.now() - startTime}ms`);
       setCategories(data);
     } catch (error) {
-      console.error('Error loading categories:', error);
+      console.error('[HomeScreen] Error loading categories:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const startGame = (category: string) => {
+    console.log(`[HomeScreen] Starting game with category: ${category}`);
+    const startTime = Date.now();
     navigation.navigate('Game', { category });
+    console.log(`[HomeScreen] Navigation to Game screen in ${Date.now() - startTime}ms`);
   };
 
   if (loading) {

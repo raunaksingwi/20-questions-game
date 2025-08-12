@@ -11,12 +11,15 @@ const handler = async (req: Request) => {
   if (corsResponse) return corsResponse
 
   try {
+    const requestStart = Date.now()
     const { category, user_id }: StartGameRequest = await req.json()
+    console.log(`[start-game] Starting game with category: ${category || 'random'}`)
 
-    // Get available categories
+    // Get available categories with caching headers
     const { data: categories, error: categoryError } = await supabase
       .from('categories')
       .select('*')
+      .order('name') // Ensure consistent ordering
 
     if (categoryError) throw categoryError
 
@@ -35,24 +38,31 @@ const handler = async (req: Request) => {
       Math.floor(Math.random() * categoryData.sample_items.length)
     ]
 
-    // Create game
+    // Create game with optimized query
+    const gameStart = Date.now()
     const { data: game, error: gameError } = await supabase
       .from('games')
       .insert({
         user_id,
         secret_item: secretItem,
         category: selectedCategory,
-        status: 'active'
+        status: 'active',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
-      .select()
+      .select('id, category, status, created_at')
       .single()
+    console.log(`[start-game] Game created in ${Date.now() - gameStart}ms`)
 
     if (gameError) throw gameError
 
     // Create category-specific system message using template
+    const promptStart = Date.now()
     const promptTemplate = PromptTemplateFactory.createTemplate(selectedCategory)
     const systemPrompt = promptTemplate.generate(secretItem)
+    console.log(`[start-game] Prompt generated in ${Date.now() - promptStart}ms`)
 
+    const msgStart = Date.now()
     const { error: msgError } = await supabase
       .from('game_messages')
       .insert({
@@ -60,8 +70,11 @@ const handler = async (req: Request) => {
         role: 'system',
         content: systemPrompt,
         message_type: 'question',
-        question_number: 0
+        question_number: 0,
+        created_at: new Date().toISOString()
       })
+      .select('id')
+    console.log(`[start-game] System message created in ${Date.now() - msgStart}ms`)
 
     if (msgError) throw msgError
 
@@ -70,6 +83,9 @@ const handler = async (req: Request) => {
       category: selectedCategory,
       message: `Let's play 20 Questions! I'm thinking of something in the ${selectedCategory} category. You have 20 questions to guess what it is. Ask yes/no questions!`
     }
+    
+    const totalTime = Date.now() - requestStart
+    console.log(`[start-game] Total request completed in ${totalTime}ms`)
 
     return EdgeFunctionBase.createSuccessResponse(responseData)
 

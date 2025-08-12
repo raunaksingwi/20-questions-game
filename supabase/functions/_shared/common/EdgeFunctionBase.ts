@@ -1,24 +1,43 @@
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { LLMConfigLoader, LLMProviderFactory } from '../llm/index.ts'
+import { PerformanceOptimizer } from './PerformanceOptimizer.ts'
 
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, cache-control',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
 export abstract class EdgeFunctionBase {
   protected static supabase: SupabaseClient
   private static llmProviders: Map<string, any> = new Map()
   private static llmProviderErrors: Map<string, string> = new Map()
+  private static initialized = false
 
   static initialize(): SupabaseClient {
     if (!this.supabase) {
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
       this.supabase = createClient(supabaseUrl, supabaseKey, {
-        db: { schema: 'public' },
-        global: { headers: { 'x-statement-timeout': '5s' } }
+        db: { 
+          schema: 'public',
+          // Optimize for performance
+          poolSize: 5,
+          connectionTimeoutMillis: 2000
+        },
+        global: { 
+          headers: { 
+            'x-statement-timeout': '3s', // Reduced timeout
+            'x-client-info': 'edge-function'
+          } 
+        }
       })
+      
+      // Warm up the function on first initialization
+      if (!this.initialized) {
+        this.initialized = true
+        PerformanceOptimizer.warmup().catch(console.warn)
+      }
     }
     return this.supabase
   }

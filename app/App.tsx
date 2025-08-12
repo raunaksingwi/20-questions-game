@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { Analytics } from '@vercel/analytics/react';
 import { gameService } from './src/services/gameService';
+import { performanceOptimizer } from './src/utils/performanceOptimizer';
 
 export default function App() {
   // Add minimal web-specific global styles for scrolling and warm cache
@@ -22,8 +23,12 @@ export default function App() {
       document.head.appendChild(style);
     }
     
-    // Warm category cache on app startup for better performance
-    gameService.warmCache();
+    // Warm category cache and connections on app startup for better performance
+    Promise.all([
+      gameService.warmCache(),
+      performanceOptimizer.warmConnections(),
+      performanceOptimizer.preloadResources()
+    ]).catch(console.warn);
   }, []);
 
   return (

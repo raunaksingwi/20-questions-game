@@ -11,6 +11,7 @@ import {
   Game,
   GameMessage
 } from '../../../shared/types'
+import { optimizedRequest } from '../utils/performanceOptimizer'
 
 const FUNCTIONS_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1`
 
@@ -22,46 +23,72 @@ class GameService {
   private categoriesPromise: Promise<any[]> | null = null; // Promise deduplication
   
   private async callFunction<T, R>(functionName: string, data: T): Promise<R> {
-    const response = await fetch(`${FUNCTIONS_URL}/${functionName}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
-      },
-      body: JSON.stringify(data),
-    })
+    const startTime = Date.now()
+    console.log(`[gameService] Calling ${functionName}...`)
+    
+    const controller = new AbortController()
+    const timeout = setTimeout(() => {
+      controller.abort()
+      console.error(`[gameService] ${functionName} request timed out after 10s`)
+    }, 10000) // 10s timeout
+    
+    try {
+      const response = await fetch(`${FUNCTIONS_URL}/${functionName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify(data),
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeout)
+      const duration = Date.now() - startTime
+      console.log(`[gameService] ${functionName} completed in ${duration}ms`)
 
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Function call failed')
+      if (!response.ok) {
+        const error = await response.json()
+        console.error(`[gameService] ${functionName} failed:`, error)
+        throw new Error(error.error || 'Function call failed')
+      }
+
+      return response.json()
+    } catch (error) {
+      clearTimeout(timeout)
+      const duration = Date.now() - startTime
+      console.error(`[gameService] ${functionName} failed after ${duration}ms:`, error)
+      throw error
     }
-
-    return response.json()
   }
 
   async startGame(category?: string): Promise<StartGameResponse> {
-    let user_id: string | undefined
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      user_id = user?.id
-    } catch (error) {
-      // Continue without user ID if auth fails
-      user_id = undefined
-    }
-    
-    const request: StartGameRequest = {
-      category,
-      user_id
-    }
-    return this.callFunction<StartGameRequest, StartGameResponse>('start-game', request)
+    return optimizedRequest('start-game', async () => {
+      let user_id: string | undefined
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        user_id = user?.id
+      } catch (error) {
+        // Continue without user ID if auth fails
+        user_id = undefined
+      }
+      
+      const request: StartGameRequest = {
+        category,
+        user_id
+      }
+      return this.callFunction<StartGameRequest, StartGameResponse>('start-game', request)
+    })
   }
 
   async askQuestion(gameId: string, question: string): Promise<AskQuestionResponse> {
-    const request: AskQuestionRequest = {
-      game_id: gameId,
-      question
-    }
-    return this.callFunction<AskQuestionRequest, AskQuestionResponse>('ask-question', request)
+    return optimizedRequest('ask-question', async () => {
+      const request: AskQuestionRequest = {
+        game_id: gameId,
+        question
+      }
+      return this.callFunction<AskQuestionRequest, AskQuestionResponse>('ask-question', request)
+    })
   }
 
   async getHint(gameId: string): Promise<GetHintResponse> {
@@ -110,29 +137,32 @@ class GameService {
   }
 
   async getCategories() {
-    try {
-      // Check if cache is valid
-      const now = Date.now();
-      if (this.categoriesCache && (now - this.categoriesCacheTimestamp) < this.CACHE_DURATION) {
-        return this.categoriesCache;
+    return optimizedRequest('get-categories', async () => {
+      try {
+        // Check if cache is valid
+        const now = Date.now();
+        if (this.categoriesCache && (now - this.categoriesCacheTimestamp) < this.CACHE_DURATION) {
+          console.log('[gameService] Categories served from cache');
+          return this.categoriesCache;
+        }
+        
+        // Deduplicate concurrent requests
+        if (this.categoriesPromise) {
+          return this.categoriesPromise;
+        }
+        
+        this.categoriesPromise = this.fetchCategoriesFromDB();
+        const result = await this.categoriesPromise;
+        this.categoriesPromise = null;
+        
+        return result;
+      } catch (error) {
+        this.categoriesPromise = null;
+        console.error('Error fetching categories:', error)
+        // Return cached data if available, even if stale
+        return this.categoriesCache || []
       }
-      
-      // Deduplicate concurrent requests
-      if (this.categoriesPromise) {
-        return this.categoriesPromise;
-      }
-      
-      this.categoriesPromise = this.fetchCategoriesFromDB();
-      const result = await this.categoriesPromise;
-      this.categoriesPromise = null;
-      
-      return result;
-    } catch (error) {
-      this.categoriesPromise = null;
-      console.error('Error fetching categories:', error)
-      // Return cached data if available, even if stale
-      return this.categoriesCache || []
-    }
+    });
   }
   
   private async fetchCategoriesFromDB() {
