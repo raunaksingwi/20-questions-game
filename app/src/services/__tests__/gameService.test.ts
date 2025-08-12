@@ -217,6 +217,49 @@ describe('GameService', () => {
     });
   });
 
+  describe('quitGame', () => {
+    it('should quit a game successfully', async () => {
+      const mockResponse = {
+        message: 'You have left the game. The answer was "dog".',
+        secret_item: 'dog',
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await gameService.quitGame('game-123');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://test.supabase.co/functions/v1/quit-game',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-anon-key',
+          },
+          body: JSON.stringify({
+            game_id: 'game-123',
+          }),
+        }
+      );
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should handle quit game API errors', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        json: async () => ({ error: 'Game not found' }),
+      });
+
+      await expect(gameService.quitGame('invalid-game')).rejects.toThrow(
+        'Game not found'
+      );
+    });
+  });
+
   describe('getCategories', () => {
     it('should fetch categories successfully', async () => {
       const mockCategories = [

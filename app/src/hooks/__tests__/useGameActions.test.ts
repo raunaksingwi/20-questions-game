@@ -20,6 +20,7 @@ jest.mock('../../services/gameService', () => ({
     startGame: jest.fn(),
     askQuestion: jest.fn(),
     getHint: jest.fn(),
+    quitGame: jest.fn(),
   },
 }));
 
@@ -77,8 +78,7 @@ describe('useGameActions', () => {
     it('successfully starts a new game', async () => {
       const mockResponse = {
         game_id: 'new-game-456',
-        message: 'Welcome! I\'m thinking of an animal. Ask me yes/no questions!',
-        secret_item: 'dog'
+        message: 'Welcome! I\'m thinking of an animal. Ask me yes/no questions!'
       };
 
       mockedGameService.startGame.mockResolvedValue(mockResponse);
@@ -97,7 +97,7 @@ describe('useGameActions', () => {
       // Check the final state update
       expect(defaultActions.setBatchState).toHaveBeenCalledWith({
         gameId: 'new-game-456',
-        secretItem: 'dog',
+        secretItem: null, // No longer exposed in start game response
         messages: [{
           role: 'assistant',
           content: mockResponse.message,
@@ -128,8 +128,7 @@ describe('useGameActions', () => {
       const onNavigateBack = jest.fn();
       const mockResponse = {
         game_id: 'new-game-789',
-        message: 'Welcome to the food category!',
-        secret_item: 'pizza'
+        message: 'Welcome to the food category!'
       };
 
       mockedGameService.startGame.mockResolvedValue(mockResponse);
@@ -150,7 +149,7 @@ describe('useGameActions', () => {
       const mockResponse = {
         answer: 'Yes, it does have four legs.',
         questions_remaining: 19,
-        game_status: 'playing' as const,
+        game_status: 'active' as const,
       };
 
       mockedGameService.askQuestion.mockResolvedValue(mockResponse);
@@ -161,13 +160,16 @@ describe('useGameActions', () => {
         await result.current.sendQuestion('Does it have four legs?');
       });
 
-      expect(defaultActions.setMessages).toHaveBeenCalledTimes(2);
-      expect(defaultActions.setSending).toHaveBeenCalledWith(true);
+      expect(defaultActions.setBatchState).toHaveBeenCalledTimes(2); // Once for optimistic update, once for response
       expect(mockedGameService.askQuestion).toHaveBeenCalledWith('test-game-123', 'Does it have four legs?');
       expect(mockedAudioManager.playSound).toHaveBeenCalledWith('answerYes');
-      expect(defaultActions.setQuestionsRemaining).toHaveBeenCalledWith(19);
-      expect(defaultActions.setGameStatus).toHaveBeenCalledWith('playing');
-      expect(defaultActions.setSending).toHaveBeenCalledWith(false);
+      
+      // Check the final batch state update
+      expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
+        questionsRemaining: 19,
+        gameStatus: 'active',
+        sending: false
+      }));
     });
 
     it('sends question with current question parameter and processes no answer', async () => {
@@ -205,12 +207,14 @@ describe('useGameActions', () => {
       });
 
       expect(mockedAudioManager.playSound).toHaveBeenCalledWith('correct');
-      expect(defaultActions.setResultModalData).toHaveBeenCalledWith({
-        isWin: true,
-        title: 'Congratulations!',
-        message: 'Yes! You got it! The answer was "dog".'
-      });
-      expect(defaultActions.setShowResultModal).toHaveBeenCalledWith(true);
+      expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
+        resultModalData: {
+          isWin: true,
+          title: 'Congratulations!',
+          message: 'Yes! You got it! The answer was "dog".'
+        },
+        showResultModal: true
+      }));
     });
 
     it('handles losing game via sendQuestion', async () => {
@@ -229,12 +233,14 @@ describe('useGameActions', () => {
       });
 
       expect(mockedAudioManager.playSound).toHaveBeenCalledWith('wrong');
-      expect(defaultActions.setResultModalData).toHaveBeenCalledWith({
-        isWin: false,
-        title: 'Game Over!',
-        message: 'Game over! You\'ve used all 20 questions. The answer was "elephant".'
-      });
-      expect(defaultActions.setShowResultModal).toHaveBeenCalledWith(true);
+      expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
+        resultModalData: {
+          isWin: false,
+          title: 'Game Over!',
+          message: 'Game over! You\'ve used all 20 questions. The answer was "elephant".'
+        },
+        showResultModal: true
+      }));
     });
 
     it('handles send question failure', async () => {
@@ -247,7 +253,9 @@ describe('useGameActions', () => {
       });
 
       expect(mockedAlert.alert).toHaveBeenCalledWith('Error', 'Failed to send question. Please try again.');
-      expect(defaultActions.setSending).toHaveBeenCalledWith(false);
+      expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
+        sending: false
+      }));
     });
 
     it('does not send when no game ID', async () => {
@@ -291,7 +299,7 @@ describe('useGameActions', () => {
         hint: 'It is a mammal.',
         hints_remaining: 2,
         questions_remaining: 19,
-        game_status: 'playing' as const,
+        game_status: 'active' as const,
       };
 
       mockedGameService.getHint.mockResolvedValue(mockResponse);
@@ -305,10 +313,12 @@ describe('useGameActions', () => {
       expect(defaultActions.setSending).toHaveBeenCalledWith(true);
       expect(mockedGameService.getHint).toHaveBeenCalledWith('test-game-123');
       expect(mockedAudioManager.playSound).toHaveBeenCalledWith('hint');
-      expect(defaultActions.setMessages).toHaveBeenCalledWith(expect.any(Function));
-      expect(defaultActions.setHintsRemaining).toHaveBeenCalledWith(2);
-      expect(defaultActions.setQuestionsRemaining).toHaveBeenCalledWith(19);
-      expect(defaultActions.setSending).toHaveBeenCalledWith(false);
+      expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
+        hintsRemaining: 2,
+        questionsRemaining: 19,
+        gameStatus: 'active',
+        sending: false
+      }));
     });
 
     it('handles hint resulting in game over', async () => {
@@ -328,12 +338,14 @@ describe('useGameActions', () => {
       });
 
       expect(mockedAudioManager.playSound).toHaveBeenCalledWith('wrong');
-      expect(defaultActions.setResultModalData).toHaveBeenCalledWith({
-        isWin: false,
-        title: 'Game Over!',
-        message: 'Final hint: It barks. Game over! You\'ve used all 20 questions. The answer was "elephant".'
-      });
-      expect(defaultActions.setShowResultModal).toHaveBeenCalledWith(true);
+      expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
+        resultModalData: {
+          isWin: false,
+          title: 'Game Over!',
+          message: 'Final hint: It barks. Game over! You\'ve used all 20 questions. The answer was "elephant".'
+        },
+        showResultModal: true
+      }));
     });
 
     it('handles hint request failure', async () => {
@@ -388,13 +400,21 @@ describe('useGameActions', () => {
 
 
   describe('handleQuit', () => {
-    it('shows quit modal with secret item when called', () => {
+    it('successfully quits game using API and shows modal', async () => {
+      const mockResponse = {
+        message: 'You have left the game. The answer was "elephant".',
+        secret_item: 'elephant'
+      };
+
+      mockedGameService.quitGame.mockResolvedValue(mockResponse);
+
       const { result } = renderHook(() => useGameActions(defaultState, defaultActions));
 
-      act(() => {
-        result.current.handleQuit();
+      await act(async () => {
+        await result.current.handleQuit();
       });
 
+      expect(mockedGameService.quitGame).toHaveBeenCalledWith('test-game-123');
       expect(mockedAudioManager.playSound).toHaveBeenCalledWith('wrong');
       expect(defaultActions.setResultModalData).toHaveBeenCalledWith({
         isWin: false,
@@ -404,14 +424,16 @@ describe('useGameActions', () => {
       expect(defaultActions.setShowResultModal).toHaveBeenCalledWith(true);
     });
 
-    it('shows quit modal without secret item when not available', () => {
-      const stateWithoutSecret = { ...defaultState, secretItem: null };
-      const { result } = renderHook(() => useGameActions(stateWithoutSecret, defaultActions));
+    it('handles quit game API failure with fallback', async () => {
+      mockedGameService.quitGame.mockRejectedValue(new Error('Network error'));
 
-      act(() => {
-        result.current.handleQuit();
+      const { result } = renderHook(() => useGameActions(defaultState, defaultActions));
+
+      await act(async () => {
+        await result.current.handleQuit();
       });
 
+      expect(mockedGameService.quitGame).toHaveBeenCalledWith('test-game-123');
       expect(mockedAudioManager.playSound).toHaveBeenCalledWith('wrong');
       expect(defaultActions.setResultModalData).toHaveBeenCalledWith({
         isWin: false,
@@ -419,6 +441,18 @@ describe('useGameActions', () => {
         message: 'You have left the game.'
       });
       expect(defaultActions.setShowResultModal).toHaveBeenCalledWith(true);
+    });
+
+    it('does not quit when no game ID', async () => {
+      const stateWithoutGameId = { ...defaultState, gameId: null };
+      const { result } = renderHook(() => useGameActions(stateWithoutGameId, defaultActions));
+
+      await act(async () => {
+        await result.current.handleQuit();
+      });
+
+      expect(mockedGameService.quitGame).not.toHaveBeenCalled();
+      expect(defaultActions.setResultModalData).not.toHaveBeenCalled();
     });
   });
 

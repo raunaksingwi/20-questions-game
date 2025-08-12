@@ -6,6 +6,8 @@ import {
   AskQuestionResponse,
   GetHintRequest,
   GetHintResponse,
+  QuitGameRequest,
+  QuitGameResponse,
   Game,
   GameMessage
 } from '../../../shared/types'
@@ -66,6 +68,13 @@ class GameService {
       game_id: gameId
     }
     return this.callFunction<GetHintRequest, GetHintResponse>('get-hint', request)
+  }
+
+  async quitGame(gameId: string): Promise<QuitGameResponse> {
+    const request: QuitGameRequest = {
+      game_id: gameId
+    }
+    return this.callFunction<QuitGameRequest, QuitGameResponse>('quit-game', request)
   }
 
 

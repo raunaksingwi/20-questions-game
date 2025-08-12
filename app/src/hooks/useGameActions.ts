@@ -71,7 +71,7 @@ export const useGameActions = (
       // Batch final state update
       actions.setBatchState({
         gameId: response.game_id,
-        secretItem: response.secret_item,
+        secretItem: null, // No longer exposed in start game response
         messages: [welcomeMessage as GameMessage],
         loading: false
       });
@@ -200,18 +200,29 @@ export const useGameActions = (
     }
   };
 
-  const handleQuit = () => {
-    audioManager.playSound('wrong');
-    const secretItemMessage = state.secretItem 
-      ? `You have left the game. The answer was "${state.secretItem}".`
-      : 'You have left the game.';
+  const handleQuit = async () => {
+    if (!state.gameId) return;
     
-    actions.setResultModalData({
-      isWin: false,
-      title: 'Game Ended',
-      message: secretItemMessage
-    });
-    actions.setShowResultModal(true);
+    try {
+      audioManager.playSound('wrong');
+      const response = await gameService.quitGame(state.gameId);
+      
+      actions.setResultModalData({
+        isWin: false,
+        title: 'Game Ended',
+        message: response.message
+      });
+      actions.setShowResultModal(true);
+    } catch (error) {
+      // Fallback if quit API fails
+      audioManager.playSound('wrong');
+      actions.setResultModalData({
+        isWin: false,
+        title: 'Game Ended',
+        message: 'You have left the game.'
+      });
+      actions.setShowResultModal(true);
+    }
   };
 
   return {

@@ -38,7 +38,6 @@ export interface StartGameResponse {
   game_id: string;
   category: string;
   message: string;
-  secret_item: string;
 }
 
 export interface AskQuestionRequest {
@@ -61,5 +60,14 @@ export interface GetHintResponse {
   hints_remaining: number;
   questions_remaining: number;
   game_status: GameStatus;
+}
+
+export interface QuitGameRequest {
+  game_id: string;
+}
+
+export interface QuitGameResponse {
+  message: string;
+  secret_item: string;
 }
 
