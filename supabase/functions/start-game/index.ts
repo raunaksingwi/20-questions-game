@@ -33,18 +33,13 @@ const handler = async (req: Request) => {
       selectedCategory = categoryData.name
     }
 
-    // Select random item from category
-    const secretItem: string = categoryData.sample_items[
-      Math.floor(Math.random() * categoryData.sample_items.length)
-    ]
-
-    // Create game with optimized query
+    // Let LLM pick any item from the category
     const gameStart = Date.now()
     const { data: game, error: gameError } = await supabase
       .from('games')
       .insert({
         user_id,
-        secret_item: secretItem,
+        secret_item: '', // Will be set after LLM picks
         category: selectedCategory,
         status: 'active',
         created_at: new Date().toISOString(),
@@ -56,11 +51,49 @@ const handler = async (req: Request) => {
 
     if (gameError) throw gameError
 
-    // Create category-specific system message using template
+    // Create category-specific system message using template  
     const promptStart = Date.now()
     const promptTemplate = PromptTemplateFactory.createTemplate(selectedCategory)
-    const systemPrompt = promptTemplate.generate(secretItem)
-    console.log(`[start-game] Prompt generated in ${Date.now() - promptStart}ms`)
+    const systemPrompt = promptTemplate.generateItemSelection(categoryData.sample_items)
+    console.log(`[start-game] Item selection prompt generated in ${Date.now() - promptStart}ms`)
+
+    // Call OpenAI to let LLM pick an item
+    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'system', content: systemPrompt }],
+        temperature: 0.8,
+        max_tokens: 50
+      })
+    })
+
+    if (!openaiResponse.ok) {
+      throw new Error(`OpenAI API error: ${openaiResponse.status}`)
+    }
+
+    const openaiData = await openaiResponse.json()
+    const secretItem = openaiData.choices[0]?.message?.content?.trim() || ''
+    
+    if (!secretItem) {
+      throw new Error('Failed to get item selection from LLM')
+    }
+
+    // Update game with the selected item
+    const { error: updateError } = await supabase
+      .from('games')
+      .update({ secret_item: secretItem })
+      .eq('id', game.id)
+
+    if (updateError) throw updateError
+
+    // Create the main game prompt with the selected item
+    const gamePrompt = promptTemplate.generate(secretItem)
+    console.log(`[start-game] Game prompt generated in ${Date.now() - promptStart}ms`)
 
     const msgStart = Date.now()
     const { error: msgError } = await supabase
@@ -68,7 +101,7 @@ const handler = async (req: Request) => {
       .insert({
         game_id: game.id,
         role: 'system',
-        content: systemPrompt,
+        content: gamePrompt,
         message_type: 'question',
         question_number: 0,
         created_at: new Date().toISOString()

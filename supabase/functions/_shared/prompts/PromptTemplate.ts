@@ -2,6 +2,7 @@ export abstract class PromptTemplate {
   protected abstract getSpecificRules(secretItem: string): string
   protected abstract getSynonymsSection(secretItem: string): string
   protected abstract getExamples(secretItem: string): string
+  protected abstract getCategoryDescription(): string
 
   generate(secretItem: string): string {
     return `You are the game master in 20 Questions. The secret item is: ${secretItem}
@@ -16,6 +17,22 @@ ${this.getCriticalOutputFormat()}
 ${this.getSynonymsSection(secretItem)}
 
 ${this.getExamples(secretItem)}`
+  }
+
+  generateItemSelection(sampleItems: string[]): string {
+    return `You are selecting a secret item for a 20 Questions game.
+
+CATEGORY: ${this.getCategoryDescription()}
+
+INSTRUCTIONS:
+1. Choose ANY item that fits this category - you are NOT limited to the examples below
+2. The sample items are just examples to show the category type - pick something creative and diverse
+3. Choose something interesting but not too obscure (players should be able to guess it eventually)
+4. Respond with ONLY the item name, nothing else
+
+SAMPLE ITEMS (for reference only - pick your own): ${sampleItems.join(', ')}
+
+Pick your item now:`
   }
 
   private getCriticalRules(): string {
@@ -45,35 +62,63 @@ CORRECT: {"answer": "Yes", "is_guess": true"} - Has both fields`
   }
 }
 
-export class CricketersPromptTemplate extends PromptTemplate {
+// Base class for all people-based categories (sports players, leaders, etc.)
+export abstract class PeoplePromptTemplate extends PromptTemplate {
+  protected abstract getPersonType(): string; // e.g., "cricketer", "football player", "world leader"
+  protected abstract getExampleProperties(): string[]; // e.g., ["nationality", "position", "club"]
+  protected abstract getExampleQuestions(): string[]; // e.g., ["Are they Indian?", "Do they bowl?"]
+
   protected getSpecificRules(secretItem: string): string {
+    const personType = this.getPersonType();
     return `RESPONSE RULES:
-1. If player asks about properties (nationality, position, etc): Return ONLY {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
-2. If player guesses a WRONG cricketer name: Return ONLY {"answer": "No"}  
-3. If player guesses the CORRECT cricketer (${secretItem}): Return ONLY {"answer": "Yes", "is_guess": true}`
+1. If player asks about properties (${this.getExampleProperties().join(', ')}, etc): Return {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
+2. If player guesses a WRONG ${personType} name: Return {"answer": "No"}  
+3. If player guesses the CORRECT ${personType} (${secretItem}): Return {"answer": "Yes", "is_guess": true}`
   }
 
   protected getSynonymsSection(secretItem: string): string {
     return `SYNONYMS AND VARIATIONS:
 Accept common variations of ${secretItem} as correct guesses:
 - Full name: "${secretItem}" 
-- First name only: If commonly used (e.g., "Virat" for "Virat Kohli")
-- Last name only: If commonly used (e.g., "Dhoni" for "MS Dhoni")  
-- Nicknames: Popular nicknames (e.g., "Captain Cool" for MS Dhoni, "Hitman" for Rohit Sharma)
-- Initials: Well-known initials (e.g., "ABD" for AB de Villiers, "MSD" for MS Dhoni)`
+- First name only: If commonly used
+- Last name only: If commonly used  
+- Nicknames: Popular nicknames and abbreviations
+- Alternate spellings: Common spelling variations`
   }
 
   protected getExamples(secretItem: string): string {
+    const exampleQuestions = this.getExampleQuestions();
     return `Examples for ${secretItem}:
 - "Is it ${secretItem}?" → {"answer": "Yes", "is_guess": true}
 - Common variations of ${secretItem} → {"answer": "Yes", "is_guess": true}
-- "Is it Virat Kohli?" (when secret is not Virat) → {"answer": "No"}
-- "Are they Indian?" → {"answer": "Yes"} or {"answer": "No"}
-- "Do they bowl?" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}`
+- "Is it [wrong name]?" → {"answer": "No"}
+${exampleQuestions.map(q => `- "${q}" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}`).join('\n')}`
+  }
+}
+
+export class CricketersPromptTemplate extends PeoplePromptTemplate {
+  protected getCategoryDescription(): string {
+    return "Professional cricket players from any era, country, or format (Test, ODI, T20)"
+  }
+
+  protected getPersonType(): string {
+    return "cricketer"
+  }
+
+  protected getExampleProperties(): string[] {
+    return ["nationality", "position", "bowling style", "batting style"]
+  }
+
+  protected getExampleQuestions(): string[] {
+    return ["Are they Indian?", "Do they bowl?", "Are they a captain?"]
   }
 }
 
 export class AnimalsPromptTemplate extends PromptTemplate {
+  protected getCategoryDescription(): string {
+    return "Any living creature from the animal kingdom - mammals, birds, fish, reptiles, insects, etc."
+  }
+
   protected getSpecificRules(secretItem: string): string {
     return `RESPONSE RULES:
 1. If player asks about properties (classification, habitat, etc): Return {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
@@ -102,36 +147,65 @@ Accept common synonyms of ${secretItem} as correct guesses:
   }
 }
 
-export class FoodPromptTemplate extends PromptTemplate {
-  protected getSpecificRules(secretItem: string): string {
-    return `RESPONSE RULES:
-1. If player asks about properties (category, preparation, etc): Return {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
-2. If player guesses a WRONG food name: Return {"answer": "No"}  
-3. If player guesses the CORRECT food (${secretItem}): Return {"answer": "Yes", "is_guess": true}`
+export class FootballPlayersPromptTemplate extends PeoplePromptTemplate {
+  protected getCategoryDescription(): string {
+    return "Professional football (soccer) players from any era, league, or country"
   }
 
-  protected getSynonymsSection(secretItem: string): string {
-    return `SYNONYMS AND VARIATIONS:
-Accept common synonyms of ${secretItem} as correct guesses:
-- Main name: "${secretItem}"
-- Common synonyms: (e.g., "soda/pop", "fries/chips", "sub/hoagie")
-- Regional variations: Different names for the same food
-- Alternative spellings: Common spelling variations`
+  protected getPersonType(): string {
+    return "football player"
   }
 
-  protected getExamples(secretItem: string): string {
-    return `Examples for ${secretItem}:
-- "Is it ${secretItem}?" → {"answer": "Yes", "is_guess": true}
-- "Is it a ${secretItem}?" → {"answer": "Yes", "is_guess": true}  
-- Common synonyms of ${secretItem} → {"answer": "Yes", "is_guess": true}
-- "Is it pasta?" (when secret is not pasta) → {"answer": "No"}
-- "Is it a fruit?" → {"answer": "Yes"} or {"answer": "No"}
-- "Is it served hot?" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
-- "Is it sweet?" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}`
+  protected getExampleProperties(): string[] {
+    return ["nationality", "position", "club", "league"]
+  }
+
+  protected getExampleQuestions(): string[] {
+    return ["Are they from Argentina?", "Do they play forward?", "Are they still active?"]
+  }
+}
+
+export class NBAPlayersPromptTemplate extends PeoplePromptTemplate {
+  protected getCategoryDescription(): string {
+    return "Professional NBA basketball players from any era or team"
+  }
+
+  protected getPersonType(): string {
+    return "NBA player"
+  }
+
+  protected getExampleProperties(): string[] {
+    return ["position", "team", "nationality", "conference"]
+  }
+
+  protected getExampleQuestions(): string[] {
+    return ["Do they play point guard?", "Are they over 30 years old?", "Are they still active?"]
+  }
+}
+
+export class WorldLeadersPromptTemplate extends PeoplePromptTemplate {
+  protected getCategoryDescription(): string {
+    return "Current or recent world leaders - presidents, prime ministers, monarchs, etc."
+  }
+
+  protected getPersonType(): string {
+    return "world leader"
+  }
+
+  protected getExampleProperties(): string[] {
+    return ["country", "position", "political party", "continent"]
+  }
+
+  protected getExampleQuestions(): string[] {
+    return ["Are they from Europe?", "Are they a president?", "Are they currently in office?"]
   }
 }
 
 export class ObjectsPromptTemplate extends PromptTemplate {
+  protected getCategoryDescription(): string {
+    return "Any physical object or item - tools, furniture, electronics, vehicles, household items, etc."
+  }
+
   protected getSpecificRules(secretItem: string): string {
     return `RESPONSE RULES:
 1. If player asks about properties (function, materials, etc): Return {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
@@ -161,6 +235,10 @@ Accept common synonyms of ${secretItem} as correct guesses:
 }
 
 export class DefaultPromptTemplate extends PromptTemplate {
+  protected getCategoryDescription(): string {
+    return "Any item, concept, or entity that fits the general category"
+  }
+
   protected getSpecificRules(secretItem: string): string {
     return `RESPONSE FORMAT:
 - For questions about properties/attributes: {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
@@ -182,12 +260,16 @@ export class DefaultPromptTemplate extends PromptTemplate {
 export class PromptTemplateFactory {
   static createTemplate(category: string): PromptTemplate {
     switch (category.toLowerCase()) {
-      case 'cricketers':
+      case 'cricket players':
         return new CricketersPromptTemplate()
       case 'animals':
         return new AnimalsPromptTemplate()
-      case 'food':
-        return new FoodPromptTemplate()
+      case 'football players':
+        return new FootballPlayersPromptTemplate()
+      case 'nba players':
+        return new NBAPlayersPromptTemplate()
+      case 'world leaders':
+        return new WorldLeadersPromptTemplate()
       case 'objects':
         return new ObjectsPromptTemplate()
       default:
