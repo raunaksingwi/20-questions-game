@@ -8,16 +8,20 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 // Mock React Native components and APIs
-jest.mock('react-native', () => ({
-  Platform: {
-    OS: 'ios',
-  },
-  Alert: {
-    alert: jest.fn(),
-  },
-  TouchableOpacity: 'TouchableOpacity',
-  Text: 'Text',
-}));
+jest.mock('react-native', () => {
+  const React = require('react');
+  return {
+    Platform: {
+      OS: 'ios',
+    },
+    Alert: {
+      alert: jest.fn(),
+    },
+    View: ({ children, ...props }) => React.createElement('View', props, children),
+    TouchableOpacity: ({ onPress, children, ...props }) => React.createElement('TouchableOpacity', { ...props, onPress }, children),
+    Text: ({ children, ...props }) => React.createElement('Text', props, children),
+  };
+});
 
 import { useGameNavigation } from '../useGameNavigation';
 import { useFocusEffect } from '@react-navigation/native';
@@ -49,6 +53,7 @@ describe('useGameNavigation', () => {
 
     expect(mockedUseFocusEffect).toHaveBeenCalled();
     expect(mockNavigation.setOptions).toHaveBeenCalledWith({
+      headerLeft: expect.any(Function),
       headerRight: expect.any(Function),
     });
   });
@@ -69,10 +74,13 @@ describe('useGameNavigation', () => {
 
     // Get the headerRight function
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
-    const quitButtonElement = headerRightFn();
+    const headerRightElement = headerRightFn();
 
+    // Find the quit button (second TouchableOpacity child)
+    const quitButton = headerRightElement.props.children[1];
+    
     // Simulate press on the quit button
-    const onPress = quitButtonElement.props.onPress;
+    const onPress = quitButton.props.onPress;
     onPress();
 
     expect(mockedAlert.alert).toHaveBeenCalledWith(
@@ -90,8 +98,9 @@ describe('useGameNavigation', () => {
     renderHook(() => useGameNavigation(mockNavigation as any));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
-    const quitButtonElement = headerRightFn();
-    const onPress = quitButtonElement.props.onPress;
+    const headerRightElement = headerRightFn();
+    const quitButton = headerRightElement.props.children[1];
+    const onPress = quitButton.props.onPress;
     
     onPress();
 
@@ -109,8 +118,9 @@ describe('useGameNavigation', () => {
     renderHook(() => useGameNavigation(mockNavigation as any, mockOnQuit));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
-    const quitButtonElement = headerRightFn();
-    const onPress = quitButtonElement.props.onPress;
+    const headerRightElement = headerRightFn();
+    const quitButton = headerRightElement.props.children[1];
+    const onPress = quitButton.props.onPress;
     
     onPress();
 
@@ -131,8 +141,9 @@ describe('useGameNavigation', () => {
     renderHook(() => useGameNavigation(mockNavigation as any, mockOnQuit));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
-    const quitButtonElement = headerRightFn();
-    const onPress = quitButtonElement.props.onPress;
+    const headerRightElement = headerRightFn();
+    const quitButton = headerRightElement.props.children[1];
+    const onPress = quitButton.props.onPress;
     
     onPress();
 
@@ -146,8 +157,9 @@ describe('useGameNavigation', () => {
     renderHook(() => useGameNavigation(mockNavigation as any));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
-    const quitButtonElement = headerRightFn();
-    const onPress = quitButtonElement.props.onPress;
+    const headerRightElement = headerRightFn();
+    const quitButton = headerRightElement.props.children[1];
+    const onPress = quitButton.props.onPress;
     
     onPress();
 
@@ -167,8 +179,9 @@ describe('useGameNavigation', () => {
     renderHook(() => useGameNavigation(mockNavigation as any));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
-    const quitButtonElement = headerRightFn();
-    const onPress = quitButtonElement.props.onPress;
+    const headerRightElement = headerRightFn();
+    const quitButton = headerRightElement.props.children[1];
+    const onPress = quitButton.props.onPress;
     
     onPress();
 
@@ -187,8 +200,9 @@ describe('useGameNavigation', () => {
     renderHook(() => useGameNavigation(mockNavigation as any));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
-    const quitButtonElement = headerRightFn();
-    const onPress = quitButtonElement.props.onPress;
+    const headerRightElement = headerRightFn();
+    const quitButton = headerRightElement.props.children[1];
+    const onPress = quitButton.props.onPress;
     
     onPress();
 
@@ -202,15 +216,17 @@ describe('useGameNavigation', () => {
     renderHook(() => useGameNavigation(mockNavigation as any));
 
     const headerRightFn = mockNavigation.setOptions.mock.calls[0][0].headerRight;
-    const quitButtonElement = headerRightFn();
+    const headerRightElement = headerRightFn();
+    const quitButton = headerRightElement.props.children[1];
 
-    expect(quitButtonElement.props.style).toEqual({
-      paddingLeft: 8,
-      paddingRight: 16,
+    expect(quitButton.props.style).toEqual({
+      paddingHorizontal: 12,
       paddingVertical: 8,
       marginRight: 8,
       backgroundColor: '#ef4444',
       borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
       cursor: 'pointer',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
@@ -220,7 +236,7 @@ describe('useGameNavigation', () => {
     });
 
     // Check text styling
-    const textElement = quitButtonElement.props.children;
+    const textElement = quitButton.props.children;
     expect(textElement.props.style).toEqual({
       color: '#fff',
       fontSize: 15,
@@ -254,6 +270,7 @@ describe('useGameNavigation', () => {
     rerender({ navigation: newMockNavigation as any });
 
     expect(newMockNavigation.setOptions).toHaveBeenCalledWith({
+      headerLeft: expect.any(Function),
       headerRight: expect.any(Function),
     });
   });

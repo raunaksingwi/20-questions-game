@@ -48,7 +48,6 @@ export default function GameScreen({ route, navigation }: Props) {
 
   useEffect(() => {
     gameActions.startNewGame(category, () => navigation.goBack());
-    audioManager.initialize();
   }, []);
 
   const handleVoiceSubmit = (voiceText: string) => {

@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   SafeAreaView,
   Platform,
 } from 'react-native';
@@ -13,7 +12,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Category } from '../../../shared/types';
 import { gameService } from '../services/gameService';
-import { audioManager } from '../services/AudioManager';
+import CategorySkeleton from '../components/CategorySkeleton';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -27,12 +26,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   useEffect(() => {
     loadCategories();
-    initializeSound();
   }, []);
-
-  const initializeSound = async () => {
-    await audioManager.initialize();
-  };
 
   const loadCategories = async () => {
     try {
@@ -51,9 +45,23 @@ export default function HomeScreen({ navigation }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
-      </View>
+      <SafeAreaView style={styles.container}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          style={styles.scrollView}
+        >
+          <View style={styles.header}>
+            <Text style={styles.title}>Welcome to 20 Questions!</Text>
+            <Text style={styles.subtitle}>
+              I'll think of something from your chosen category - try to guess it!
+            </Text>
+          </View>
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitle}>Choose a Category</Text>
+          </View>
+          <CategorySkeleton />
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
@@ -120,6 +128,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  sectionTitleContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
   header: {
     padding: 20,

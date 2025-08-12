@@ -203,25 +203,31 @@ export const useGameActions = (
   const handleQuit = async () => {
     if (!state.gameId) return;
     
+    // Immediately show modal with loading state for better UX
+    audioManager.playSound('wrong');
+    actions.setResultModalData({
+      isWin: false,
+      title: 'Game Ended',
+      message: 'Loading...'
+    });
+    actions.setShowResultModal(true);
+    
     try {
-      audioManager.playSound('wrong');
       const response = await gameService.quitGame(state.gameId);
       
+      // Update modal with actual response
       actions.setResultModalData({
         isWin: false,
         title: 'Game Ended',
         message: response.message
       });
-      actions.setShowResultModal(true);
     } catch (error) {
       // Fallback if quit API fails
-      audioManager.playSound('wrong');
       actions.setResultModalData({
         isWin: false,
         title: 'Game Ended',
         message: 'You have left the game.'
       });
-      actions.setShowResultModal(true);
     }
   };
 

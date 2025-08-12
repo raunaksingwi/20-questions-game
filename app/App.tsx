@@ -5,9 +5,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { Analytics } from '@vercel/analytics/react';
+import { gameService } from './src/services/gameService';
 
 export default function App() {
-  // Add minimal web-specific global styles for scrolling only
+  // Add minimal web-specific global styles for scrolling and warm cache
   React.useEffect(() => {
     if (Platform.OS === 'web') {
       // Inject minimal CSS to just enable scrolling without layout constraints
@@ -20,6 +21,9 @@ export default function App() {
       `;
       document.head.appendChild(style);
     }
+    
+    // Warm category cache on app startup for better performance
+    gameService.warmCache();
   }, []);
 
   return (

@@ -69,11 +69,11 @@ describe('HomeScreen', () => {
       });
     });
 
-    it('should initialize audio manager on mount', async () => {
+    it('should not initialize audio manager on mount (audio removed)', async () => {
       render(<HomeScreen navigation={mockNavigation as any} />);
 
       await waitFor(() => {
-        expect(mockedAudioManager.initialize).toHaveBeenCalled();
+        expect(mockedAudioManager.initialize).not.toHaveBeenCalled();
       });
     });
 
@@ -82,11 +82,13 @@ describe('HomeScreen', () => {
         () => new Promise(() => {}) // Never resolves
       );
 
-      const { UNSAFE_getByType } = render(
+      const { getByText } = render(
         <HomeScreen navigation={mockNavigation as any} />
       );
 
-      expect(() => UNSAFE_getByType(require('react-native').ActivityIndicator)).not.toThrow();
+      // Should show header and skeleton instead of ActivityIndicator
+      expect(getByText('Welcome to 20 Questions!')).toBeTruthy();
+      expect(getByText('Choose a Category')).toBeTruthy();
     });
 
     it('should handle category loading error gracefully', async () => {

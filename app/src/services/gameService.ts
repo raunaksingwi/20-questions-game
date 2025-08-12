@@ -18,7 +18,8 @@ class GameService {
   // Cache for categories to avoid unnecessary API calls
   private categoriesCache: any[] | null = null;
   private categoriesCacheTimestamp: number = 0;
-  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  private readonly CACHE_DURATION = 30 * 60 * 1000; // 30 minutes - longer cache
+  private categoriesPromise: Promise<any[]> | null = null; // Promise deduplication
   
   private async callFunction<T, R>(functionName: string, data: T): Promise<R> {
     const response = await fetch(`${FUNCTIONS_URL}/${functionName}`, {
@@ -116,26 +117,49 @@ class GameService {
         return this.categoriesCache;
       }
       
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name')
-
-      if (error) {
-        console.error('Error fetching categories:', error)
-        // Return cached data if available, even if stale
-        return this.categoriesCache || []
+      // Deduplicate concurrent requests
+      if (this.categoriesPromise) {
+        return this.categoriesPromise;
       }
-
-      // Update cache
-      this.categoriesCache = data || [];
-      this.categoriesCacheTimestamp = now;
       
-      return this.categoriesCache;
+      this.categoriesPromise = this.fetchCategoriesFromDB();
+      const result = await this.categoriesPromise;
+      this.categoriesPromise = null;
+      
+      return result;
     } catch (error) {
+      this.categoriesPromise = null;
       console.error('Error fetching categories:', error)
       // Return cached data if available, even if stale
       return this.categoriesCache || []
+    }
+  }
+  
+  private async fetchCategoriesFromDB() {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('name')
+
+    if (error) {
+      console.error('Error fetching categories from DB:', error)
+      // Return cached data if available, even if stale
+      return this.categoriesCache || []
+    }
+
+    // Update cache
+    this.categoriesCache = data || [];
+    this.categoriesCacheTimestamp = Date.now();
+    
+    return this.categoriesCache;
+  }
+  
+  // Method to warm the cache on app startup
+  async warmCache() {
+    try {
+      await this.getCategories();
+    } catch (error) {
+      console.warn('Failed to warm categories cache:', error);
     }
   }
   

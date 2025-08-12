@@ -64,10 +64,9 @@ describe('MessagesList', () => {
   });
 
   it('shows loading indicator when sending', () => {
-    const { UNSAFE_getByType } = render(<MessagesList {...defaultProps} sending={true} />);
-    const { ActivityIndicator } = require('react-native');
+    const { getByTestId } = render(<MessagesList {...defaultProps} sending={true} />);
     
-    expect(UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+    expect(getByTestId('typing-indicator')).toBeTruthy();
   });
 
   it('does not show loading indicator when not sending', () => {

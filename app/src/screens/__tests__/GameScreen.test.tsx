@@ -223,13 +223,13 @@ describe('GameScreen', () => {
   });
 
   describe('Initialization', () => {
-    it('initializes audio manager on mount', async () => {
+    it('does not initialize audio manager on mount (audio removed)', async () => {
       render(
         <GameScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
       await waitFor(() => {
-        expect(mockedAudioManager.initialize).toHaveBeenCalled();
+        expect(mockedAudioManager.initialize).not.toHaveBeenCalled();
       });
     });
 

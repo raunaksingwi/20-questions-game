@@ -25,10 +25,8 @@ describe('GameInput', () => {
     setQuestion: jest.fn(),
     sending: false,
     gameStatus: 'active' as GameStatus,
-    hintsRemaining: 3,
     onTextSubmit: jest.fn(),
     onVoiceSubmit: jest.fn(),
-    onRequestHint: jest.fn(),
   };
 
   beforeEach(() => {
@@ -36,10 +34,9 @@ describe('GameInput', () => {
   });
 
   it('renders correctly', () => {
-    const { getByPlaceholderText, getByText } = render(<GameInput {...defaultProps} />);
+    const { getByPlaceholderText } = render(<GameInput {...defaultProps} />);
     
     expect(getByPlaceholderText('Ask a yes/no question or make a guess...')).toBeTruthy();
-    expect(getByText('💡 Get Hint (3 left)')).toBeTruthy();
   });
 
   it('calls setQuestion when text input changes', () => {
@@ -60,14 +57,7 @@ describe('GameInput', () => {
     expect(defaultProps.onTextSubmit).toHaveBeenCalled();
   });
 
-  it('calls onRequestHint when hint button is pressed', () => {
-    const { getByText } = render(<GameInput {...defaultProps} />);
-    const hintButton = getByText('💡 Get Hint (3 left)');
-    
-    fireEvent.press(hintButton);
-    
-    expect(defaultProps.onRequestHint).toHaveBeenCalled();
-  });
+  // Hint button moved to navigation header, no longer in GameInput
 
   it('disables text input when sending', () => {
     const { getByPlaceholderText } = render(
@@ -87,29 +77,11 @@ describe('GameInput', () => {
     expect(textInput.props.editable).toBe(false);
   });
 
-  it('renders hint button with no hints remaining', () => {
-    const { getByText } = render(
-      <GameInput {...defaultProps} hintsRemaining={0} />
-    );
-    
-    expect(getByText('💡 Get Hint (0 left)')).toBeTruthy();
-  });
+  // Hint button moved to navigation header
 
-  it('renders hint button when sending', () => {
-    const { getByText } = render(
-      <GameInput {...defaultProps} sending={true} />
-    );
-    
-    expect(getByText('💡 Get Hint (3 left)')).toBeTruthy();
-  });
+  // Hint button moved to navigation header
 
-  it('shows correct hint count', () => {
-    const { getByText } = render(
-      <GameInput {...defaultProps} hintsRemaining={1} />
-    );
-    
-    expect(getByText('💡 Get Hint (1 left)')).toBeTruthy();
-  });
+  // Hint button moved to navigation header
 
   it('displays current question value', () => {
     const { getByPlaceholderText } = render(

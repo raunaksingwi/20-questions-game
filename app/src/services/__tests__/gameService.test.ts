@@ -303,7 +303,7 @@ describe('GameService', () => {
       const result = await gameService.getCategories();
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error fetching categories:',
+        'Error fetching categories from DB:',
         { message: 'Database error' }
       );
       expect(result).toEqual([]);

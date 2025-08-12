@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { FlatList, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { FlatList, View, Text, StyleSheet } from 'react-native';
 import { GameMessage } from '../../../shared/types';
+import TypingIndicator from './TypingIndicator';
 
 interface LoadingMessage {
   role: 'system';
@@ -51,11 +52,7 @@ export const MessagesList: React.FC<MessagesListProps> = ({
 
   const renderItem = useCallback(({ item, index }: { item: MessageItem, index: number }) => {
     if (item.content === 'loading') {
-      return (
-        <View style={styles.loadingBubble}>
-          <ActivityIndicator size="small" color="#6366f1" />
-        </View>
-      );
+      return <TypingIndicator />;
     }
 
     return (
@@ -128,9 +125,5 @@ const styles = StyleSheet.create({
   },
   userMessageText: {
     color: '#fff',
-  },
-  loadingBubble: {
-    alignSelf: 'flex-start',
-    padding: 20,
   },
 });
