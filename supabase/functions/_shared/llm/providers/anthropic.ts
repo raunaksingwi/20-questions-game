@@ -6,18 +6,27 @@ interface AnthropicMessage {
   content: string
 }
 
+interface AnthropicTool {
+  name: string
+  description: string
+  input_schema: object
+}
+
 interface AnthropicRequest {
   model: string
   messages: AnthropicMessage[]
   system?: string
   temperature: number
   max_tokens: number
+  tools?: AnthropicTool[]
 }
 
 interface AnthropicResponse {
   content: Array<{
-    type: string
-    text: string
+    type: 'text' | 'tool_use'
+    text?: string
+    name?: string
+    input?: any
   }>
   usage: {
     input_tokens: number
@@ -62,6 +71,15 @@ export class AnthropicProvider extends BaseLLMProvider {
       requestBody.system = systemPrompt
     }
 
+    // Add tools if provided (Anthropic uses tools instead of functions)
+    if (params.functions && params.functions.length > 0) {
+      requestBody.tools = params.functions.map(fn => ({
+        name: fn.name,
+        description: fn.description,
+        input_schema: fn.parameters
+      }))
+    }
+
     const response = await this.makeRequest(
       'https://api.anthropic.com/v1/messages',
       {
@@ -77,8 +95,16 @@ export class AnthropicProvider extends BaseLLMProvider {
 
     const data: AnthropicResponse = await response.json()
     
+    // Handle tool use vs text response
+    const textContent = data.content.find(c => c.type === 'text')
+    const toolUse = data.content.find(c => c.type === 'tool_use')
+    
     const llmResponse: LLMResponse = {
-      content: data.content[0]?.text || '',
+      content: textContent?.text || '',
+      function_call: toolUse ? {
+        name: toolUse.name || '',
+        arguments: JSON.stringify(toolUse.input || {})
+      } : undefined,
       usage: {
         promptTokens: data.usage.input_tokens,
         completionTokens: data.usage.output_tokens,

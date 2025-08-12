@@ -3,6 +3,7 @@ import { AskQuestionRequest, AskQuestionResponse } from '../../../shared/types.t
 import { ResponseParser } from '../_shared/llm/index.ts'
 import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
 import { DEFAULT_GAME_LIMITS } from '../_shared/common/GameConfig.ts'
+import { SEARCH_FUNCTION, FunctionHandler } from '../_shared/llm/functions.ts'
 
 // Initialize shared services
 const supabase = EdgeFunctionBase.initialize()
@@ -79,12 +80,40 @@ const handler = async (req: Request) => {
     // Get LLM provider (lazy initialization with caching)
     const provider = EdgeFunctionBase.getLLMProvider('ask-question')
 
-    // Call LLM provider
-    const llmResponse = await provider.generateResponse({
+    // Call LLM provider with search function available
+    let llmResponse = await provider.generateResponse({
       messages: chatMessages,
       temperature: 0.1,
-      maxTokens: 50
+      maxTokens: 100, // Allow some tokens for function calls
+      functions: [SEARCH_FUNCTION],
+      function_call: 'auto'
     })
+
+    // Handle function calls
+    if (llmResponse.function_call) {
+      const functionResult = await FunctionHandler.executeFunction(
+        llmResponse.function_call.name,
+        llmResponse.function_call.arguments
+      )
+      
+      // Add function result to messages and call LLM again
+      chatMessages.push({
+        role: 'assistant',
+        content: `[SEARCH FUNCTION CALLED: ${llmResponse.function_call.name}]`
+      })
+      
+      chatMessages.push({
+        role: 'user', 
+        content: `Search results: ${functionResult}\n\nBased on these search results, answer the original question "${question}" with ONLY the strict JSON format: {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}. Do not include any explanations or additional text.`
+      })
+      
+      // Call LLM again with search results
+      llmResponse = await provider.generateResponse({
+        messages: chatMessages,
+        temperature: 0.1,
+        maxTokens: 50
+      })
+    }
 
     const rawResponse = llmResponse.content
 

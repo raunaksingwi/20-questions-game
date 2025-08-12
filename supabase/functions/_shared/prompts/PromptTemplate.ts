@@ -23,7 +23,12 @@ ${this.getExamples(secretItem)}`
 2. Never reveal the secret item in your responses
 3. The "is_guess" field should ONLY be true when the player correctly guesses the secret item
 4. MAINTAIN CONSISTENCY: Every answer must be consistent with all previous answers in the conversation
-5. Track what you've revealed: Remember your previous responses to avoid contradictions`
+5. Track what you've revealed: Remember your previous responses to avoid contradictions
+6. WEB SEARCH: Use web search when questions require current information, recent events, or facts that might have changed since your training data. Examples:
+   - "Is it still in production?" (current status)
+   - "Is it the current champion?" (recent results)
+   - "Did it happen this year?" (current events)
+   - Questions about recent statistics, prices, or availability`
   }
 
   private getCriticalOutputFormat(): string {

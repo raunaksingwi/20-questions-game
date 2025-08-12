@@ -3,6 +3,7 @@ import { GetHintRequest, GetHintResponse } from '../../../shared/types.ts'
 import { ResponseParser } from '../_shared/llm/index.ts'
 import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
 import { DEFAULT_GAME_LIMITS } from '../_shared/common/GameConfig.ts'
+import { SEARCH_FUNCTION, FunctionHandler } from '../_shared/llm/functions.ts'
 
 // Initialize shared services
 const supabase = EdgeFunctionBase.initialize()
@@ -93,10 +94,10 @@ CRITICAL REQUIREMENTS:
 6. Consider what questions haven't been asked yet
 
 HINT PROGRESSION GUIDELINES:
-${game.questions_asked < 5 ? '- Early game: Give a general category or broad property hint' : ''}
-${game.questions_asked >= 5 && game.questions_asked < 10 ? '- Mid game: Give a hint about specific characteristics or properties' : ''}
-${game.questions_asked >= 10 && game.questions_asked < 15 ? '- Late game: Give a more specific hint about features, usage, or context' : ''}
-${game.questions_asked >= 15 ? '- Very late game: Give a strong hint that significantly narrows possibilities' : ''}
+${game.questions_asked < 5 ? '- Early game: Give a hint about a specific property or characteristic (NOT the category, which is already known)' : ''}
+${game.questions_asked >= 5 && game.questions_asked < 10 ? '- Mid game: Give a hint about specific characteristics, common uses, or distinguishing features' : ''}
+${game.questions_asked >= 10 && game.questions_asked < 15 ? '- Late game: Give a more specific hint about features, origin, preparation, or context' : ''}
+${game.questions_asked >= 15 ? '- Very late game: Give a strong hint that significantly narrows possibilities without revealing the answer' : ''}
 
 IMPORTANT: 
 - Make the hint helpful based on current progress
@@ -112,12 +113,40 @@ Provide only the hint text:`
     // Get LLM provider (lazy initialization with caching)
     const provider = EdgeFunctionBase.getLLMProvider('get-hint')
 
-    // Call LLM provider
-    const llmResponse = await provider.generateResponse({
+    // Call LLM provider with search function available for hint generation
+    let llmResponse = await provider.generateResponse({
       messages: chatMessages,
       temperature: 0.7,
-      maxTokens: 100
+      maxTokens: 150, // Allow some tokens for function calls
+      functions: [SEARCH_FUNCTION],
+      function_call: 'auto'
     })
+
+    // Handle function calls for hints
+    if (llmResponse.function_call) {
+      const functionResult = await FunctionHandler.executeFunction(
+        llmResponse.function_call.name,
+        llmResponse.function_call.arguments
+      )
+      
+      // Add function result to messages and call LLM again
+      chatMessages.push({
+        role: 'assistant',
+        content: `[SEARCH FUNCTION CALLED: ${llmResponse.function_call.name}]`
+      })
+      
+      chatMessages.push({
+        role: 'user', 
+        content: `Search results: ${functionResult}\n\nBased on these search results and our conversation, provide hint #${game.hints_used + 1} about the secret item (${game.secret_item}). Respond with ONLY the hint text - no JSON, no formatting, no explanations.`
+      })
+      
+      // Call LLM again with search results
+      llmResponse = await provider.generateResponse({
+        messages: chatMessages,
+        temperature: 0.7,
+        maxTokens: 100
+      })
+    }
 
     const rawHint = llmResponse.content
 

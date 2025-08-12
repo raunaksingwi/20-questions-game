@@ -6,17 +6,29 @@ interface OpenAIMessage {
   content: string
 }
 
+interface OpenAIFunction {
+  name: string
+  description: string
+  parameters: object
+}
+
 interface OpenAIRequest {
   model: string
   messages: OpenAIMessage[]
   temperature: number
   max_tokens: number
+  functions?: OpenAIFunction[]
+  function_call?: 'auto' | 'none' | { name: string }
 }
 
 interface OpenAIResponse {
   choices: Array<{
     message: {
-      content: string
+      content: string | null
+      function_call?: {
+        name: string
+        arguments: string
+      }
     }
   }>
   usage: {
@@ -72,6 +84,19 @@ export class OpenAIProvider extends BaseLLMProvider {
       max_tokens: params.maxTokens
     }
 
+    // Add functions if provided
+    if (params.functions && params.functions.length > 0) {
+      requestBody.functions = params.functions.map(fn => ({
+        name: fn.name,
+        description: fn.description,
+        parameters: fn.parameters
+      }))
+      
+      if (params.function_call) {
+        requestBody.function_call = params.function_call
+      }
+    }
+
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${this.config.apiKey}`,
       'Content-Type': 'application/json',
@@ -97,8 +122,13 @@ export class OpenAIProvider extends BaseLLMProvider {
       throw new Error('No response choices returned from OpenAI')
     }
 
+    const message = data.choices[0].message
     const llmResponse: LLMResponse = {
-      content: data.choices[0].message.content || '',
+      content: message.content || '',
+      function_call: message.function_call ? {
+        name: message.function_call.name,
+        arguments: message.function_call.arguments
+      } : undefined,
       usage: data.usage ? {
         promptTokens: data.usage.prompt_tokens,
         completionTokens: data.usage.completion_tokens,
