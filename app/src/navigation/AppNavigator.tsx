@@ -3,11 +3,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/HomeScreen';
 import GameScreen from '../screens/GameScreen';
-import { Category } from '../../../shared/types';
+import { Category, GameMode } from '../../../shared/types';
 
 export type RootStackParamList = {
   Home: undefined;
-  Game: { category: string };
+  Game: { category: string; mode: GameMode };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();

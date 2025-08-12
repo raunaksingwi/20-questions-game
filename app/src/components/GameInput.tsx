@@ -4,7 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSharedValue } from 'react-native-reanimated';
 import VoiceInputButton from './VoiceInputButton';
 import { ProfessionalVoiceButton } from './voice/ProfessionalVoiceButton';
-import { GameStatus } from '../../../shared/types';
+import { QuickAnswerChips, QuickAnswerType } from './QuickAnswerChips';
+import { GameStatus, GameMode } from '../../../shared/types';
 import { INPUT_DIMENSIONS, CALCULATED_DIMENSIONS } from '../constants/inputDimensions';
 
 interface GameInputProps {
@@ -12,8 +13,11 @@ interface GameInputProps {
   setQuestion: (question: string) => void;
   sending: boolean;
   gameStatus: GameStatus;
+  mode?: GameMode;
   onTextSubmit: () => void;
   onVoiceSubmit: (text: string) => void;
+  onQuickAnswer?: (answer: string, type: QuickAnswerType) => void;
+  onWinPress?: () => void;
 }
 
 export const GameInput: React.FC<GameInputProps> = ({
@@ -21,8 +25,11 @@ export const GameInput: React.FC<GameInputProps> = ({
   setQuestion,
   sending,
   gameStatus,
+  mode = 'guess',
   onTextSubmit,
   onVoiceSubmit,
+  onQuickAnswer,
+  onWinPress,
 }) => {
   const insets = useSafeAreaInsets();
   
@@ -41,44 +48,67 @@ export const GameInput: React.FC<GameInputProps> = ({
     inputY.value = y;
   }, [inputWidth, inputHeight, inputX, inputY]);
 
+  const isThinkMode = mode === 'think';
+  const placeholder = isThinkMode 
+    ? "Answer the question or type your response..."
+    : "Ask a yes/no question or make a guess...";
+
+  const handleQuickAnswer = useCallback((answer: string, type: QuickAnswerType) => {
+    if (onQuickAnswer) {
+      onQuickAnswer(answer, type);
+    }
+  }, [onQuickAnswer]);
+
   return (
     <View style={[styles.inputSection, { paddingBottom: insets.bottom }]}>
-      <View style={styles.inputContainer}>
-        <View style={styles.textInputWrapper}>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.textInput}
-              value={question}
-              onChangeText={setQuestion}
-              placeholder="Ask a yes/no question or make a guess..."
-              placeholderTextColor="#9ca3af"
-              onSubmitEditing={onTextSubmit}
-              editable={!sending && gameStatus === 'active'}
-              autoCapitalize="sentences"
-              selectionColor="transparent"
-              textContentType="none"
-              spellCheck={false}
-              autoCorrect={false}
-              onLayout={handleTextInputLayout}
-            />
-            <View style={styles.voiceButtonContainer}>
-              <ProfessionalVoiceButton
-                onTextSubmit={onTextSubmit}
-                onVoiceSubmit={onVoiceSubmit}
-                inputText={question}
-                setInputText={setQuestion}
-                disabled={sending || gameStatus !== 'active'}
-                inputDimensions={{
-                  width: inputWidth,
-                  height: inputHeight,
-                  x: inputX,
-                  y: inputY,
-                }}
+      {/* Quick Answer Chips - only show in Think mode and when awaiting user answer */}
+      {isThinkMode && (
+        <QuickAnswerChips
+          onChipPress={handleQuickAnswer}
+          onWinPress={onWinPress}
+          disabled={sending || gameStatus !== 'active'}
+        />
+      )}
+      
+      {/* Text input and voice button - hide in Think mode */}
+      {!isThinkMode && (
+        <View style={styles.inputContainer}>
+          <View style={styles.textInputWrapper}>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.textInput}
+                value={question}
+                onChangeText={setQuestion}
+                placeholder={placeholder}
+                placeholderTextColor="#9ca3af"
+                onSubmitEditing={onTextSubmit}
+                editable={!sending && gameStatus === 'active'}
+                autoCapitalize="sentences"
+                selectionColor="transparent"
+                textContentType="none"
+                spellCheck={false}
+                autoCorrect={false}
+                onLayout={handleTextInputLayout}
               />
+              <View style={styles.voiceButtonContainer}>
+                <ProfessionalVoiceButton
+                  onTextSubmit={onTextSubmit}
+                  onVoiceSubmit={onVoiceSubmit}
+                  inputText={question}
+                  setInputText={setQuestion}
+                  disabled={sending || gameStatus !== 'active'}
+                  inputDimensions={{
+                    width: inputWidth,
+                    height: inputHeight,
+                    x: inputX,
+                    y: inputY,
+                  }}
+                />
+              </View>
             </View>
           </View>
         </View>
-      </View>
+      )}
     </View>
   );
 };

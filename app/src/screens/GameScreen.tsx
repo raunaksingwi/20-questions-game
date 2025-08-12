@@ -31,40 +31,65 @@ type Props = {
 
 
 export default function GameScreen({ route, navigation }: Props) {
-  const { category } = route.params;
+  const { category, mode } = route.params;
   const [question, setQuestion] = useState('');
   const insets = useSafeAreaInsets();
   
   const { state, actions } = useGameState();
   const gameActions = useGameActions(state, actions);
   
+  // Remove navigation header buttons entirely - GameHeader handles all action buttons
   useGameNavigation(
     navigation, 
-    gameActions.handleQuit,
-    gameActions.requestHint,
+    undefined, // No quit in navigation header
+    undefined, // No hint in navigation header
     state.hintsRemaining,
-    state.sending
+    state.sending,
+    false // No header buttons - GameHeader handles everything
   );
 
   useEffect(() => {
-    gameActions.startNewGame(category, () => navigation.goBack());
+    gameActions.startNewGame(category, mode, () => navigation.goBack());
   }, []);
 
   const handleVoiceSubmit = (voiceText: string) => {
     console.log('🎬 GameScreen: Voice text received:', voiceText);
     console.log('🎬 GameScreen: Voice text length:', voiceText.length, 'words:', voiceText.split(' ').length);
-    gameActions.sendQuestion(voiceText, question);
+    
+    if (mode === 'think') {
+      gameActions.submitUserAnswer(voiceText, 'voice');
+    } else {
+      gameActions.sendQuestion(voiceText, question);
+    }
     setQuestion('');
   };
 
   const handleTextSubmit = () => {
-    gameActions.sendQuestion(undefined, question);
+    const textToSubmit = question.trim();
+    if (!textToSubmit) return;
+
+    if (mode === 'think') {
+      gameActions.submitUserAnswer(textToSubmit, 'text');
+    } else {
+      gameActions.sendQuestion(undefined, question);
+    }
     setQuestion('');
   };
 
   const handleResultModalClose = () => {
     actions.setShowResultModal(false);
     navigation.goBack();
+  };
+
+  const handleWinPress = () => {
+    console.log('WIN button pressed - Think mode victory');
+    gameActions.handleWin();
+  };
+
+  const handleQuickAnswer = (answer: string, type: string) => {
+    console.log(`Quick answer: ${answer} (${type})`);
+    gameActions.submitUserAnswer(answer, 'chip');
+    setQuestion('');
   };
 
   if (state.loading) {
@@ -83,6 +108,12 @@ export default function GameScreen({ route, navigation }: Props) {
           category={category}
           questionsRemaining={state.questionsRemaining}
           hintsRemaining={state.hintsRemaining}
+          mode={mode}
+          questionsAsked={20 - state.questionsRemaining} // Convert remaining to asked
+          onWinPress={mode === 'think' ? undefined : handleWinPress} // No WIN button in Think mode header
+          onHintPress={gameActions.requestHint}
+          onQuitPress={gameActions.handleQuit}
+          disabled={state.sending || state.gameStatus !== 'active'}
         />
       </View>
 
@@ -118,8 +149,11 @@ export default function GameScreen({ route, navigation }: Props) {
             setQuestion={setQuestion}
             sending={state.sending}
             gameStatus={state.gameStatus}
+            mode={mode}
             onTextSubmit={handleTextSubmit}
             onVoiceSubmit={handleVoiceSubmit}
+            onQuickAnswer={handleQuickAnswer}
+            onWinPress={handleWinPress}
           />
         </View>
       </KeyboardAvoidingView>

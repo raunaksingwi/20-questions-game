@@ -1,4 +1,5 @@
 export type GameStatus = 'active' | 'won' | 'lost';
+export type GameMode = 'guess' | 'think';
 export type MessageRole = 'system' | 'user' | 'assistant';
 export type MessageType = 'question' | 'answer' | 'hint' | 'guess';
 
@@ -7,6 +8,7 @@ export interface Game {
   user_id: string;
   secret_item: string;
   category: string;
+  mode: GameMode;
   questions_asked: number;
   hints_used: number;
   status: GameStatus;
@@ -31,6 +33,7 @@ export interface Category {
 
 export interface StartGameRequest {
   category?: string;
+  mode?: GameMode;
   user_id?: string;
 }
 
@@ -69,5 +72,51 @@ export interface QuitGameRequest {
 export interface QuitGameResponse {
   message: string;
   secret_item: string;
+}
+
+// Think Mode specific types
+export interface StartThinkRoundRequest {
+  category: string;
+  user_id?: string;
+}
+
+export interface StartThinkRoundResponse {
+  session_id: string;
+  category: string;
+  first_question: string;
+}
+
+export interface LLMQuestionRequest {
+  session_id: string;
+}
+
+export interface LLMQuestionResponse {
+  question: string;
+  questions_asked: number;
+  questions_remaining: number;
+}
+
+export interface SubmitUserAnswerRequest {
+  session_id: string;
+  answer: string;
+  answer_type: 'chip' | 'text' | 'voice';
+}
+
+export interface SubmitUserAnswerResponse {
+  next_question?: string;
+  questions_asked: number;
+  questions_remaining: number;
+  game_status: GameStatus;
+}
+
+export interface FinalizeThinkResultRequest {
+  session_id: string;
+  result: 'llm_win' | 'llm_loss';
+}
+
+export interface FinalizeThinkResultResponse {
+  message: string;
+  questions_used: number;
+  secret_item?: string;
 }
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GameMessage, GameStatus } from '../../../shared/types';
+import { GameMessage, GameStatus, GameMode } from '../../../shared/types';
 
 export interface GameState {
   gameId: string | null;
@@ -10,6 +10,7 @@ export interface GameState {
   questionsRemaining: number;
   hintsRemaining: number;
   gameStatus: GameStatus;
+  mode: GameMode;
   showResultModal: boolean;
   resultModalData: {
     isWin: boolean;
@@ -27,6 +28,7 @@ export interface GameStateActions {
   setQuestionsRemaining: (count: number) => void;
   setHintsRemaining: (count: number) => void;
   setGameStatus: (status: GameStatus) => void;
+  setMode: (mode: GameMode) => void;
   setShowResultModal: (show: boolean) => void;
   setResultModalData: (data: { isWin: boolean; title: string; message: string }) => void;
   setBatchState: (updates: Partial<GameState>) => void;
@@ -41,6 +43,7 @@ export const useGameState = () => {
   const [questionsRemaining, setQuestionsRemaining] = useState(20);
   const [hintsRemaining, setHintsRemaining] = useState(3);
   const [gameStatus, setGameStatus] = useState<GameStatus>('active');
+  const [mode, setMode] = useState<GameMode>('guess');
   const [showResultModal, setShowResultModal] = useState(false);
   const [resultModalData, setResultModalData] = useState({
     isWin: false,
@@ -57,6 +60,7 @@ export const useGameState = () => {
     questionsRemaining,
     hintsRemaining,
     gameStatus,
+    mode,
     showResultModal,
     resultModalData,
   };
@@ -90,6 +94,9 @@ export const useGameState = () => {
         case 'gameStatus':
           setGameStatus(value as GameStatus);
           break;
+        case 'mode':
+          setMode(value as GameMode);
+          break;
         case 'showResultModal':
           setShowResultModal(value as boolean);
           break;
@@ -109,6 +116,7 @@ export const useGameState = () => {
     setQuestionsRemaining,
     setHintsRemaining,
     setGameStatus,
+    setMode,
     setShowResultModal,
     setResultModalData,
     setBatchState,

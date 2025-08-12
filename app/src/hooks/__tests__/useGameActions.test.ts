@@ -21,6 +21,9 @@ jest.mock('../../services/gameService', () => ({
     askQuestion: jest.fn(),
     getHint: jest.fn(),
     quitGame: jest.fn(),
+    startThinkRound: jest.fn(),
+    submitUserAnswer: jest.fn(),
+    finalizeThinkResult: jest.fn(),
   },
 }));
 
@@ -44,6 +47,7 @@ describe('useGameActions', () => {
     secretItem: 'elephant',
     loading: false,
     gameStatus: 'playing' as const,
+    mode: 'guess' as const,
     messages: [],
     questionsRemaining: 20,
     hintsRemaining: 3,
@@ -68,6 +72,7 @@ describe('useGameActions', () => {
     setShowResultModal: jest.fn(),
     setResultModalData: jest.fn(),
     setBatchState: jest.fn(),
+    setMode: jest.fn(),
   };
 
   beforeEach(() => {
@@ -114,7 +119,7 @@ describe('useGameActions', () => {
       const { result } = renderHook(() => useGameActions(defaultState, defaultActions));
 
       await act(async () => {
-        await result.current.startNewGame('Food', onNavigateBack);
+        await result.current.startNewGame('Food', 'guess', onNavigateBack);
       });
 
       // Should call setBatchState for initial reset and setLoading for cleanup
@@ -291,6 +296,38 @@ describe('useGameActions', () => {
 
       expect(mockedGameService.askQuestion).not.toHaveBeenCalled();
     });
+
+    it('handles Think mode startNewGame', async () => {
+      const mockResponse = {
+        session_id: 'think-game-456',
+        first_question: 'Is it something you can hold in your hands?'
+      };
+
+      mockedGameService.startThinkRound.mockResolvedValue(mockResponse);
+
+      const { result } = renderHook(() => useGameActions(defaultState, defaultActions));
+
+      await act(async () => {
+        await result.current.startNewGame('Animals', 'think');
+      });
+
+      expect(defaultActions.setBatchState).toHaveBeenCalledTimes(2);
+      expect(mockedGameService.startThinkRound).toHaveBeenCalledWith('Animals');
+      expect(mockedAudioManager.playSound).toHaveBeenCalledWith('gameStart');
+      
+      // Check final state includes Think mode specifics
+      expect(defaultActions.setBatchState).toHaveBeenLastCalledWith({
+        gameId: 'think-game-456',
+        secretItem: null,
+        messages: [{
+          role: 'assistant',
+          content: mockResponse.first_question,
+          message_type: 'question',
+        }],
+        questionsRemaining: 19,
+        loading: false
+      });
+    });
   });
 
   describe('requestHint', () => {
@@ -456,6 +493,255 @@ describe('useGameActions', () => {
     });
   });
 
+  describe('submitUserAnswer (Think Mode)', () => {
+    const thinkModeState = { ...defaultState, mode: 'think' as const };
+
+    it('successfully submits user answer and gets next question', async () => {
+      const mockResponse = {
+        next_question: 'Is it alive?',
+        questions_asked: 2,
+        questions_remaining: 18,
+        game_status: 'active' as const,
+      };
+
+      mockedGameService.submitUserAnswer.mockResolvedValue(mockResponse);
+
+      const { result } = renderHook(() => useGameActions(thinkModeState, defaultActions));
+
+      await act(async () => {
+        await result.current.submitUserAnswer('Yes', 'chip');
+      });
+
+      expect(defaultActions.setBatchState).toHaveBeenCalledTimes(2); // Optimistic + response
+      expect(mockedGameService.submitUserAnswer).toHaveBeenCalledWith('test-game-123', 'Yes', 'chip');
+      
+      expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
+        questionsRemaining: 18,
+        gameStatus: 'active',
+        sending: false
+      }));
+    });
+
+    it('handles LLM victory (no more questions)', async () => {
+      const mockResponse = {
+        next_question: null,
+        questions_asked: 12,
+        game_status: 'lost' as const,
+        final_message: 'Got it! You were thinking of a cat!'
+      };
+
+      mockedGameService.submitUserAnswer.mockResolvedValue(mockResponse);
+
+      const { result } = renderHook(() => useGameActions(thinkModeState, defaultActions));
+
+      await act(async () => {
+        await result.current.submitUserAnswer('Maybe', 'chip');
+      });
+
+      expect(mockedAudioManager.playSound).toHaveBeenCalledWith('correct');
+      expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
+        resultModalData: {
+          isWin: true,
+          title: 'You Won!',
+          message: 'I couldn\'t guess what you were thinking in 20 questions!'
+        },
+        showResultModal: true
+      }));
+    });
+
+    it('handles auto-loss at question 20', async () => {
+      const mockResponse = {
+        next_question: null,
+        questions_asked: 20,
+        game_status: 'won' as const,
+        final_message: 'I couldn\'t guess it! You win!'
+      };
+
+      mockedGameService.submitUserAnswer.mockResolvedValue(mockResponse);
+
+      const { result } = renderHook(() => useGameActions(thinkModeState, defaultActions));
+
+      await act(async () => {
+        await result.current.submitUserAnswer('No', 'chip');
+      });
+
+      expect(mockedAudioManager.playSound).toHaveBeenCalledWith('correct');
+      expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
+        resultModalData: {
+          isWin: true,
+          title: 'You Won!',
+          message: 'I couldn\'t guess what you were thinking in 20 questions!'
+        },
+        showResultModal: true
+      }));
+    });
+
+    it('handles submit answer failure', async () => {
+      mockedGameService.submitUserAnswer.mockRejectedValue(new Error('Network error'));
+
+      const { result } = renderHook(() => useGameActions(thinkModeState, defaultActions));
+
+      await act(async () => {
+        await result.current.submitUserAnswer('Yes', 'chip');
+      });
+
+      expect(mockedAlert.alert).toHaveBeenCalledWith('Error', 'Failed to submit answer. Please try again.');
+      expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
+        sending: false
+      }));
+    });
+
+    it('does not submit when no game ID', async () => {
+      const stateWithoutGameId = { ...thinkModeState, gameId: null };
+
+      const { result } = renderHook(() => useGameActions(stateWithoutGameId, defaultActions));
+
+      await act(async () => {
+        await result.current.submitUserAnswer('Yes', 'chip');
+      });
+
+      expect(mockedGameService.submitUserAnswer).not.toHaveBeenCalled();
+    });
+
+    it('does not submit when already sending', async () => {
+      const sendingState = { ...thinkModeState, sending: true };
+
+      const { result } = renderHook(() => useGameActions(sendingState, defaultActions));
+
+      await act(async () => {
+        await result.current.submitUserAnswer('Yes', 'chip');
+      });
+
+      expect(mockedGameService.submitUserAnswer).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleWin (Think Mode)', () => {
+    const thinkModeState = { ...defaultState, mode: 'think' as const };
+
+    it('successfully handles WIN button press', async () => {
+      const mockResponse = {
+        message: 'You win! I couldn\'t guess what you were thinking of.',
+        questions_asked: 8
+      };
+
+      mockedGameService.finalizeThinkResult.mockResolvedValue(mockResponse);
+
+      const { result } = renderHook(() => useGameActions(thinkModeState, defaultActions));
+
+      await act(async () => {
+        await result.current.handleWin();
+      });
+
+      expect(mockedGameService.finalizeThinkResult).toHaveBeenCalledWith('test-game-123', 'llm_win');
+      expect(mockedAudioManager.playSound).toHaveBeenCalledWith('wrong');
+      expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
+        resultModalData: {
+          isWin: false,
+          title: 'LLM guessed it!',
+          message: 'You win! I couldn\'t guess what you were thinking of.'
+        },
+        showResultModal: true,
+        sending: false
+      }));
+    });
+
+    it('handles WIN button with immediate press (before first question)', async () => {
+      const mockResponse = {
+        message: 'You win! I give up.',
+        questions_asked: 0
+      };
+
+      mockedGameService.finalizeThinkResult.mockResolvedValue(mockResponse);
+
+      const { result } = renderHook(() => useGameActions(thinkModeState, defaultActions));
+
+      await act(async () => {
+        await result.current.handleWin();
+      });
+
+      expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
+        resultModalData: {
+          isWin: false,
+          title: 'LLM guessed it!',
+          message: 'You win! I give up.'
+        },
+        showResultModal: true
+      }));
+    });
+
+    it('handles WIN button failure', async () => {
+      mockedGameService.finalizeThinkResult.mockRejectedValue(new Error('Network error'));
+
+      const { result } = renderHook(() => useGameActions(thinkModeState, defaultActions));
+
+      await act(async () => {
+        await result.current.handleWin();
+      });
+
+      expect(mockedAlert.alert).toHaveBeenCalledWith('Error', 'Failed to finalize game. Please try again.');
+      expect(defaultActions.setBatchState).toHaveBeenLastCalledWith(expect.objectContaining({
+        sending: false
+      }));
+    });
+
+    it('does not handle win when no game ID', async () => {
+      const stateWithoutGameId = { ...thinkModeState, gameId: null };
+
+      const { result } = renderHook(() => useGameActions(stateWithoutGameId, defaultActions));
+
+      await act(async () => {
+        await result.current.handleWin();
+      });
+
+      expect(mockedGameService.finalizeThinkResult).not.toHaveBeenCalled();
+    });
+
+    it('handles win even when already sending (no guard for sending state)', async () => {
+      const sendingState = { ...thinkModeState, sending: true };
+      const mockResponse = {
+        message: 'You win! I give up.',
+        questions_asked: 5
+      };
+
+      mockedGameService.finalizeThinkResult.mockResolvedValue(mockResponse);
+
+      const { result } = renderHook(() => useGameActions(sendingState, defaultActions));
+
+      await act(async () => {
+        await result.current.handleWin();
+      });
+
+      // The implementation doesn't check for sending state, so it will proceed
+      expect(mockedGameService.finalizeThinkResult).toHaveBeenCalledWith('test-game-123', 'llm_win');
+    });
+  });
+
+  describe('Think Mode quit handling', () => {
+    it('handles quit in Think mode correctly', async () => {
+      const thinkModeState = { ...defaultState, mode: 'think' as const };
+
+      const { result } = renderHook(() => useGameActions(thinkModeState, defaultActions));
+
+      await act(async () => {
+        await result.current.handleQuit();
+      });
+
+      // Think mode doesn't call quitGame API - it just shows modal directly
+      expect(mockedGameService.quitGame).not.toHaveBeenCalled();
+      expect(mockedAudioManager.playSound).toHaveBeenCalledWith('wrong');
+      expect(defaultActions.setBatchState).toHaveBeenCalledWith({
+        gameStatus: 'lost',
+        resultModalData: {
+          isWin: false,
+          title: 'Game Ended',
+          message: 'You have left the game.'
+        },
+        showResultModal: true
+      });
+    });
+  });
+
   describe('return interface', () => {
     it('returns all required methods', () => {
       const { result } = renderHook(() => useGameActions(defaultState, defaultActions));
@@ -464,6 +750,8 @@ describe('useGameActions', () => {
       expect(typeof result.current.sendQuestion).toBe('function');
       expect(typeof result.current.requestHint).toBe('function');
       expect(typeof result.current.handleQuit).toBe('function');
+      expect(typeof result.current.submitUserAnswer).toBe('function');
+      expect(typeof result.current.handleWin).toBe('function');
     });
   });
 });

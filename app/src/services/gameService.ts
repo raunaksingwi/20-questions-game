@@ -9,7 +9,13 @@ import {
   QuitGameRequest,
   QuitGameResponse,
   Game,
-  GameMessage
+  GameMessage,
+  StartThinkRoundRequest,
+  StartThinkRoundResponse,
+  SubmitUserAnswerRequest,
+  SubmitUserAnswerResponse,
+  FinalizeThinkResultRequest,
+  FinalizeThinkResultResponse
 } from '../../../shared/types'
 import { optimizedRequest } from '../utils/performanceOptimizer'
 
@@ -197,6 +203,43 @@ class GameService {
   invalidateCategoriesCache() {
     this.categoriesCache = null;
     this.categoriesCacheTimestamp = 0;
+  }
+
+  // Think Mode methods
+  async startThinkRound(category: string, userId?: string): Promise<StartThinkRoundResponse> {
+    return optimizedRequest('start-think-round', async () => {
+      let user_id: string | undefined
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        user_id = user?.id || userId
+      } catch (error) {
+        // Continue without user ID if auth fails
+        user_id = userId
+      }
+      
+      const request: StartThinkRoundRequest = {
+        category,
+        user_id
+      }
+      return this.callFunction<StartThinkRoundRequest, StartThinkRoundResponse>('start-think-round', request)
+    })
+  }
+
+  async submitUserAnswer(sessionId: string, answer: string, answerType: 'chip' | 'text' | 'voice'): Promise<SubmitUserAnswerResponse> {
+    const request: SubmitUserAnswerRequest = {
+      session_id: sessionId,
+      answer,
+      answer_type: answerType
+    }
+    return this.callFunction<SubmitUserAnswerRequest, SubmitUserAnswerResponse>('submit-user-answer', request)
+  }
+
+  async finalizeThinkResult(sessionId: string, result: 'llm_win' | 'llm_loss'): Promise<FinalizeThinkResultResponse> {
+    const request: FinalizeThinkResultRequest = {
+      session_id: sessionId,
+      result
+    }
+    return this.callFunction<FinalizeThinkResultRequest, FinalizeThinkResultResponse>('finalize-think-result', request)
   }
 
 }

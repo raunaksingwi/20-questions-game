@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { Category } from '../../../shared/types';
+import { Category, GameMode } from '../../../shared/types';
 import { gameService } from '../services/gameService';
 import CategorySkeleton from '../components/CategorySkeleton';
 
@@ -23,6 +23,7 @@ type Props = {
 export default function HomeScreen({ navigation }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedMode, setSelectedMode] = useState<GameMode>('guess');
 
   useEffect(() => {
     loadCategories();
@@ -43,9 +44,9 @@ export default function HomeScreen({ navigation }: Props) {
   };
 
   const startGame = (category: string) => {
-    console.log(`[HomeScreen] Starting game with category: ${category}`);
+    console.log(`[HomeScreen] Starting game with category: ${category}, mode: ${selectedMode}`);
     const startTime = Date.now();
-    navigation.navigate('Game', { category });
+    navigation.navigate('Game', { category, mode: selectedMode });
     console.log(`[HomeScreen] Navigation to Game screen in ${Date.now() - startTime}ms`);
   };
 
@@ -59,7 +60,7 @@ export default function HomeScreen({ navigation }: Props) {
           <View style={styles.header}>
             <Text style={styles.title}>Welcome to 20 Questions!</Text>
             <Text style={styles.subtitle}>
-              I'll think of something from your chosen category - try to guess it!
+              Choose how you want to play!
             </Text>
           </View>
           <View style={styles.sectionTitleContainer}>
@@ -80,8 +81,50 @@ export default function HomeScreen({ navigation }: Props) {
         <View style={styles.header}>
           <Text style={styles.title}>Welcome to 20 Questions!</Text>
           <Text style={styles.subtitle}>
-            I'll think of something from your chosen category - try to guess it!
+            Choose how you want to play!
           </Text>
+        </View>
+
+        <View style={styles.modeContainer}>
+          <Text style={styles.sectionTitle}>Game Mode</Text>
+          <View style={styles.modeSelector}>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                selectedMode === 'guess' && styles.modeButtonActive,
+              ]}
+              onPress={() => setSelectedMode('guess')}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                styles.modeButtonText,
+                selectedMode === 'guess' && styles.modeButtonTextActive,
+              ]}>
+                Guess
+              </Text>
+              <Text style={styles.modeDescription}>
+                I'll think of something - you guess it!
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.modeButton,
+                selectedMode === 'think' && styles.modeButtonActive,
+              ]}
+              onPress={() => setSelectedMode('think')}
+              activeOpacity={0.8}
+            >
+              <Text style={[
+                styles.modeButtonText,
+                selectedMode === 'think' && styles.modeButtonTextActive,
+              ]}>
+                Think
+              </Text>
+              <Text style={styles.modeDescription}>
+                You think of something - I'll guess it!
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.categoriesContainer}>
@@ -105,13 +148,13 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.rulesContainer}>
-          <Text style={styles.rulesTitle}>How to Play</Text>
+          <Text style={styles.rulesTitle}>How to Play {selectedMode === 'guess' ? 'Guess' : 'Think'} Mode</Text>
           <Text style={styles.rulesText}>
-            1. I'll think of something from the chosen category{'\n'}
-            2. Ask me yes/no questions to narrow it down{'\n'}
-            3. You have 20 questions to guess correctly{'\n'}
-            4. You can request up to 3 hints (each hint costs 1 question){'\n'}
-            5. Make your final guess when you think you know!
+            {selectedMode === 'guess' ? (
+              `1. I'll think of something from the chosen category\n2. Ask me yes/no questions to narrow it down\n3. You have 20 questions to guess correctly\n4. You can request up to 3 hints (each hint costs 1 question)\n5. Make your final guess when you think you know!`
+            ) : (
+              `1. Think of something from the chosen category\n2. I'll ask up to 20 yes/no questions to guess it\n3. Answer with Yes, No, Maybe, Don't know, or Irrelevant\n4. Press WIN if I guess correctly before 20 questions\n5. If I use all 20 questions without guessing, you win!`
+            )}
           </Text>
         </View>
       </ScrollView>
@@ -158,8 +201,45 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
+  modeContainer: {
+    padding: 20,
+    paddingBottom: 10,
+  },
+  modeSelector: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modeButton: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+  },
+  modeButtonActive: {
+    borderColor: '#6366f1',
+    backgroundColor: '#f0f9ff',
+  },
+  modeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+  modeButtonTextActive: {
+    color: '#6366f1',
+  },
+  modeDescription: {
+    fontSize: 12,
+    color: '#9ca3af',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
   categoriesContainer: {
     padding: 20,
+    paddingTop: 10,
   },
   sectionTitle: {
     fontSize: 20,

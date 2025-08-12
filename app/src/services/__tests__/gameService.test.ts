@@ -442,6 +442,396 @@ describe('GameService', () => {
     });
   });
 
+  describe('startThinkRound', () => {
+    it('should start a new Think mode round successfully', async () => {
+      const mockUser = { id: 'user-456' };
+      const mockResponse = {
+        game_id: 'think-game-789',
+        message: 'Is it something you can hold in your hands?',
+      };
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: mockUser },
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await gameService.startThinkRound('Animals', 'user-456');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://test.supabase.co/functions/v1/start-think-round',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-anon-key',
+          }),
+          body: JSON.stringify({
+            category: 'Animals',
+            user_id: 'user-456',
+          }),
+          signal: expect.any(AbortSignal),
+        })
+      );
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should start Think mode without user (anonymous)', async () => {
+      const mockResponse = {
+        game_id: 'anon-think-game',
+        message: 'Is it alive?',
+      };
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await gameService.startThinkRound('Food');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://test.supabase.co/functions/v1/start-think-round',
+        expect.objectContaining({
+          body: JSON.stringify({
+            category: 'Food',
+            user_id: undefined,
+          }),
+        })
+      );
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should handle startThinkRound API errors', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        json: async () => ({ error: 'Think mode not available' }),
+      });
+
+      await expect(gameService.startThinkRound('Animals')).rejects.toThrow(
+        'Think mode not available'
+      );
+    });
+  });
+
+  describe('submitUserAnswer', () => {
+    it('should submit user answer and get next question', async () => {
+      const mockResponse = {
+        next_question: 'Is it bigger than a breadbox?',
+        questions_asked: 3,
+        game_status: 'active',
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await gameService.submitUserAnswer('think-game-123', 'Yes', 'chip');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://test.supabase.co/functions/v1/submit-user-answer',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-anon-key',
+          }),
+          body: JSON.stringify({
+            session_id: 'think-game-123',
+            answer: 'Yes',
+            answer_type: 'chip',
+          }),
+          signal: expect.any(AbortSignal),
+        })
+      );
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should handle LLM victory (no next question)', async () => {
+      const mockResponse = {
+        next_question: null,
+        questions_asked: 8,
+        game_status: 'lost',
+        final_message: 'I got it! You were thinking of a cat!',
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await gameService.submitUserAnswer('think-game-123', 'Maybe', 'chip');
+
+      expect(result.next_question).toBeNull();
+      expect(result.game_status).toBe('lost');
+      expect(result.final_message).toContain('cat');
+    });
+
+    it('should handle auto-loss at question 20', async () => {
+      const mockResponse = {
+        next_question: null,
+        questions_asked: 20,
+        game_status: 'won',
+        final_message: 'I couldn\'t guess it! You win!',
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await gameService.submitUserAnswer('think-game-123', 'No', 'chip');
+
+      expect(result.questions_asked).toBe(20);
+      expect(result.game_status).toBe('won');
+      expect(result.final_message).toContain('You win');
+    });
+
+    it('should handle all answer types correctly', async () => {
+      const answerTypes = [
+        { answer: 'Yes', type: 'chip' },
+        { answer: 'No', type: 'chip' },
+        { answer: 'Maybe', type: 'text' },
+        { answer: "Don't know", type: 'voice' },
+      ];
+
+      for (const { answer, type } of answerTypes) {
+        (global.fetch as jest.Mock).mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            next_question: 'Next question',
+            questions_asked: 1,
+            game_status: 'active',
+          }),
+        });
+
+        await gameService.submitUserAnswer('game-123', answer, type);
+
+        expect(global.fetch).toHaveBeenLastCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            body: JSON.stringify({
+              session_id: 'game-123',
+              answer: answer,
+              answer_type: type,
+            }),
+          })
+        );
+      }
+    });
+
+    it('should handle submitUserAnswer API errors', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        json: async () => ({ error: 'Game session expired' }),
+      });
+
+      await expect(
+        gameService.submitUserAnswer('invalid-game', 'Yes', 'chip')
+      ).rejects.toThrow('Game session expired');
+    });
+  });
+
+  describe('finalizeThinkResult', () => {
+    it('should finalize Think mode with WIN button', async () => {
+      const mockResponse = {
+        message: 'You win! I couldn\'t guess what you were thinking of.',
+        questions_asked: 12,
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await gameService.finalizeThinkResult('think-game-123', 'llm_loss');
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://test.supabase.co/functions/v1/finalize-think-result',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-anon-key',
+          }),
+          body: JSON.stringify({
+            session_id: 'think-game-123',
+            result: 'llm_loss',
+          }),
+          signal: expect.any(AbortSignal),
+        })
+      );
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should handle WIN button pressed immediately (before any questions)', async () => {
+      const mockResponse = {
+        message: 'You win! I give up before even starting.',
+        questions_asked: 0,
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await gameService.finalizeThinkResult('think-game-123', 'llm_loss');
+
+      expect(result.questions_asked).toBe(0);
+      expect(result.message).toContain('give up');
+    });
+
+    it('should handle finalizeThinkResult API errors', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        json: async () => ({ error: 'Cannot finalize game' }),
+      });
+
+      await expect(gameService.finalizeThinkResult('invalid-game', 'llm_loss')).rejects.toThrow(
+        'Cannot finalize game'
+      );
+    });
+  });
+
+  describe('Think Mode Edge Cases', () => {
+    it('should handle network timeout during submitUserAnswer', async () => {
+      (global.fetch as jest.Mock).mockRejectedValue(
+        new Error('Network timeout')
+      );
+
+      await expect(
+        gameService.submitUserAnswer('game-123', 'Yes', 'chip')
+      ).rejects.toThrow('Network timeout');
+    });
+
+    it('should handle malformed response from startThinkRound', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          // Missing game_id field
+          message: 'Is it alive?',
+        }),
+      });
+
+      const result = await gameService.startThinkRound('Animals');
+      expect(result.message).toBe('Is it alive?');
+      expect(result.game_id).toBeUndefined();
+    });
+
+    it('should handle ambiguous answers in submitUserAnswer', async () => {
+      const mockResponse = {
+        next_question: 'Can you be more specific?',
+        questions_asked: 5,
+        game_status: 'active',
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await gameService.submitUserAnswer('game-123', 'Maybe', 'chip');
+
+      expect(result.next_question).toContain('more specific');
+    });
+
+    it('should handle very long user answers', async () => {
+      const veryLongAnswer = 'A'.repeat(5000);
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          next_question: 'Answer too long, please keep it brief',
+          questions_asked: 3,
+          game_status: 'active',
+        }),
+      });
+
+      const result = await gameService.submitUserAnswer('game-123', veryLongAnswer, 'text');
+      
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: JSON.stringify({
+            session_id: 'game-123',
+            answer: veryLongAnswer,
+            answer_type: 'text',
+          }),
+        })
+      );
+
+      expect(result.next_question).toContain('too long');
+    });
+
+    it('should handle concurrent submitUserAnswer calls', async () => {
+      let callCount = 0;
+      (global.fetch as jest.Mock).mockImplementation(() => {
+        callCount++;
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            next_question: `Question ${callCount}`,
+            questions_asked: callCount,
+            game_status: 'active',
+          }),
+        });
+      });
+
+      const promises = [
+        gameService.submitUserAnswer('game-123', 'Yes', 'chip'),
+        gameService.submitUserAnswer('game-123', 'No', 'chip'),
+        gameService.submitUserAnswer('game-123', 'Maybe', 'text'),
+      ];
+
+      const results = await Promise.all(promises);
+      
+      expect(results).toHaveLength(3);
+      expect(results.every(r => r.next_question?.startsWith('Question'))).toBe(true);
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('should handle finalizeThinkResult with concurrent calls', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          message: 'You win!',
+          questions_asked: 8,
+        }),
+      });
+
+      const promises = [
+        gameService.finalizeThinkResult('game-123', 'llm_loss'),
+        gameService.finalizeThinkResult('game-123', 'llm_loss'),
+      ];
+
+      const results = await Promise.all(promises);
+      
+      expect(results).toHaveLength(2);
+      expect(results[0].message).toBe('You win!');
+      expect(results[1].message).toBe('You win!');
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('Edge Cases and Boundary Conditions', () => {
     describe('Network Timeouts and Connection Issues', () => {
       it('should handle network timeout during startGame', async () => {

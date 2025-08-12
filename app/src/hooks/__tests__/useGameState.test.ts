@@ -13,6 +13,7 @@ describe('useGameState', () => {
     expect(result.current.state.questionsRemaining).toBe(20);
     expect(result.current.state.hintsRemaining).toBe(3);
     expect(result.current.state.gameStatus).toBe('active');
+    expect(result.current.state.mode).toBe('guess');
     expect(result.current.state.showResultModal).toBe(false);
     expect(result.current.state.resultModalData).toEqual({
       isWin: false,
@@ -161,5 +162,36 @@ describe('useGameState', () => {
     });
     
     expect(result.current.state.resultModalData).toEqual(resultData);
+  });
+
+  // Think Mode tests
+  it('updates mode to think', () => {
+    const { result } = renderHook(() => useGameState());
+    
+    act(() => {
+      result.current.actions.setMode('think');
+    });
+    
+    expect(result.current.state.mode).toBe('think');
+  });
+
+  it('updates state in batch for Think mode', () => {
+    const { result } = renderHook(() => useGameState());
+    
+    const batchUpdate = {
+      mode: 'think' as const,
+      gameId: 'think-session-123',
+      questionsRemaining: 19,
+      loading: false,
+    };
+    
+    act(() => {
+      result.current.actions.setBatchState(batchUpdate);
+    });
+    
+    expect(result.current.state.mode).toBe('think');
+    expect(result.current.state.gameId).toBe('think-session-123');
+    expect(result.current.state.questionsRemaining).toBe(19);
+    expect(result.current.state.loading).toBe(false);
   });
 });
