@@ -3,6 +3,7 @@ import { useVoiceRecording } from '../useVoiceRecording';
 import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
 import * as Haptics from 'expo-haptics';
 import { audioManager } from '../../services/AudioManager';
+import { voiceDiagnostics } from '../../utils/voiceDiagnostics';
 
 // Mock dependencies
 jest.mock('expo-speech-recognition', () => ({
@@ -26,6 +27,37 @@ jest.mock('expo-haptics', () => ({
 jest.mock('../../services/AudioManager', () => ({
   audioManager: {
     setRecordingMode: jest.fn(),
+    forceResetRecordingMode: jest.fn(),
+    getRecordingStatus: jest.fn().mockReturnValue({
+      isRecordingActive: false,
+      recordingDuration: 0,
+      initialized: true,
+    }),
+  },
+}));
+
+jest.mock('../../utils/voiceDiagnostics', () => ({
+  voiceDiagnostics: {
+    startSession: jest.fn(),
+    endSession: jest.fn(),
+    logEvent: jest.fn(),
+    recordFailure: jest.fn(),
+    getDiagnosticSummary: jest.fn().mockReturnValue({
+      totalSessions: 0,
+      successfulSessions: 0,
+      failedSessions: 0,
+      averageSessionDuration: 0,
+      lastFailureReason: null,
+      successRate: 100,
+      recentEvents: [],
+    }),
+    getHealthCheck: jest.fn().mockReturnValue({
+      status: 'healthy',
+      issues: [],
+      recommendations: [],
+    }),
+    exportLogs: jest.fn().mockReturnValue('{}'),
+    reset: jest.fn(),
   },
 }));
 
@@ -33,6 +65,7 @@ jest.mock('../../services/AudioManager', () => ({
 const mockExpoSpeechRecognitionModule = ExpoSpeechRecognitionModule as jest.Mocked<typeof ExpoSpeechRecognitionModule>;
 const mockHaptics = Haptics as jest.Mocked<typeof Haptics>;
 const mockAudioManager = audioManager as jest.Mocked<typeof audioManager>;
+const mockVoiceDiagnostics = voiceDiagnostics as jest.Mocked<typeof voiceDiagnostics>;
 
 // Store event listeners for simulation
 let eventListeners: { [key: string]: (event: any) => void } = {};
@@ -58,6 +91,11 @@ describe('useVoiceRecording', () => {
     mockExpoSpeechRecognitionModule.stop.mockResolvedValue(undefined);
     mockHaptics.impactAsync.mockResolvedValue(undefined);
     mockAudioManager.setRecordingMode.mockResolvedValue(undefined);
+    mockAudioManager.forceResetRecordingMode.mockResolvedValue(undefined);
+    mockVoiceDiagnostics.startSession.mockReturnValue(undefined);
+    mockVoiceDiagnostics.endSession.mockReturnValue(undefined);
+    mockVoiceDiagnostics.logEvent.mockReturnValue(undefined);
+    mockVoiceDiagnostics.recordFailure.mockReturnValue(undefined);
     
     // Setup fake timers
     jest.useFakeTimers();
@@ -116,6 +154,8 @@ describe('useVoiceRecording', () => {
         interimResults: true,
         continuous: false,
         maxResults: 1,
+        speechTimeoutMs: 30000,
+        partialResults: true,
       });
       expect(mockAudioManager.setRecordingMode).toHaveBeenCalledWith(true);
       expect(mockHaptics.impactAsync).toHaveBeenCalledWith('medium');
@@ -164,7 +204,11 @@ describe('useVoiceRecording', () => {
       });
       
       expect(result.current.recordingState).toBe('idle');
-      expect(mockAudioManager.setRecordingMode).toHaveBeenCalledWith(false);
+      
+      // Wait for async cleanup to complete
+      await waitFor(() => {
+        expect(mockAudioManager.forceResetRecordingMode).toHaveBeenCalled();
+      });
     });
   });
 
@@ -295,12 +339,16 @@ describe('useVoiceRecording', () => {
       expect(result.current.recordingState).toBe('recording');
       
       // Simulate error
-      act(() => {
+      await act(async () => {
         eventListeners['error']?.({ error: 'network_error' });
       });
       
       expect(result.current.recordingState).toBe('error');
-      expect(mockAudioManager.setRecordingMode).toHaveBeenCalledWith(false);
+      
+      // Wait for async cleanup to complete
+      await waitFor(() => {
+        expect(mockAudioManager.forceResetRecordingMode).toHaveBeenCalled();
+      });
     });
 
     it('should handle start recording errors', async () => {
@@ -317,7 +365,11 @@ describe('useVoiceRecording', () => {
       });
       
       expect(result.current.recordingState).toBe('error');
-      expect(mockAudioManager.setRecordingMode).toHaveBeenCalledWith(false);
+      
+      // Wait for async cleanup to complete
+      await waitFor(() => {
+        expect(mockAudioManager.forceResetRecordingMode).toHaveBeenCalled();
+      });
     });
 
     it('should handle stop recording errors', async () => {
@@ -340,7 +392,11 @@ describe('useVoiceRecording', () => {
       });
       
       expect(result.current.recordingState).toBe('error');
-      expect(mockAudioManager.setRecordingMode).toHaveBeenCalledWith(false);
+      
+      // Wait for async cleanup to complete
+      await waitFor(() => {
+        expect(mockAudioManager.forceResetRecordingMode).toHaveBeenCalled();
+      });
     });
 
     it('should handle empty transcripts', async () => {
@@ -469,12 +525,16 @@ describe('useVoiceRecording', () => {
       
       expect(result.current.recordingState).toBe('recording');
       
-      act(() => {
+      await act(async () => {
         unmount();
       });
       
       expect(mockExpoSpeechRecognitionModule.stop).toHaveBeenCalled();
-      expect(mockAudioManager.setRecordingMode).toHaveBeenCalledWith(false);
+      
+      // Wait for async cleanup to complete
+      await waitFor(() => {
+        expect(mockAudioManager.forceResetRecordingMode).toHaveBeenCalled();
+      });
     });
   });
 

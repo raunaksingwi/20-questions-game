@@ -8,6 +8,8 @@ class AudioManager {
   private initialized: boolean = false;
   private isRecordingActive: boolean = false;
   private originalVolume: number = 0.5;
+  private recordingStartTime: number = 0;
+  private forceCleanupInProgress: boolean = false;
 
   async initialize() {
     if (this.initialized) return;
@@ -63,15 +65,54 @@ class AudioManager {
   }
 
   async setRecordingMode(isRecording: boolean) {
+    console.log(`🔊 AudioManager: Setting recording mode to ${isRecording}`);
+    console.log(`🔊 AudioManager: Current state - recording: ${this.isRecordingActive}, cleanup: ${this.forceCleanupInProgress}`);
+    
+    // Prevent recursive calls during cleanup
+    if (this.forceCleanupInProgress && !isRecording) {
+      console.log(`🔊 AudioManager: Skipping recording mode change during cleanup`);
+      return;
+    }
+    
     this.isRecordingActive = isRecording;
     
     if (isRecording) {
+      this.recordingStartTime = Date.now();
       // Lower volume when recording to avoid interference
       await this.setVolume(0.1);
+      console.log(`🔊 AudioManager: Recording mode enabled, volume lowered`);
     } else {
+      const duration = this.recordingStartTime > 0 ? Date.now() - this.recordingStartTime : 0;
+      console.log(`🔊 AudioManager: Recording mode disabled after ${duration}ms`);
+      
       // Restore normal volume when not recording
       await this.setVolume(this.originalVolume);
+      this.recordingStartTime = 0;
     }
+  }
+
+  async forceResetRecordingMode() {
+    console.log(`🔊 AudioManager: Force resetting recording mode`);
+    this.forceCleanupInProgress = true;
+    
+    try {
+      this.isRecordingActive = false;
+      this.recordingStartTime = 0;
+      await this.setVolume(this.originalVolume);
+      console.log(`🔊 AudioManager: Force reset completed`);
+    } catch (error) {
+      console.warn(`🔊 AudioManager: Error during force reset:`, error);
+    } finally {
+      this.forceCleanupInProgress = false;
+    }
+  }
+
+  getRecordingStatus() {
+    return {
+      isRecordingActive: this.isRecordingActive,
+      recordingDuration: this.recordingStartTime > 0 ? Date.now() - this.recordingStartTime : 0,
+      initialized: this.initialized,
+    };
   }
 
   private async setVolume(volume: number) {
