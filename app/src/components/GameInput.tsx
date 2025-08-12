@@ -51,6 +51,7 @@ export const GameInput: React.FC<GameInputProps> = ({
               value={question}
               onChangeText={setQuestion}
               placeholder="Ask a yes/no question or make a guess..."
+              placeholderTextColor="#9ca3af"
               onSubmitEditing={onTextSubmit}
               editable={!sending && gameStatus === 'active'}
               autoCapitalize="sentences"

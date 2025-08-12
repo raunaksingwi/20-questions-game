@@ -16,6 +16,7 @@ export const useGameNavigation = (
   useFocusEffect(
     React.useCallback(() => {
       navigation.setOptions({
+        headerLeft: () => null,
         headerRight: () => (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {/* Hint Button */}
