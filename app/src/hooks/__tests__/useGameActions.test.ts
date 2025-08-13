@@ -97,7 +97,7 @@ describe('useGameActions', () => {
 
       // Should call setBatchState twice: once for initial reset, once for final state
       expect(defaultActions.setBatchState).toHaveBeenCalledTimes(2);
-      expect(mockedGameService.startGame).toHaveBeenCalledWith('Animals');
+      expect(mockedGameService.startGame).toHaveBeenCalledWith('Animals', 'user_guessing');
       expect(mockedAudioManager.playSound).toHaveBeenCalledWith('gameStart');
       
       // Check the final state update
@@ -310,7 +310,7 @@ describe('useGameActions', () => {
       const { result } = renderHook(() => useGameActions(defaultState, defaultActions));
 
       await act(async () => {
-        await result.current.startNewGame('Animals', 'think');
+        await result.current.startNewGame('Animals', 'ai_guessing');
       });
 
       expect(defaultActions.setBatchState).toHaveBeenCalledTimes(2);

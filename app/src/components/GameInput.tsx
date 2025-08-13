@@ -25,7 +25,7 @@ export const GameInput: React.FC<GameInputProps> = ({
   setQuestion,
   sending,
   gameStatus,
-  mode = 'guess',
+  mode = 'user_guessing',
   onTextSubmit,
   onVoiceSubmit,
   onQuickAnswer,
@@ -48,8 +48,8 @@ export const GameInput: React.FC<GameInputProps> = ({
     inputY.value = y;
   }, [inputWidth, inputHeight, inputX, inputY]);
 
-  const isThinkMode = mode === 'think';
-  const placeholder = isThinkMode 
+  const isAIGuessingMode = mode === 'ai_guessing';
+  const placeholder = isAIGuessingMode 
     ? "Answer the question or type your response..."
     : "Ask a yes/no question or make a guess...";
 
@@ -61,8 +61,8 @@ export const GameInput: React.FC<GameInputProps> = ({
 
   return (
     <View style={[styles.inputSection, { paddingBottom: insets.bottom }]}>
-      {/* Quick Answer Chips - only show in Think mode and when awaiting user answer */}
-      {isThinkMode && (
+      {/* Quick Answer Chips - only show in AI Guessing mode and when awaiting user answer */}
+      {isAIGuessingMode && (
         <QuickAnswerChips
           onChipPress={handleQuickAnswer}
           onWinPress={onWinPress}
@@ -70,8 +70,8 @@ export const GameInput: React.FC<GameInputProps> = ({
         />
       )}
       
-      {/* Text input and voice button - hide in Think mode */}
-      {!isThinkMode && (
+      {/* Text input and voice button - hide in AI Guessing mode */}
+      {!isAIGuessingMode && (
         <View style={styles.inputContainer}>
           <View style={styles.textInputWrapper}>
             <View style={styles.inputRow}>

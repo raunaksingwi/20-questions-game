@@ -40,11 +40,11 @@ const handler = async (req: Request) => {
       .from('games')
       .select('id, category, questions_asked, status')
       .eq('id', session_id)
-      .eq('mode', 'think')
+      .eq('mode', 'ai_guessing')
       .single()
 
     if (sessionError || !session) {
-      throw new Error('Think mode session not found')
+      throw new Error('AI Guessing mode session not found')
     }
 
     if (session.status !== 'active') {
@@ -128,7 +128,7 @@ const handler = async (req: Request) => {
 
     const totalQuestionsUsed = questionsCountedForLimit
     
-    const systemPrompt = `You are playing 20 Questions in Think mode. The user has thought of an item within the category: ${session.category}.
+    const systemPrompt = `You are playing 20 Questions in AI Guessing mode. The user has thought of an item within the category: ${session.category}.
 Your job is to ask up to 20 yes/no questions to identify the item. Rules:
 - Ask exactly one yes/no question per turn.
 - Keep each question short and unambiguous.

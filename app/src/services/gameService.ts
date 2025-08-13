@@ -68,7 +68,7 @@ class GameService {
     }
   }
 
-  async startGame(category?: string): Promise<StartGameResponse> {
+  async startGame(category?: string, mode?: string): Promise<StartGameResponse> {
     return optimizedRequest('start-game', async () => {
       let user_id: string | undefined
       try {
@@ -81,6 +81,7 @@ class GameService {
       
       const request: StartGameRequest = {
         category,
+        mode: mode as any,
         user_id
       }
       return this.callFunction<StartGameRequest, StartGameResponse>('start-game', request)

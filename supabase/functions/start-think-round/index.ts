@@ -32,7 +32,7 @@ const handler = async (req: Request) => {
       }
     }
     
-    console.log(`[start-think-round] Starting Think mode session with category: ${category}`)
+    console.log(`[start-think-round] Starting AI Guessing mode session with category: ${category}`)
 
     // Get available categories
     const { data: categories, error: categoryError } = await supabase
@@ -52,7 +52,7 @@ const handler = async (req: Request) => {
       selectedCategory = categoryData.name
     }
 
-    // Create think session (using games table with mode='think')
+    // Create AI guessing session (using games table with mode='ai_guessing')
     const sessionStart = Date.now()
     const { data: session, error: sessionError } = await supabase
       .from('games')
@@ -60,7 +60,7 @@ const handler = async (req: Request) => {
         user_id,
         secret_item: null, // User will think of this
         category: selectedCategory,
-        mode: 'think',
+        mode: 'ai_guessing',
         status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -82,7 +82,7 @@ const handler = async (req: Request) => {
     const llmStart = Date.now()
     const llmProvider = EdgeFunctionBase.getLLMProvider('start-think-round')
     
-    const systemPrompt = `You are playing 20 Questions in Think mode. The user has thought of an item within the category: ${selectedCategory}.
+    const systemPrompt = `You are playing 20 Questions in AI Guessing mode. The user has thought of an item within the category: ${selectedCategory}.
 Your job is to ask up to 20 yes/no questions to identify the item. Rules:
 - Ask exactly one yes/no question per turn.
 - Keep each question short and unambiguous.

@@ -43,7 +43,7 @@ export const useGameState = () => {
   const [questionsRemaining, setQuestionsRemaining] = useState(20);
   const [hintsRemaining, setHintsRemaining] = useState(3);
   const [gameStatus, setGameStatus] = useState<GameStatus>('active');
-  const [mode, setMode] = useState<GameMode>('guess');
+  const [mode, setMode] = useState<GameMode>('user_guessing');
   const [showResultModal, setShowResultModal] = useState(false);
   const [resultModalData, setResultModalData] = useState({
     isWin: false,

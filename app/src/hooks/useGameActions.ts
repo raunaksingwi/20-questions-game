@@ -50,7 +50,7 @@ export const useGameActions = (
       timestamp: Date.now()
     };
   };
-  const startNewGame = async (category: string, mode: GameMode = 'guess', onNavigateBack?: () => void) => {
+  const startNewGame = async (category: string, mode: GameMode = 'user_guessing', onNavigateBack?: () => void) => {
     if (isDuplicateRequest('start', `${category}-${mode}`)) return;
     recordRequest('start', `${category}-${mode}`);
     
@@ -69,8 +69,8 @@ export const useGameActions = (
         sending: false
       });
 
-      if (mode === 'think') {
-        // Think mode: Start a think round
+      if (mode === 'ai_guessing') {
+        // AI Guessing mode: Start a think round
         const response = await gameService.startThinkRound(category);
         
         audioManager.playSound('gameStart');
@@ -81,7 +81,7 @@ export const useGameActions = (
           message_type: 'question',
         };
         
-        // In Think mode, we start with 1 question asked (the first question)
+        // In AI Guessing mode, we start with 1 question asked (the first question)
         actions.setBatchState({
           gameId: response.session_id,
           secretItem: null, // User thinks of this
@@ -90,8 +90,8 @@ export const useGameActions = (
           loading: false
         });
       } else {
-        // Guess mode: Original logic
-        const response = await gameService.startGame(category);
+        // User Guessing mode: Original logic
+        const response = await gameService.startGame(category, mode);
         
         audioManager.playSound('gameStart');
         

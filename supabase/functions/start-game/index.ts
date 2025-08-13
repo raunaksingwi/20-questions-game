@@ -12,8 +12,8 @@ const handler = async (req: Request) => {
 
   try {
     const requestStart = Date.now()
-    const { category, user_id }: StartGameRequest = await req.json()
-    console.log(`[start-game] Starting game with category: ${category || 'random'}`)
+    const { category, mode = 'user_guessing', user_id }: StartGameRequest = await req.json()
+    console.log(`[start-game] Starting game with category: ${category || 'random'}, mode: ${mode}`)
 
     // Get available categories with caching headers
     const { data: categories, error: categoryError } = await supabase
@@ -41,6 +41,7 @@ const handler = async (req: Request) => {
         user_id,
         secret_item: '', // Will be set after LLM picks
         category: selectedCategory,
+        mode: mode,
         status: 'active',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()

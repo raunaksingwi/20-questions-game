@@ -1,12 +1,12 @@
 export type GameStatus = 'active' | 'won' | 'lost';
-export type GameMode = 'guess' | 'think';
+export type GameMode = 'user_guessing' | 'ai_guessing';
 export type MessageRole = 'system' | 'user' | 'assistant';
 export type MessageType = 'question' | 'answer' | 'hint' | 'guess';
 export type AnswerType = 'chip' | 'text' | 'voice';
 export type ThinkResultType = 'llm_win' | 'llm_loss';
 
 // Validation helpers
-export const GAME_MODES: GameMode[] = ['guess', 'think'];
+export const GAME_MODES: GameMode[] = ['user_guessing', 'ai_guessing'];
 export const GAME_STATUSES: GameStatus[] = ['active', 'won', 'lost'];
 export const ANSWER_TYPES: AnswerType[] = ['chip', 'text', 'voice'];
 export const THINK_RESULT_TYPES: ThinkResultType[] = ['llm_win', 'llm_loss'];

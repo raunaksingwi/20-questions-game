@@ -119,7 +119,7 @@ describe('HomeScreen', () => {
       await waitFor(() => {
         expect(getByText('Welcome to 20 Questions!')).toBeTruthy();
         expect(
-          getByText("I'll think of something - you guess it!")
+          getByText('AI picks a secret - I ask questions to guess it!')
         ).toBeTruthy();
       });
     });
@@ -130,9 +130,9 @@ describe('HomeScreen', () => {
       );
 
       await waitFor(() => {
-        expect(getByText('How to Play Guess Mode')).toBeTruthy();
-        expect(getByText(/I'll think of something from the chosen category/)).toBeTruthy();
-        expect(getByText(/Ask me yes\/no questions to narrow it down/)).toBeTruthy();
+        expect(getByText("How to Play I'm Guessing Mode")).toBeTruthy();
+        expect(getByText(/AI picks a secret from the chosen category/)).toBeTruthy();
+        expect(getByText(/Ask yes\/no questions to narrow it down/)).toBeTruthy();
         expect(getByText(/You have 20 questions to guess correctly/)).toBeTruthy();
         expect(getByText(/You can request up to 3 hints/)).toBeTruthy();
         expect(getByText(/Make your final guess when you think you know!/)).toBeTruthy();
@@ -175,7 +175,7 @@ describe('HomeScreen', () => {
 
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Game', {
         category: 'Cricketers',
-        mode: 'guess',
+        mode: 'user_guessing',
       });
     });
 
@@ -192,14 +192,14 @@ describe('HomeScreen', () => {
       fireEvent.press(getByText('Food'));
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Game', {
         category: 'Food',
-        mode: 'guess',
+        mode: 'user_guessing',
       });
 
       // Test Objects category
       fireEvent.press(getByText('Objects'));
       expect(mockNavigation.navigate).toHaveBeenCalledWith('Game', {
         category: 'Objects',
-        mode: 'guess',
+        mode: 'user_guessing',
       });
     });
   });

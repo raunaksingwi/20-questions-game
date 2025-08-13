@@ -36,7 +36,7 @@ const handler = async (req: Request) => {
       .from('games')
       .select('id, category, questions_asked, status, secret_item')
       .eq('id', session_id)
-      .eq('mode', 'think')
+      .eq('mode', 'ai_guessing')
       .single()
 
     if (sessionError || !session) {

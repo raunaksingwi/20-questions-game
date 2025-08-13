@@ -56,7 +56,7 @@ export default function GameScreen({ route, navigation }: Props) {
     console.log('🎬 GameScreen: Voice text received:', voiceText);
     console.log('🎬 GameScreen: Voice text length:', voiceText.length, 'words:', voiceText.split(' ').length);
     
-    if (mode === 'think') {
+    if (mode === 'ai_guessing') {
       gameActions.submitUserAnswer(voiceText, 'voice');
     } else {
       gameActions.sendQuestion(voiceText, question);
@@ -68,7 +68,7 @@ export default function GameScreen({ route, navigation }: Props) {
     const textToSubmit = question.trim();
     if (!textToSubmit) return;
 
-    if (mode === 'think') {
+    if (mode === 'ai_guessing') {
       gameActions.submitUserAnswer(textToSubmit, 'text');
     } else {
       gameActions.sendQuestion(undefined, question);

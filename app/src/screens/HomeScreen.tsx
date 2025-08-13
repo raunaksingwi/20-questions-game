@@ -25,7 +25,7 @@ type Props = {
 export default function HomeScreen({ navigation }: Props) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedMode, setSelectedMode] = useState<GameMode>('guess');
+  const [selectedMode, setSelectedMode] = useState<GameMode>('user_guessing');
   
   const screenWidth = Dimensions.get('window').width;
   
@@ -117,37 +117,37 @@ export default function HomeScreen({ navigation }: Props) {
             <TouchableOpacity
               style={[
                 styles.modeButton,
-                selectedMode === 'guess' && styles.modeButtonActive,
+                selectedMode === 'user_guessing' && styles.modeButtonActive,
               ]}
-              onPress={() => setSelectedMode('guess')}
+              onPress={() => setSelectedMode('user_guessing')}
               activeOpacity={0.8}
             >
               <Text style={[
                 styles.modeButtonText,
-                selectedMode === 'guess' && styles.modeButtonTextActive,
+                selectedMode === 'user_guessing' && styles.modeButtonTextActive,
               ]}>
-                Guess
+                I'm Guessing
               </Text>
               <Text style={styles.modeDescription}>
-                I'll think of something - you guess it!
+                AI picks a secret - I ask questions to guess it!
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.modeButton,
-                selectedMode === 'think' && styles.modeButtonActive,
+                selectedMode === 'ai_guessing' && styles.modeButtonActive,
               ]}
-              onPress={() => setSelectedMode('think')}
+              onPress={() => setSelectedMode('ai_guessing')}
               activeOpacity={0.8}
             >
               <Text style={[
                 styles.modeButtonText,
-                selectedMode === 'think' && styles.modeButtonTextActive,
+                selectedMode === 'ai_guessing' && styles.modeButtonTextActive,
               ]}>
-                Think
+                AI is Guessing
               </Text>
               <Text style={styles.modeDescription}>
-                You think of something - I'll guess it!
+                I think of a secret - AI asks questions to guess it!
               </Text>
             </TouchableOpacity>
           </View>
@@ -174,12 +174,12 @@ export default function HomeScreen({ navigation }: Props) {
         </Animated.View>
 
         <View style={styles.rulesContainer}>
-          <Text style={styles.rulesTitle}>How to Play {selectedMode === 'guess' ? 'Guess' : 'Think'} Mode</Text>
+          <Text style={styles.rulesTitle}>How to Play {selectedMode === 'user_guessing' ? "I'm Guessing" : 'AI is Guessing'} Mode</Text>
           <Text style={styles.rulesText}>
-            {selectedMode === 'guess' ? (
-              `1. I'll think of something from the chosen category\n2. Ask me yes/no questions to narrow it down\n3. You have 20 questions to guess correctly\n4. You can request up to 3 hints (each hint costs 1 question)\n5. Make your final guess when you think you know!`
+            {selectedMode === 'user_guessing' ? (
+              `1. AI picks a secret from the chosen category\n2. Ask yes/no questions to narrow it down\n3. You have 20 questions to guess correctly\n4. You can request up to 3 hints (each hint costs 1 question)\n5. Make your final guess when you think you know!`
             ) : (
-              `1. Think of something from the chosen category\n2. I'll ask up to 20 yes/no questions to guess it\n3. Answer with Yes, No, Maybe, Don't know, or Irrelevant\n4. Press WIN if I guess correctly before 20 questions\n5. If I use all 20 questions without guessing, you win!`
+              `1. Think of something from the chosen category\n2. AI asks up to 20 yes/no questions to guess it\n3. Answer with Yes, No, Maybe, Don't know, or Irrelevant\n4. Press WIN if AI guesses correctly before 20 questions\n5. If AI uses all 20 questions without guessing, you win!`
             )}
           </Text>
         </View>
