@@ -294,10 +294,14 @@ QUESTION ${totalQuestionsUsed + 1} of 20 - Make it count!
 
 ${categorizedSummary}
 
+CONVERSATION HISTORY (to avoid repeating questions):
+${conversationContext}
+
 Before asking your next question, think:
 1. What NEW information do I need that isn't already established above?
 2. What dimension haven't I explored yet?
 3. Is this question redundant with established facts?
+4. Have I already asked this question in the conversation history above?
 
 Output only your next strategic yes/no question that explores NEW territory.`
 
