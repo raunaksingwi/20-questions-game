@@ -308,8 +308,39 @@ export const useGameActions = (
     try {
       const response = await gameService.submitUserAnswer(state.gameId, answer, answerType);
 
-      // If there's a next question, add it to messages
-      if (response.next_question) {
+      // Check game status to determine next action
+      if (response.game_status === 'won') {
+        // LLM won - correct guess
+        audioManager.playSound('wrong'); // User loses when LLM wins
+        actions.setBatchState({
+          messages: [...state.messages, userMessage as GameMessage],
+          questionsRemaining: response.questions_remaining,
+          gameStatus: response.game_status,
+          resultModalData: {
+            isWin: false, // User loses in AI guessing mode when LLM wins
+            title: 'I Won!',
+            message: 'I correctly guessed what you were thinking!'
+          },
+          showResultModal: true,
+          sending: false
+        });
+      } else if (response.game_status === 'lost') {
+        // LLM lost - used all 20 questions without correct guess
+        audioManager.playSound('correct'); // User wins when LLM loses
+        actions.setBatchState({
+          messages: [...state.messages, userMessage as GameMessage],
+          questionsRemaining: response.questions_remaining,
+          gameStatus: response.game_status,
+          resultModalData: {
+            isWin: true, // User wins in AI guessing mode when LLM loses
+            title: 'You Won!',
+            message: 'I couldn\'t guess what you were thinking in 20 questions!'
+          },
+          showResultModal: true,
+          sending: false
+        });
+      } else if (response.next_question) {
+        // Game continues - add LLM's next question
         const llmMessage: Partial<GameMessage> = {
           role: 'assistant',
           content: response.next_question,
@@ -323,18 +354,12 @@ export const useGameActions = (
           sending: false
         });
       } else {
-        // Game over - LLM used all 20 questions
-        audioManager.playSound('correct'); // User wins when LLM loses
+        // Should not happen, but handle gracefully
+        console.warn('Unexpected response state:', response);
         actions.setBatchState({
           messages: [...state.messages, userMessage as GameMessage],
           questionsRemaining: response.questions_remaining,
           gameStatus: response.game_status,
-          resultModalData: {
-            isWin: true, // User wins in AI guessing mode when LLM loses
-            title: 'You Won!',
-            message: 'I couldn\'t guess what you were thinking in 20 questions!'
-          },
-          showResultModal: true,
           sending: false
         });
       }
