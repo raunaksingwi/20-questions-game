@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { GameInput } from '../GameInput';
-import { GameStatus } from '../../../../shared/types';
+import { GameStatus } from '../../types/types';
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ bottom: 20 }),

@@ -1,7 +1,7 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 import { MessagesList } from '../MessagesList';
-import { GameMessage } from '../../../../shared/types';
+import { GameMessage } from '../../types/types';
 
 describe('MessagesList', () => {
   const mockMessages: GameMessage[] = [

@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react-native';
 import { useGameState } from '../useGameState';
-import { GameMessage } from '../../../../shared/types';
+import { GameMessage } from '../../types/types';
 
 describe('useGameState', () => {
   it('initializes with correct default values', () => {

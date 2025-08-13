@@ -8,7 +8,7 @@ jest.mock('react-native', () => ({
   },
 }));
 
-jest.mock('../../../../shared/types', () => ({}));
+jest.mock('../../types/types', () => ({}));
 
 jest.mock('../useGameState', () => ({
   GameState: {},

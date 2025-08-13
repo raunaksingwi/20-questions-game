@@ -54,7 +54,7 @@ jest.mock('../../screens/GameScreen', () => {
 });
 
 // Mock shared types
-jest.mock('../../../../shared/types', () => ({}));
+jest.mock('../../types/types', () => ({}));
 
 describe('AppNavigator (Simple Test)', () => {
   beforeEach(() => {

@@ -1,5 +1,5 @@
 // Mock the shared types module first
-jest.mock('../../../../shared/types', () => ({}));
+jest.mock('../../types/types', () => ({}));
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';

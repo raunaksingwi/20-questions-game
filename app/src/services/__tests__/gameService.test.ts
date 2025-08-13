@@ -1,5 +1,5 @@
 // Mock the shared types module first
-jest.mock('../../../../shared/types', () => ({}));
+jest.mock('../../types/types', () => ({}));
 
 import { gameService } from '../gameService';
 import { supabase } from '../supabase';
