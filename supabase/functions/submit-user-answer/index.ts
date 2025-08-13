@@ -216,18 +216,34 @@ const handler = async (req: Request) => {
         }
       })
 
-    let categorizedSummary = 'Answer summary (by question):\n'
+    // Create a more comprehensive context that helps prevent redundancy
+    let categorizedSummary = 'ESTABLISHED FACTS - Use these to avoid redundant questions:\n'
+    
     if (yesFacts.length > 0) {
-      categorizedSummary += '- YES:\n'
-      yesFacts.forEach(item => { categorizedSummary += `  - Q${item.n}: ${item.q}\n` })
+      categorizedSummary += '\n✓ CONFIRMED TRUE (YES answers):\n'
+      yesFacts.forEach(item => { 
+        categorizedSummary += `  → ${item.q}\n`
+      })
     }
+    
     if (noFacts.length > 0) {
-      categorizedSummary += '- NO:\n'
-      noFacts.forEach(item => { categorizedSummary += `  - Q${item.n}: ${item.q}\n` })
+      categorizedSummary += '\n✗ CONFIRMED FALSE (NO answers):\n'
+      noFacts.forEach(item => { 
+        categorizedSummary += `  → ${item.q}\n`
+      })
     }
+    
     if (unknownFacts.length > 0) {
-      categorizedSummary += '- MAYBE / UNKNOWN:\n'
-      unknownFacts.forEach(item => { categorizedSummary += `  - Q${item.n}: ${item.q}\n` })
+      categorizedSummary += '\n? UNCERTAIN (Maybe/Unknown answers):\n'
+      unknownFacts.forEach(item => { 
+        categorizedSummary += `  → ${item.q}\n`
+      })
+    }
+    
+    // Add logical deduction helper
+    if (yesFacts.length >= 2) {
+      categorizedSummary += '\n⚠️  REDUNDANCY CHECK: The item already has ALL of these properties confirmed as TRUE.\n'
+      categorizedSummary += 'Do NOT ask about combinations of these confirmed properties.\n'
     }
 
     const totalQuestionsUsed = questionsCountedForLimit
@@ -239,21 +255,25 @@ const handler = async (req: Request) => {
     const systemPrompt = `You are playing 20 Questions in AI Guessing mode. The user has thought of an item within the category: ${session.category}.
 Your job is to ask up to 20 yes/no questions to identify the item.
 
+ CRITICAL ANTI-REDUNDANCY RULES:
+ 🚫 NEVER ask about combinations or variations of facts already confirmed as TRUE
+ 🚫 NEVER ask essentially the same question in different words  
+ 🚫 NEVER ask "Does it have A and B?" if you already know A=YES and B=YES
+ 🧠 USE LOGICAL DEDUCTION: If curved=YES and hooked=YES, then "curved and hooked"=YES automatically
+
  Questioning Strategy:
 - Start with BROAD categorical questions to divide the category into major groups
-- Gradually narrow down based on previous answers - don't jump to specific items too early
-- Use a logical hierarchy: general properties → specific properties → final guesses
 - Each question should eliminate roughly half of the remaining possibilities
-- Build upon what you've learned from previous questions
-- Analyze the conversation history to understand what you've already ruled in/out
-  - Use the categorized summary of answers (YES and NO) below to avoid repeating questions and to systematically eliminate possibilities
+- Use established facts to narrow down logically, don't re-verify them
+- Move to NEW distinguishing properties that haven't been explored
+- Progress: Physical traits → Habitat → Behavior → Size → Specific identification
 
  Hard constraints you must obey:
- - Every new question MUST be consistent with ALL prior YES facts.
- - Do NOT ask questions that contradict any prior NO facts.
- - Avoid exploring branches that prior answers have ruled out. Stay within the remaining possibility space.
- - If a question would violate these constraints, reformulate it or choose a different dimension that still partitions the remaining space.
- - Perform a brief internal consistency check before output; only output the question that passes the check.
+ - Every new question MUST be consistent with ALL prior YES facts
+ - Do NOT ask questions that contradict any prior NO facts
+ - NEVER ask redundant questions about established facts
+ - Choose questions that explore NEW dimensions of the remaining possibility space
+ - Before asking, mentally check: "Is this already established by previous answers?"
 
 Output format requirements:
 - Output ONLY the bare question text as a single line ending with a question mark.
@@ -270,12 +290,16 @@ Rules:
 - Do not reveal internal reasoning or ask multiple questions at once
 - Stop asking after 20 meaningful questions; await result
 
-Current meaningful question count: ${totalQuestionsUsed} of 20.
-Output only the next yes/no question.
+QUESTION ${totalQuestionsUsed + 1} of 20 - Make it count!
 
 ${categorizedSummary}
 
-${conversationContext}`
+Before asking your next question, think:
+1. What NEW information do I need that isn't already established above?
+2. What dimension haven't I explored yet?
+3. Is this question redundant with established facts?
+
+Output only your next strategic yes/no question that explores NEW territory.`
 
     const userPrompt = `Based on my previous answers, ask your next yes/no question.`
 
