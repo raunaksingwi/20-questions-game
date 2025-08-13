@@ -42,7 +42,7 @@ export abstract class EdgeFunctionBase {
     return this.supabase
   }
 
-  protected static getLLMProvider(functionName: string): any {
+  static getLLMProvider(functionName: string): any {
     const cachedError = this.llmProviderErrors.get(functionName)
     if (cachedError) {
       throw new Error(cachedError)

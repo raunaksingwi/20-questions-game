@@ -61,7 +61,7 @@ const handler = async (req: Request) => {
     if (messagesError) throw messagesError
 
     // Check if answer is "Don't know" - these shouldn't count toward question limit
-    const isDontKnow = answer.toLowerCase().trim() === "don't know"
+    const isCurrentDontKnow = answer.toLowerCase().trim() === "don't know"
     
     // Find the highest question number in the messages to determine next question number
     const maxQuestionNumber = messages.length > 0 
@@ -71,7 +71,7 @@ const handler = async (req: Request) => {
     const nextQuestionNumber = maxQuestionNumber + 1
     
     // For game state tracking: only count non-"Don't know" answers toward the limit
-    const questionsCountedForLimit = isDontKnow ? session.questions_asked : session.questions_asked + 1
+    const questionsCountedForLimit = isCurrentDontKnow ? session.questions_asked : session.questions_asked + 1
     
     // Store user's answer
     const msgStart = Date.now()
@@ -88,7 +88,7 @@ const handler = async (req: Request) => {
     console.log(`[submit-user-answer] User answer stored in ${Date.now() - msgStart}ms`)
 
     // Check if we've reached the 20 question limit (only for answers that count)
-    if (!isDontKnow && questionsCountedForLimit >= 20) {
+    if (!isCurrentDontKnow && questionsCountedForLimit >= 20) {
       // Auto-lose: LLM used all questions without guessing correctly
       await supabase
         .from('games')
@@ -126,18 +126,93 @@ const handler = async (req: Request) => {
     // Add current answer
     conversationContext += `A${currentQuestionNumber}: ${answer}\n`
 
+    // Build categorized summary (Yes / No / Maybe-Unknown)
+    const questionsByNumber: Record<number, string> = {}
+    const answersByNumber: Record<number, string> = {}
+    messages.forEach(msg => {
+      if (msg.question_number && msg.question_number > 0) {
+        if (msg.role === 'assistant') {
+          questionsByNumber[msg.question_number] = msg.content
+        } else if (msg.role === 'user') {
+          answersByNumber[msg.question_number] = msg.content
+        }
+      }
+    })
+    // Ensure the just-submitted answer is included
+    answersByNumber[currentQuestionNumber] = answer
+
+    const normalize = (s: string) => s.toLowerCase().trim()
+    const isAffirmativeAnswer = (s: string) => {
+      const n = normalize(s)
+      return n.startsWith('y') || n === 'yes' || n.includes('yeah') || n.includes('yep')
+    }
+    const isNegativeAnswer = (s: string) => {
+      const n = normalize(s)
+      return n.startsWith('n') || n === 'no' || n.includes('nope')
+    }
+    const isDontKnowAnswer = (s: string) => {
+      const n = normalize(s)
+      return n.includes("don't know") || n.includes('dont know') || n.includes('unknown')
+    }
+    const isMaybeAnswer = (s: string) => {
+      const n = normalize(s)
+      return n.includes('maybe') || n.includes('sometimes') || n.includes('it depends')
+    }
+
+    const yesFacts: Array<{ n: number, q: string }> = []
+    const noFacts: Array<{ n: number, q: string }> = []
+    const unknownFacts: Array<{ n: number, q: string }> = []
+
+    Object.keys(questionsByNumber)
+      .map(k => Number(k))
+      .sort((a, b) => a - b)
+      .forEach(n => {
+        const q = questionsByNumber[n]
+        const a = answersByNumber[n]
+        if (!q || !a) return
+        if (isAffirmativeAnswer(a)) {
+          yesFacts.push({ n, q })
+        } else if (isNegativeAnswer(a)) {
+          noFacts.push({ n, q })
+        } else if (isDontKnowAnswer(a) || isMaybeAnswer(a)) {
+          unknownFacts.push({ n, q })
+        }
+      })
+
+    let categorizedSummary = 'Answer summary (by question):\n'
+    if (yesFacts.length > 0) {
+      categorizedSummary += '- YES:\n'
+      yesFacts.forEach(item => { categorizedSummary += `  - Q${item.n}: ${item.q}\n` })
+    }
+    if (noFacts.length > 0) {
+      categorizedSummary += '- NO:\n'
+      noFacts.forEach(item => { categorizedSummary += `  - Q${item.n}: ${item.q}\n` })
+    }
+    if (unknownFacts.length > 0) {
+      categorizedSummary += '- MAYBE / UNKNOWN:\n'
+      unknownFacts.forEach(item => { categorizedSummary += `  - Q${item.n}: ${item.q}\n` })
+    }
+
     const totalQuestionsUsed = questionsCountedForLimit
     
     const systemPrompt = `You are playing 20 Questions in AI Guessing mode. The user has thought of an item within the category: ${session.category}.
 Your job is to ask up to 20 yes/no questions to identify the item.
 
-Questioning Strategy:
+ Questioning Strategy:
 - Start with BROAD categorical questions to divide the category into major groups
 - Gradually narrow down based on previous answers - don't jump to specific items too early
 - Use a logical hierarchy: general properties → specific properties → final guesses
 - Each question should eliminate roughly half of the remaining possibilities
 - Build upon what you've learned from previous questions
 - Analyze the conversation history to understand what you've already ruled in/out
+  - Use the categorized summary of answers (YES and NO) below to avoid repeating questions and to systematically eliminate possibilities
+
+ Hard constraints you must obey:
+ - Every new question MUST be consistent with ALL prior YES facts.
+ - Do NOT ask questions that contradict any prior NO facts.
+ - Avoid exploring branches that prior answers have ruled out. Stay within the remaining possibility space.
+ - If a question would violate these constraints, reformulate it or choose a different dimension that still partitions the remaining space.
+ - Perform a brief internal consistency check before output; only output the question that passes the check.
 
 Rules:
 - Ask exactly one yes/no question per turn
@@ -152,6 +227,8 @@ Rules:
 Current meaningful question count: ${totalQuestionsUsed} of 20.
 Output only the next yes/no question.
 
+${categorizedSummary}
+
 ${conversationContext}`
 
     const userPrompt = `Based on my previous answers, ask your next yes/no question (question ${nextQuestionNumber}).`
@@ -159,8 +236,8 @@ ${conversationContext}`
     const llmResponse = await llmProvider.generateResponse({
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt: systemPrompt,
-      temperature: 0.7,
-      maxTokens: 200
+      temperature: 0.2,
+      maxTokens: 160
     })
     const nextQuestion = llmResponse.content
     console.log(`[submit-user-answer] Next question generated in ${Date.now() - llmStart}ms`)
