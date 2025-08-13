@@ -1,12 +1,20 @@
 export type GameStatus = 'active' | 'won' | 'lost';
-export type GameMode = 'user_guessing' | 'ai_guessing';
 export type MessageRole = 'system' | 'user' | 'assistant';
 export type MessageType = 'question' | 'answer' | 'hint' | 'guess';
 export type AnswerType = 'chip' | 'text' | 'voice';
 export type ThinkResultType = 'llm_win' | 'llm_loss';
 
+// Game Mode Enum
+export enum GameMode {
+  USER_GUESSING = 'user_guessing',
+  AI_GUESSING = 'ai_guessing'
+}
+
+// Type alias for backward compatibility
+export type GameModeType = GameMode;
+
 // Validation helpers
-export const GAME_MODES: GameMode[] = ['user_guessing', 'ai_guessing'];
+export const GAME_MODES: GameMode[] = [GameMode.USER_GUESSING, GameMode.AI_GUESSING];
 export const GAME_STATUSES: GameStatus[] = ['active', 'won', 'lost'];
 export const ANSWER_TYPES: AnswerType[] = ['chip', 'text', 'voice'];
 export const THINK_RESULT_TYPES: ThinkResultType[] = ['llm_win', 'llm_loss'];
