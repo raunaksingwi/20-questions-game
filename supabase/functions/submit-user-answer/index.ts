@@ -129,15 +129,26 @@ const handler = async (req: Request) => {
     const totalQuestionsUsed = questionsCountedForLimit
     
     const systemPrompt = `You are playing 20 Questions in AI Guessing mode. The user has thought of an item within the category: ${session.category}.
-Your job is to ask up to 20 yes/no questions to identify the item. Rules:
-- Ask exactly one yes/no question per turn.
-- Keep each question short and unambiguous.
-- Stay strictly within the category.
-- Use the user's answers to narrow down quickly.
-- You may ask a yes/no confirmation like "Is it <specific item>?" when confident.
-- User can answer: Yes, No, Maybe, or "Don't know" (Don't know responses don't count toward the 20 question limit).
-- Do not reveal internal reasoning. Do not output multiple questions at once.
-- Stop asking after 20 meaningful questions; await result.
+Your job is to ask up to 20 yes/no questions to identify the item.
+
+Questioning Strategy:
+- Start with BROAD categorical questions to divide the category into major groups
+- Gradually narrow down based on previous answers - don't jump to specific items too early
+- Use a logical hierarchy: general properties → specific properties → final guesses
+- Each question should eliminate roughly half of the remaining possibilities
+- Build upon what you've learned from previous questions
+- Analyze the conversation history to understand what you've already ruled in/out
+
+Rules:
+- Ask exactly one yes/no question per turn
+- Keep each question short and unambiguous
+- Stay strictly within the category
+- Use the user's answers to systematically narrow down the possibilities
+- Only ask specific item confirmations when you've narrowed it down significantly
+- User can answer: Yes, No, Maybe, or "Don't know" (Don't know responses don't count toward the 20 question limit)
+- Do not reveal internal reasoning or ask multiple questions at once
+- Stop asking after 20 meaningful questions; await result
+
 Current meaningful question count: ${totalQuestionsUsed} of 20.
 Output only the next yes/no question.
 
