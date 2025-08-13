@@ -89,7 +89,7 @@ const handler = async (req: Request) => {
 
     // Check if the last assistant question was a specific guess (e.g., "Is it X?") and
     // the user answered Yes, end the game as LLM win immediately (check this BEFORE question limit)
-    const guessPattern = /^\s*(is|was|could)\s+(it|this|that)\s+(be\s+)?(a\s+|an\s+)?[a-zA-Z]+.*\?\s*$/i
+    const guessPattern = /^\s*(is|was|could)\s+(it|this|that|the\s+\w+)\s+(be\s+)?(a\s+|an\s+)\w+.*\?\s*$/i
     const lastAssistantQuestion = [...messages]
       .reverse()
       .find(m => m.role === 'assistant')?.content || ''
@@ -339,7 +339,7 @@ Output only your next strategic yes/no question that explores NEW territory.`
         maxTokens: 100
       })
       nextQuestion = llmResponse.content
-      console.log(\`[submit-user-answer] Corrected invalid question format: "\${nextQuestion}"\`)
+      console.log(`[submit-user-answer] Corrected invalid question format: "${nextQuestion}"`)
     }
     
     const forbidGuessUntil = 14
