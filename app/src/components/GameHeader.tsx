@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
-import { GameMode } from '../../../shared/types';
+import { GameMode } from '../types/types';
 
 interface GameHeaderProps {
   category: string;
@@ -18,14 +18,14 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
   category,
   questionsRemaining,
   hintsRemaining,
-  mode = 'guess',
+  mode = GameMode.USER_GUESSING,
   questionsAsked = 0,
   onWinPress,
   onHintPress,
   onQuitPress,
   disabled = false,
 }) => {
-  const isThinkMode = mode === 'think';
+  const isThinkMode = mode === GameMode.AI_GUESSING;
   
   const handleQuitPress = () => {
     if (Platform.OS === 'web') {

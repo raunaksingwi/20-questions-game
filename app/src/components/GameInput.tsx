@@ -5,7 +5,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import VoiceInputButton from './VoiceInputButton';
 import { ProfessionalVoiceButton } from './voice/ProfessionalVoiceButton';
 import { QuickAnswerChips, QuickAnswerType } from './QuickAnswerChips';
-import { GameStatus, GameMode } from '../../../shared/types';
+import { GameStatus, GameMode } from '../types/types';
 import { INPUT_DIMENSIONS, CALCULATED_DIMENSIONS } from '../constants/inputDimensions';
 
 interface GameInputProps {
@@ -25,7 +25,7 @@ export const GameInput: React.FC<GameInputProps> = ({
   setQuestion,
   sending,
   gameStatus,
-  mode = 'user_guessing',
+  mode = GameMode.USER_GUESSING,
   onTextSubmit,
   onVoiceSubmit,
   onQuickAnswer,
@@ -48,7 +48,7 @@ export const GameInput: React.FC<GameInputProps> = ({
     inputY.value = y;
   }, [inputWidth, inputHeight, inputX, inputY]);
 
-  const isAIGuessingMode = mode === 'ai_guessing';
+  const isAIGuessingMode = mode === GameMode.AI_GUESSING;
   const placeholder = isAIGuessingMode 
     ? "Answer the question or type your response..."
     : "Ask a yes/no question or make a guess...";
