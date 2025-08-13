@@ -87,6 +87,35 @@ const handler = async (req: Request) => {
       })
     console.log(`[submit-user-answer] User answer stored in ${Date.now() - msgStart}ms`)
 
+    // Check if the last assistant question was a specific guess (e.g., "Is it X?") and
+    // the user answered Yes, end the game as LLM win immediately (check this BEFORE question limit)
+    const guessPattern = /^\s*(is|was|could)\s+(it|this|that)\s+(be\s+)?.+\?\s*$/i
+    const lastAssistantQuestion = [...messages]
+      .reverse()
+      .find(m => m.role === 'assistant' && (m.question_number || 0) === currentQuestionNumber)?.content || ''
+    const isAffirmative = (s: string) => {
+      const n = s.toLowerCase().trim()
+      return n === 'yes' || n.startsWith('y')
+    }
+    if (guessPattern.test(lastAssistantQuestion) && isAffirmative(answer)) {
+      await supabase
+        .from('games')
+        .update({ 
+          status: 'won', // LLM wins
+          questions_asked: questionsCountedForLimit,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', session_id)
+
+      const responseData: SubmitUserAnswerResponse = {
+        questions_asked: questionsCountedForLimit,
+        questions_remaining: Math.max(0, 20 - questionsCountedForLimit),
+        game_status: 'won'
+        // No next_question - game is over
+      }
+      return EdgeFunctionBase.createSuccessResponse(responseData)
+    }
+
     // Check if we've reached the 20 question limit (only for answers that count)
     if (!isCurrentDontKnow && questionsCountedForLimit >= 20) {
       // Auto-lose: LLM used all questions without guessing correctly
@@ -194,6 +223,10 @@ const handler = async (req: Request) => {
     }
 
     const totalQuestionsUsed = questionsCountedForLimit
+    const yesNoFactsCount = yesFacts.length + noFacts.length
+    const minQuestionsForGuess = 14
+    const minFactsForGuess = 6
+    const allowGuessEarly = totalQuestionsUsed >= minQuestionsForGuess || yesNoFactsCount >= minFactsForGuess
     
     const systemPrompt = `You are playing 20 Questions in AI Guessing mode. The user has thought of an item within the category: ${session.category}.
 Your job is to ask up to 20 yes/no questions to identify the item.
@@ -217,7 +250,7 @@ Your job is to ask up to 20 yes/no questions to identify the item.
 Output format requirements:
 - Output ONLY the bare question text as a single line ending with a question mark.
 - Do NOT include numbering, prefixes, explanations, qualifiers, or any other text.
-- Do NOT guess a specific item until you have exhausted broad and mid-level distinguishing properties and are highly confident.
+- If you are highly confident (e.g., only 1-2 plausible items remain), make a specific confirmatory guess phrased as "Is it <item>?". Otherwise, ask a property-based yes/no question to further narrow down.
 
 Rules:
 - Ask exactly one yes/no question per turn
@@ -236,7 +269,7 @@ ${categorizedSummary}
 
 ${conversationContext}`
 
-    const userPrompt = `Based on my previous answers, ask your next yes/no question (question ${nextQuestionNumber}).`
+    const userPrompt = `Based on my previous answers, ask your next yes/no question.`
 
     let llmResponse = await llmProvider.generateResponse({
       messages: [{ role: 'user', content: userPrompt }],
@@ -245,8 +278,7 @@ ${conversationContext}`
       maxTokens: 160
     })
     let nextQuestion = llmResponse.content
-    const guessPattern = /^\s*is\s+(it|this)\s+.+\?\s*$/i
-    const forbidGuessUntil = 16
+    const forbidGuessUntil = 14
     if (guessPattern.test(nextQuestion) && totalQuestionsUsed < forbidGuessUntil) {
       const correctiveSystemPrompt = `${systemPrompt}\n\nAdditional hard rule: Do not guess specific items before question ${forbidGuessUntil}. Regenerate a non-guess, property-based yes/no question that partitions the remaining space. Output only the bare question text.`
       const correctiveUserPrompt = `Regenerate a non-guess yes/no property question (question ${nextQuestionNumber}).`
