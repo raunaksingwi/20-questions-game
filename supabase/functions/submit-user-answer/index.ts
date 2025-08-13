@@ -89,14 +89,22 @@ const handler = async (req: Request) => {
 
     // Check if the last assistant question was a specific guess (e.g., "Is it X?") and
     // the user answered Yes, end the game as LLM win immediately (check this BEFORE question limit)
-    const guessPattern = /^\s*(is|was|could)\s+(it|this|that)\s+(be\s+)?.+\?\s*$/i
+    const guessPattern = /^\s*(is|was|could)\s+(it|this|that)\s+(be\s+)?(a\s+|an\s+)?[a-zA-Z]+.*\?\s*$/i
     const lastAssistantQuestion = [...messages]
       .reverse()
-      .find(m => m.role === 'assistant' && (m.question_number || 0) === currentQuestionNumber)?.content || ''
+      .find(m => m.role === 'assistant')?.content || ''
+    
+    console.log(`[submit-user-answer] Last assistant question: "${lastAssistantQuestion}"`)
+    console.log(`[submit-user-answer] User answer: "${answer}"`)
+    console.log(`[submit-user-answer] Guess pattern match: ${guessPattern.test(lastAssistantQuestion)}`)
+    
     const isAffirmative = (s: string) => {
       const n = s.toLowerCase().trim()
       return n === 'yes' || n.startsWith('y')
     }
+    
+    console.log(`[submit-user-answer] Is affirmative: ${isAffirmative(answer)}`)
+    
     if (guessPattern.test(lastAssistantQuestion) && isAffirmative(answer)) {
       await supabase
         .from('games')
