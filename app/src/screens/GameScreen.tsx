@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { GameMode } from '../types/types';
 import { audioManager } from '../services/AudioManager';
 import GameResultModal from '../components/GameResultModal';
 import { useGameState } from '../hooks/useGameState';
@@ -56,7 +57,7 @@ export default function GameScreen({ route, navigation }: Props) {
     console.log('🎬 GameScreen: Voice text received:', voiceText);
     console.log('🎬 GameScreen: Voice text length:', voiceText.length, 'words:', voiceText.split(' ').length);
     
-    if (mode === 'ai_guessing') {
+    if (mode === GameMode.AI_GUESSING) {
       gameActions.submitUserAnswer(voiceText, 'voice');
     } else {
       gameActions.sendQuestion(voiceText, question);
@@ -68,7 +69,7 @@ export default function GameScreen({ route, navigation }: Props) {
     const textToSubmit = question.trim();
     if (!textToSubmit) return;
 
-    if (mode === 'ai_guessing') {
+    if (mode === GameMode.AI_GUESSING) {
       gameActions.submitUserAnswer(textToSubmit, 'text');
     } else {
       gameActions.sendQuestion(undefined, question);
@@ -82,7 +83,8 @@ export default function GameScreen({ route, navigation }: Props) {
   };
 
   const handleWinPress = () => {
-    console.log('WIN button pressed - Think mode victory');
+    console.log('🎯 WIN button pressed - AI guessing mode victory');
+    console.log('🎯 Current mode:', mode, 'Game status:', state.gameStatus);
     gameActions.handleWin();
   };
 
@@ -110,7 +112,7 @@ export default function GameScreen({ route, navigation }: Props) {
           hintsRemaining={state.hintsRemaining}
           mode={mode}
           questionsAsked={20 - state.questionsRemaining} // Convert remaining to asked
-          onWinPress={mode === 'think' ? undefined : handleWinPress} // No WIN button in Think mode header
+          onWinPress={mode === GameMode.AI_GUESSING ? handleWinPress : undefined} // WIN button only in AI guessing mode
           onHintPress={gameActions.requestHint}
           onQuitPress={gameActions.handleQuit}
           disabled={state.sending || state.gameStatus !== 'active'}

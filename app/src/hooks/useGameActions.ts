@@ -1,7 +1,7 @@
 import { Alert } from 'react-native';
 import { gameService } from '../services/gameService';
 import { audioManager } from '../services/AudioManager';
-import { GameMessage, GameMode, AnswerType } from '../../../shared/types';
+import { GameMessage, GameMode, AnswerType } from '../types/types';
 import { GameState, GameStateActions } from './useGameState';
 import { useRef } from 'react';
 
@@ -50,7 +50,7 @@ export const useGameActions = (
       timestamp: Date.now()
     };
   };
-  const startNewGame = async (category: string, mode: GameMode = 'user_guessing', onNavigateBack?: () => void) => {
+  const startNewGame = async (category: string, mode: GameMode = GameMode.USER_GUESSING, onNavigateBack?: () => void) => {
     if (isDuplicateRequest('start', `${category}-${mode}`)) return;
     recordRequest('start', `${category}-${mode}`);
     
@@ -69,9 +69,10 @@ export const useGameActions = (
         sending: false
       });
 
-      if (mode === 'ai_guessing') {
+      if (mode === GameMode.AI_GUESSING) {
         // AI Guessing mode: Start a think round
         const response = await gameService.startThinkRound(category);
+        console.log('🎮 AI Guessing game started with session_id:', response.session_id);
         
         audioManager.playSound('gameStart');
         
@@ -89,6 +90,7 @@ export const useGameActions = (
           questionsRemaining: 19, // LLM asked first question
           loading: false
         });
+        console.log('🎮 State updated with gameId:', response.session_id);
       } else {
         // User Guessing mode: Original logic
         const response = await gameService.startGame(category, mode);
@@ -241,7 +243,7 @@ export const useGameActions = (
     
     audioManager.playSound('wrong');
     
-    if (state.mode === 'ai_guessing') {
+    if (state.mode === GameMode.AI_GUESSING) {
       // AI guessing mode: No secret item to reveal, just end the game
       actions.setBatchState({
         gameStatus: 'lost', // User loses by quitting
@@ -285,7 +287,7 @@ export const useGameActions = (
 
   // AI guessing mode specific methods
   const submitUserAnswer = async (answer: string, answerType: AnswerType) => {
-    if (!state.gameId || !answer.trim() || state.sending || state.mode !== 'ai_guessing') return;
+    if (!state.gameId || !answer.trim() || state.sending || state.mode !== GameMode.AI_GUESSING) return;
 
     // Prevent duplicate answers
     if (isDuplicateRequest('answer', answer)) return;
@@ -346,9 +348,14 @@ export const useGameActions = (
   };
 
   const handleWin = async () => {
-    if (!state.gameId || state.mode !== 'ai_guessing') return;
+    console.log('🏆 handleWin called - gameId:', state.gameId, 'mode:', state.mode);
+    if (!state.gameId || state.mode !== GameMode.AI_GUESSING) {
+      console.log('🏆 handleWin early return - missing gameId or wrong mode');
+      return;
+    }
 
     try {
+      console.log('🏆 handleWin proceeding with finalization');
       audioManager.playSound('correct'); // Celebration when LLM guesses correctly
       
       actions.setBatchState({
@@ -356,7 +363,9 @@ export const useGameActions = (
         gameStatus: 'won' // LLM won
       });
 
+      console.log('🏆 Calling finalizeThinkResult with gameId:', state.gameId);
       const response = await gameService.finalizeThinkResult(state.gameId, 'llm_win');
+      console.log('🏆 Response received:', response);
 
       actions.setBatchState({
         resultModalData: {
@@ -367,7 +376,9 @@ export const useGameActions = (
         showResultModal: true,
         sending: false
       });
+      console.log('🏆 Result modal should now be visible');
     } catch (error) {
+      console.error('🏆 handleWin error:', error);
       handleError(error, 'finalize game', 'Please try again.');
       actions.setBatchState({
         sending: false

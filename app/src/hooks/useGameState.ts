@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GameMessage, GameStatus, GameMode } from '../../../shared/types';
+import { GameMessage, GameStatus, GameMode } from '../types/types';
 
 export interface GameState {
   gameId: string | null;
@@ -43,7 +43,7 @@ export const useGameState = () => {
   const [questionsRemaining, setQuestionsRemaining] = useState(20);
   const [hintsRemaining, setHintsRemaining] = useState(3);
   const [gameStatus, setGameStatus] = useState<GameStatus>('active');
-  const [mode, setMode] = useState<GameMode>('user_guessing');
+  const [mode, setMode] = useState<GameMode>(GameMode.USER_GUESSING);
   const [showResultModal, setShowResultModal] = useState(false);
   const [resultModalData, setResultModalData] = useState({
     isWin: false,

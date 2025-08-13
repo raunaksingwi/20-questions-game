@@ -12,7 +12,7 @@ import {
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { Category, GameMode } from '../../../shared/types';
+import { Category, GameMode } from '../types/types';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -30,7 +30,7 @@ const CATEGORIES = [
 ];
 
 export default function HomeScreen({ navigation }: Props) {
-  const [selectedMode, setSelectedMode] = useState<GameMode>('user_guessing');
+  const [selectedMode, setSelectedMode] = useState<GameMode>(GameMode.USER_GUESSING);
   
   const screenWidth = Dimensions.get('window').width;
   
@@ -84,14 +84,14 @@ export default function HomeScreen({ navigation }: Props) {
             <TouchableOpacity
               style={[
                 styles.modeButton,
-                selectedMode === 'user_guessing' && styles.modeButtonActive,
+                selectedMode === GameMode.USER_GUESSING && styles.modeButtonActive,
               ]}
-              onPress={() => setSelectedMode('user_guessing')}
+              onPress={() => setSelectedMode(GameMode.USER_GUESSING)}
               activeOpacity={0.8}
             >
               <Text style={[
                 styles.modeButtonText,
-                selectedMode === 'user_guessing' && styles.modeButtonTextActive,
+                selectedMode === GameMode.USER_GUESSING && styles.modeButtonTextActive,
               ]}>
                 I'm Guessing
               </Text>
@@ -102,14 +102,14 @@ export default function HomeScreen({ navigation }: Props) {
             <TouchableOpacity
               style={[
                 styles.modeButton,
-                selectedMode === 'ai_guessing' && styles.modeButtonActive,
+                selectedMode === GameMode.AI_GUESSING && styles.modeButtonActive,
               ]}
-              onPress={() => setSelectedMode('ai_guessing')}
+              onPress={() => setSelectedMode(GameMode.AI_GUESSING)}
               activeOpacity={0.8}
             >
               <Text style={[
                 styles.modeButtonText,
-                selectedMode === 'ai_guessing' && styles.modeButtonTextActive,
+                selectedMode === GameMode.AI_GUESSING && styles.modeButtonTextActive,
               ]}>
                 AI is Guessing
               </Text>
@@ -137,9 +137,9 @@ export default function HomeScreen({ navigation }: Props) {
         </Animated.View>
 
         <View style={styles.rulesContainer}>
-          <Text style={styles.rulesTitle}>How to Play {selectedMode === 'user_guessing' ? "I'm Guessing" : 'AI is Guessing'} Mode</Text>
+          <Text style={styles.rulesTitle}>How to Play {selectedMode === GameMode.USER_GUESSING ? "I'm Guessing" : 'AI is Guessing'} Mode</Text>
           <Text style={styles.rulesText}>
-            {selectedMode === 'user_guessing' ? (
+            {selectedMode === GameMode.USER_GUESSING ? (
               `1. AI picks a secret from the chosen category\n2. Ask yes/no questions to narrow it down\n3. You have 20 questions to guess correctly\n4. You can request up to 3 hints (each hint costs 1 question)\n5. Make your final guess when you think you know!`
             ) : (
               `1. Think of something from the chosen category\n2. AI asks up to 20 yes/no questions to guess it\n3. Answer with Yes, No, Maybe, Don't know, or Irrelevant\n4. Press WIN if AI guesses correctly before 20 questions\n5. If AI uses all 20 questions without guessing, you win!`
