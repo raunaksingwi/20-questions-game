@@ -13,8 +13,6 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-na
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Category, GameMode } from '../../../shared/types';
-import { gameService } from '../services/gameService';
-import CategorySkeleton from '../components/CategorySkeleton';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -22,9 +20,16 @@ type Props = {
   navigation: HomeScreenNavigationProp;
 };
 
+const CATEGORIES = [
+  { id: '1', name: 'Animals' },
+  { id: '2', name: 'Objects' },
+  { id: '3', name: 'Cricket Players' },
+  { id: '4', name: 'Football Players' },
+  { id: '5', name: 'NBA Players' },
+  { id: '6', name: 'World Leaders' },
+];
+
 export default function HomeScreen({ navigation }: Props) {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedMode, setSelectedMode] = useState<GameMode>('user_guessing');
   
   const screenWidth = Dimensions.get('window').width;
@@ -51,23 +56,6 @@ export default function HomeScreen({ navigation }: Props) {
     opacity: categoriesOpacity.value,
   }));
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  const loadCategories = async () => {
-    try {
-      const startTime = Date.now();
-      console.log('[HomeScreen] Loading categories...');
-      const data = await gameService.getCategories();
-      console.log(`[HomeScreen] Categories loaded in ${Date.now() - startTime}ms`);
-      setCategories(data);
-    } catch (error) {
-      console.error('[HomeScreen] Error loading categories:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const startGame = (category: string) => {
     console.log(`[HomeScreen] Starting game with category: ${category}, mode: ${selectedMode}`);
@@ -76,27 +64,6 @@ export default function HomeScreen({ navigation }: Props) {
     console.log(`[HomeScreen] Navigation to Game screen in ${Date.now() - startTime}ms`);
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          style={styles.scrollView}
-        >
-          <View style={styles.header}>
-            <Text style={styles.title}>Welcome to 20 Questions!</Text>
-            <Text style={styles.subtitle}>
-              Choose how you want to play!
-            </Text>
-          </View>
-          <View style={styles.sectionTitleContainer}>
-            <Text style={styles.sectionTitle}>Choose a Category</Text>
-          </View>
-          <CategorySkeleton />
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -155,22 +122,18 @@ export default function HomeScreen({ navigation }: Props) {
 
         <Animated.View style={[styles.categoriesContainer, categoriesAnimatedStyle]}>
           <Text style={styles.sectionTitle}>Choose a Category</Text>
-          {categories.map((category) => (
-            <TouchableOpacity
-              key={category.id}
-              style={styles.categoryButton}
-              onPress={() => startGame(category.name)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.categoryName}>{category.name}</Text>
-              <Text style={styles.categoryDescription}>
-                {category.name === 'Random' 
-                  ? 'I can think of anything!'
-                  : `Examples: ${category.sample_items.slice(0, 3).join(', ')}...`
-                }
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <View style={styles.categoriesGrid}>
+            {CATEGORIES.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[styles.categoryButton, screenWidth >= 400 && styles.categoryButtonGrid]}
+                onPress={() => startGame(category.name)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.categoryName}>{category.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </Animated.View>
 
         <View style={styles.rulesContainer}>
@@ -273,6 +236,11 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     marginBottom: 15,
   },
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
   categoryButton: {
     backgroundColor: '#fff',
     padding: 18,
@@ -286,6 +254,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 3,
+    width: '100%',
+  },
+  categoryButtonGrid: {
+    width: '48%',
   },
   categoryName: {
     fontSize: 18,
