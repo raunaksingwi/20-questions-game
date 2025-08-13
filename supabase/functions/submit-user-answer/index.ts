@@ -283,6 +283,9 @@ Output format requirements:
 Rules:
 - Ask exactly one yes/no question per turn
 - Keep each question short and unambiguous
+- CRITICAL: Questions must be answerable with YES or NO only
+- NEVER ask "Is it A or B?" - instead ask "Is it A?" or "Is it B?"
+- NEVER present multiple options in a single question
 - Stay strictly within the category
 - Use the user's answers to systematically narrow down the possibilities
 - Only ask specific item confirmations when you've narrowed it down significantly
@@ -314,6 +317,31 @@ Output only your next strategic yes/no question that explores NEW territory.`
       maxTokens: 160
     })
     let nextQuestion = llmResponse.content
+    
+    // Check for invalid question formats (multiple choice, contradictory structure)
+    const invalidPatterns = [
+      /\bor\b/i,  // Contains "or" 
+      /\ba or b\b/i, // Direct A or B pattern
+      /small or large/i, // Size comparisons
+      /big or small/i,
+      /\?.*\?/  // Multiple question marks
+    ]
+    
+    const hasInvalidFormat = invalidPatterns.some(pattern => pattern.test(nextQuestion))
+    
+    if (hasInvalidFormat) {
+      const correctiveSystemPrompt = `${systemPrompt}\n\nIMPORTANT: Your previous question had an invalid format. Questions must be simple YES/NO format only. Never use "or", never present multiple options. Regenerate as a simple, single-property yes/no question.`
+      const correctiveUserPrompt = `Regenerate as a proper yes/no question without "or" or multiple options.`
+      llmResponse = await llmProvider.generateResponse({
+        messages: [{ role: 'user', content: correctiveUserPrompt }],
+        systemPrompt: correctiveSystemPrompt,
+        temperature: 0.1,
+        maxTokens: 100
+      })
+      nextQuestion = llmResponse.content
+      console.log(\`[submit-user-answer] Corrected invalid question format: "\${nextQuestion}"\`)
+    }
+    
     const forbidGuessUntil = 14
     if (guessPattern.test(nextQuestion) && totalQuestionsUsed < forbidGuessUntil) {
       const correctiveSystemPrompt = `${systemPrompt}\n\nAdditional hard rule: Do not guess specific items before question ${forbidGuessUntil}. Regenerate a non-guess, property-based yes/no question that partitions the remaining space. Output only the bare question text.`
