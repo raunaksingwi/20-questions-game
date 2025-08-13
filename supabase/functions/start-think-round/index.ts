@@ -102,6 +102,11 @@ Rules:
 - Stop asking after 20 questions; await result
 
 Current question count: 1 of 20.
+Output format requirements:
+- Output ONLY the bare question text as a single line ending with a question mark.
+- Do NOT include numbering, prefixes, explanations, qualifiers, or any other text.
+- Do NOT guess specific items at this stage; start with broad properties.
+
 Output only the next yes/no question.`
 
     const userPrompt = `I have thought of an item within the category: ${selectedCategory}. Ask your first yes/no question.`
@@ -109,8 +114,8 @@ Output only the next yes/no question.`
     const llmResponse = await llmProvider.generateResponse({
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt: systemPrompt,
-      temperature: 0.7,
-      maxTokens: 200
+      temperature: 0.2,
+      maxTokens: 160
     })
     const firstQuestion = llmResponse.content
     console.log(`[start-think-round] First question generated in ${Date.now() - llmStart}ms`)

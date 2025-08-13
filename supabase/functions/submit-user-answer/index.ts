@@ -214,6 +214,11 @@ Your job is to ask up to 20 yes/no questions to identify the item.
  - If a question would violate these constraints, reformulate it or choose a different dimension that still partitions the remaining space.
  - Perform a brief internal consistency check before output; only output the question that passes the check.
 
+Output format requirements:
+- Output ONLY the bare question text as a single line ending with a question mark.
+- Do NOT include numbering, prefixes, explanations, qualifiers, or any other text.
+- Do NOT guess a specific item until you have exhausted broad and mid-level distinguishing properties and are highly confident.
+
 Rules:
 - Ask exactly one yes/no question per turn
 - Keep each question short and unambiguous
@@ -233,13 +238,26 @@ ${conversationContext}`
 
     const userPrompt = `Based on my previous answers, ask your next yes/no question (question ${nextQuestionNumber}).`
 
-    const llmResponse = await llmProvider.generateResponse({
+    let llmResponse = await llmProvider.generateResponse({
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt: systemPrompt,
       temperature: 0.2,
       maxTokens: 160
     })
-    const nextQuestion = llmResponse.content
+    let nextQuestion = llmResponse.content
+    const guessPattern = /^\s*is\s+(it|this)\s+.+\?\s*$/i
+    const forbidGuessUntil = 16
+    if (guessPattern.test(nextQuestion) && totalQuestionsUsed < forbidGuessUntil) {
+      const correctiveSystemPrompt = `${systemPrompt}\n\nAdditional hard rule: Do not guess specific items before question ${forbidGuessUntil}. Regenerate a non-guess, property-based yes/no question that partitions the remaining space. Output only the bare question text.`
+      const correctiveUserPrompt = `Regenerate a non-guess yes/no property question (question ${nextQuestionNumber}).`
+      llmResponse = await llmProvider.generateResponse({
+        messages: [{ role: 'user', content: correctiveUserPrompt }],
+        systemPrompt: correctiveSystemPrompt,
+        temperature: 0.15,
+        maxTokens: 120
+      })
+      nextQuestion = llmResponse.content
+    }
     console.log(`[submit-user-answer] Next question generated in ${Date.now() - llmStart}ms`)
 
     // Store LLM's next question and update game state using transaction
