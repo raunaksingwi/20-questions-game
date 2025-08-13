@@ -32,12 +32,15 @@ const handler = async (req: Request) => {
     console.log(`[finalize-think-result] Finalizing session with result: ${result}`)
 
     // Get session data
+    console.log(`[finalize-think-result] Looking for session with id: ${session_id} and mode: ai_guessing`)
     const { data: session, error: sessionError } = await supabase
       .from('games')
-      .select('id, category, questions_asked, status, secret_item')
+      .select('id, category, questions_asked, status, secret_item, mode')
       .eq('id', session_id)
       .eq('mode', 'ai_guessing')
       .single()
+    
+    console.log(`[finalize-think-result] Session query result:`, { session, sessionError })
 
     if (sessionError || !session) {
       throw new Error('Think mode session not found')
