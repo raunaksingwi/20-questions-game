@@ -17,7 +17,7 @@ export interface GameActionsHook {
   sendQuestion: (questionText?: string, currentQuestion?: string) => Promise<void>;
   requestHint: () => Promise<void>;
   handleQuit: () => void;
-  // Think mode specific methods
+  // AI guessing mode specific methods
   submitUserAnswer: (answer: string, answerType: AnswerType) => Promise<void>;
   handleWin: () => Promise<void>;
 }
@@ -241,8 +241,8 @@ export const useGameActions = (
     
     audioManager.playSound('wrong');
     
-    if (state.mode === 'think') {
-      // Think mode: No secret item to reveal, just end the game
+    if (state.mode === 'ai_guessing') {
+      // AI guessing mode: No secret item to reveal, just end the game
       actions.setBatchState({
         gameStatus: 'lost', // User loses by quitting
         resultModalData: {
@@ -283,9 +283,9 @@ export const useGameActions = (
     }
   };
 
-  // Think mode specific methods
+  // AI guessing mode specific methods
   const submitUserAnswer = async (answer: string, answerType: AnswerType) => {
-    if (!state.gameId || !answer.trim() || state.sending || state.mode !== 'think') return;
+    if (!state.gameId || !answer.trim() || state.sending || state.mode !== 'ai_guessing') return;
 
     // Prevent duplicate answers
     if (isDuplicateRequest('answer', answer)) return;
@@ -328,7 +328,7 @@ export const useGameActions = (
           questionsRemaining: response.questions_remaining,
           gameStatus: response.game_status,
           resultModalData: {
-            isWin: true, // User wins in Think mode when LLM loses
+            isWin: true, // User wins in AI guessing mode when LLM loses
             title: 'You Won!',
             message: 'I couldn\'t guess what you were thinking in 20 questions!'
           },
@@ -346,7 +346,7 @@ export const useGameActions = (
   };
 
   const handleWin = async () => {
-    if (!state.gameId || state.mode !== 'think') return;
+    if (!state.gameId || state.mode !== 'ai_guessing') return;
 
     try {
       audioManager.playSound('correct'); // Celebration when LLM guesses correctly
