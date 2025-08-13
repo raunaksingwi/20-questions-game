@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/HomeScreen';
 import GameScreen from '../screens/GameScreen';
-import { Category, GameMode } from '../../../shared/types';
+import { Category, GameMode } from '../types/types';
 
 export type RootStackParamList = {
   Home: undefined;

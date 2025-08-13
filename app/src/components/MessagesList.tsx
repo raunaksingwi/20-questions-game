@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { FlatList, View, Text, StyleSheet } from 'react-native';
-import { GameMessage } from '../../../shared/types';
+import { GameMessage } from '../types/types';
 import TypingIndicator from './TypingIndicator';
 
 interface LoadingMessage {

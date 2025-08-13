@@ -16,7 +16,7 @@ import {
   SubmitUserAnswerResponse,
   FinalizeThinkResultRequest,
   FinalizeThinkResultResponse
-} from '../../../shared/types'
+} from '../types/types'
 import { optimizedRequest } from '../utils/performanceOptimizer'
 
 const FUNCTIONS_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1`

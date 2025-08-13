@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GameMessage, GameStatus } from '../../../shared/types';
+import { GameMessage, GameStatus } from '../types/types';
 import { StateUpdateStrategyManager } from '../services/StateUpdateStrategy';
 
 export interface GameState {

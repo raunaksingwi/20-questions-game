@@ -1,4 +1,4 @@
-import { GameMessage, GameStatus } from '../../../shared/types';
+import { GameMessage, GameStatus } from '../types/types';
 import { GameState } from '../hooks/useGameState';
 
 export interface StateUpdater {
