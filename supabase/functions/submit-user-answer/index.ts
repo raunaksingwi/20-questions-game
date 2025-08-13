@@ -87,42 +87,8 @@ const handler = async (req: Request) => {
       })
     console.log(`[submit-user-answer] User answer stored in ${Date.now() - msgStart}ms`)
 
-    // Check if the last assistant question was a specific guess (e.g., "Is it X?") and
-    // the user answered Yes, end the game as LLM win immediately (check this BEFORE question limit)
-    const guessPattern = /^\s*(is|was|could)\s+(it|this|that|the\s+\w+)\s+(be\s+)?(a\s+|an\s+)\w+.*\?\s*$/i
-    const lastAssistantQuestion = [...messages]
-      .reverse()
-      .find(m => m.role === 'assistant')?.content || ''
-    
-    console.log(`[submit-user-answer] Last assistant question: "${lastAssistantQuestion}"`)
-    console.log(`[submit-user-answer] User answer: "${answer}"`)
-    console.log(`[submit-user-answer] Guess pattern match: ${guessPattern.test(lastAssistantQuestion)}`)
-    
-    const isAffirmative = (s: string) => {
-      const n = s.toLowerCase().trim()
-      return n === 'yes' || n.startsWith('y')
-    }
-    
-    console.log(`[submit-user-answer] Is affirmative: ${isAffirmative(answer)}`)
-    
-    if (guessPattern.test(lastAssistantQuestion) && isAffirmative(answer)) {
-      await supabase
-        .from('games')
-        .update({ 
-          status: 'won', // LLM wins
-          questions_asked: questionsCountedForLimit,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', session_id)
-
-      const responseData: SubmitUserAnswerResponse = {
-        questions_asked: questionsCountedForLimit,
-        questions_remaining: Math.max(0, 20 - questionsCountedForLimit),
-        game_status: 'won'
-        // No next_question - game is over
-      }
-      return EdgeFunctionBase.createSuccessResponse(responseData)
-    }
+    // Automatic guess detection removed - let user control LLM wins via win button
+    console.log(`[submit-user-answer] User answer: "${answer}" - continuing game`)
 
     // Check if we've reached the 20 question limit (only for answers that count)
     if (!isCurrentDontKnow && questionsCountedForLimit >= 20) {
@@ -342,18 +308,7 @@ Output only your next strategic yes/no question that explores NEW territory.`
       console.log(`[submit-user-answer] Corrected invalid question format: "${nextQuestion}"`)
     }
     
-    const forbidGuessUntil = 14
-    if (guessPattern.test(nextQuestion) && totalQuestionsUsed < forbidGuessUntil) {
-      const correctiveSystemPrompt = `${systemPrompt}\n\nAdditional hard rule: Do not guess specific items before question ${forbidGuessUntil}. Regenerate a non-guess, property-based yes/no question that partitions the remaining space. Output only the bare question text.`
-      const correctiveUserPrompt = `Regenerate a non-guess yes/no property question (question ${nextQuestionNumber}).`
-      llmResponse = await llmProvider.generateResponse({
-        messages: [{ role: 'user', content: correctiveUserPrompt }],
-        systemPrompt: correctiveSystemPrompt,
-        temperature: 0.15,
-        maxTokens: 120
-      })
-      nextQuestion = llmResponse.content
-    }
+    // Removed guess validation - LLM can guess whenever it wants, user controls wins via button
     console.log(`[submit-user-answer] Next question generated in ${Date.now() - llmStart}ms`)
 
     // Store LLM's next question and update game state using transaction
