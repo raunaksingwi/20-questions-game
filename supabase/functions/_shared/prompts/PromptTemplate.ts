@@ -24,13 +24,13 @@ ${this.getExamples(secretItem)}`
 
 CATEGORY: ${this.getCategoryDescription()}
 
+Examples of items in this category: ${sampleItems.join(', ')}
+
 INSTRUCTIONS:
-1. Choose ANY item that fits this category - you are NOT limited to the examples below
-2. The sample items are just examples to show the category type - pick something creative and diverse
+1. Choose ANY item that fits this category - not necessarily from the examples above
+2. The examples show the type of items, but pick your own choice
 3. Choose something interesting but not too obscure (players should be able to guess it eventually)
 4. Respond with ONLY the item name, nothing else
-
-SAMPLE ITEMS (for reference only - pick your own): ${sampleItems.join(', ')}
 
 Pick your item now:`
   }
