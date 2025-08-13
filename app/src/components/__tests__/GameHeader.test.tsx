@@ -19,7 +19,7 @@ describe.skip('GameHeader', () => {
     const { getByText } = render(<GameHeader {...defaultProps} />);
     
     expect(getByText('Animals')).toBeTruthy();
-    expect(getByText('Questions: 15/20')).toBeTruthy();
+    expect(getByText('Q 5/20')).toBeTruthy();
     expect(getByText('Hint (2)')).toBeTruthy();
   });
 
@@ -36,7 +36,7 @@ describe.skip('GameHeader', () => {
       <GameHeader {...defaultProps} questionsRemaining={5} />
     );
     
-    expect(getByText('Questions: 5/20')).toBeTruthy();
+    expect(getByText('Q 15/20')).toBeTruthy();
   });
 
   it('renders with no hints remaining', () => {
@@ -52,7 +52,7 @@ describe.skip('GameHeader', () => {
       <GameHeader {...defaultProps} questionsRemaining={0} />
     );
     
-    expect(getByText('Questions: 0/20')).toBeTruthy();
+    expect(getByText('Q 20/20')).toBeTruthy();
   });
 
   // Think Mode Tests

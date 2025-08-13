@@ -61,7 +61,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
             )}
           </View>
           <Text style={styles.counterText}>
-            {isThinkMode ? `Q ${questionsAsked}/20` : `Questions: ${questionsRemaining}/20`}
+            {isThinkMode ? `Q ${questionsAsked}/20` : `Q ${20 - questionsRemaining}/20`}
           </Text>
         </View>
         
