@@ -114,7 +114,7 @@ Output only the next yes/no question.`
     const llmResponse = await llmProvider.generateResponse({
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt: systemPrompt,
-      temperature: 0.2,
+      temperature: 0.1,
       maxTokens: 160
     })
     const firstQuestion = llmResponse.content

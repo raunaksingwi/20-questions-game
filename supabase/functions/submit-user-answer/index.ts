@@ -326,7 +326,7 @@ Ask your next strategic yes/no question. Output ONLY the question.`
     let llmResponse = await llmProvider.generateResponse({
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt: enhancedSystemPrompt,
-      temperature: 0.1, // Slightly higher for variety while maintaining consistency
+      temperature: 0.05, // Very low for consistent, focused questions
       maxTokens: 100 // Reduced since we want just the question
     })
     let nextQuestion = llmResponse.content
@@ -395,7 +395,7 @@ Ask your next strategic yes/no question. Output ONLY the question.`
       llmResponse = await llmProvider.generateResponse({
         messages: [{ role: 'user', content: correctiveUserPrompt }],
         systemPrompt: correctiveSystemPrompt,
-        temperature: 0.2, // Slightly higher for more variety
+        temperature: 0.1, // Low temperature for corrective questions
         maxTokens: 100
       })
       nextQuestion = llmResponse.content

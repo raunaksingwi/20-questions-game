@@ -30,22 +30,19 @@ ${shouldGuess ? 'Based on the information gathered, make a specific guess about 
   }
 
   private shouldMakeSpecificGuess(questionsAsked: number, conversationHistory: string): boolean {
-    // Start making specific guesses after question 15, or if we have strong indicators
-    if (questionsAsked >= 15) return true
-    
-    // Look for strong category-specific indicators
+    // Allow flexible guessing based on confidence, not strict question limits
     const history = conversationHistory.toLowerCase()
     
-    // Category-specific guess triggers
+    // Make guesses when you have enough information to be confident
     switch (this.getCategoryName().toLowerCase()) {
       case 'world leaders':
-        return this.hasWorldLeaderGuessIndicators(history)
+        return this.hasWorldLeaderGuessIndicators(history) || questionsAsked >= 12
       case 'animals':
-        return this.hasAnimalGuessIndicators(history)
+        return this.hasAnimalGuessIndicators(history) || questionsAsked >= 12
       case 'objects':
-        return this.hasObjectGuessIndicators(history)
+        return this.hasObjectGuessIndicators(history) || questionsAsked >= 12
       default:
-        return questionsAsked >= 15
+        return questionsAsked >= 12
     }
   }
 
@@ -91,24 +88,20 @@ IMPORTANT: Frame your guess as a yes/no question: "Is it [specific item name]?"`
 
   private getCoreRules(): string {
     return `CORE RULES:
-- Ask exactly one yes/no question per turn
-- Each question should eliminate roughly half of the remaining possibilities
-- Keep questions short and unambiguous
-- Stay strictly within the category
-- Build upon what you've learned from previous questions
-- Only ask specific item confirmations when you've narrowed it down significantly
-- Do not reveal internal reasoning or ask multiple questions at once
+- Ask one clear yes/no question that most people would know
+- Each question should eliminate about half the possibilities
+- Make educated guesses when you feel confident about the answer
+- Stay within the category and build on previous answers
 
-❌ BANNED VAGUE QUESTIONS - NEVER ASK THESE:
-- "Does it have any unique characteristics I should know about?" (TOO VAGUE)
-- "Is it from a specific region or time period?" (TOO BROAD)
-- "Does it have multiple forms or variations?" (IRRELEVANT)
-- "Is it commonly associated with a particular group or activity?" (TOO VAGUE)
+❌ AVOID THESE:
+- Vague questions: "Does it have special characteristics?"
+- Obscure details users might not know
+- Questions requiring specific expertise
 
-✅ GOOD SPECIFIC QUESTIONS:
-- "Are they from Asia?" (SPECIFIC GEOGRAPHY)
-- "Did they serve in the 1960s?" (SPECIFIC TIME)
-- "Were they a prime minister?" (SPECIFIC ROLE)`
+✅ ASK THESE TYPES:
+- Basic properties everyone knows
+- Simple yes/no facts
+- Common knowledge questions`
   }
 
   private getRepetitionPrevention(alreadyAskedQuestions: string[]): string {
@@ -140,23 +133,17 @@ export class AnimalsAIQuestioningTemplate extends AIQuestioningTemplate {
 
   protected getStrategicQuestions(): string[] {
     return [
-      'Classification: "Is it a mammal?" (eliminates birds, reptiles, fish, insects)',
-      'Habitat: "Is it a wild animal?" "Does it live in water?" (major environment split)',
-      'Size: "Is it larger than a dog?" "Is it smaller than a cat?" (size categories)',
-      'Domestication: "Is it a common pet?" "Is it found on farms?" (human relationship)',
-      'Location: "Does it live in Africa?" "Does it live in North America?" (continental)',
-      'Diet: "Does it eat meat?" "Is it a carnivore?" (feeding behavior)'
+      'Is it a mammal?',
+      'Is it a wild animal?', 
+      'Is it larger than a dog?',
+      'Is it a common pet?',
+      'Does it live in Africa?',
+      'Does it eat meat?'
     ]
   }
 
   protected getQuestionProgression(): string {
-    return `MOST EFFICIENT QUESTIONING ORDER:
-1. Classification: "Is it a mammal?" (huge elimination)
-2. Habitat: "Is it a wild animal?" (domestic vs wild split)
-3. Size: "Is it larger than a dog?" (size category)
-4. Location: "Does it live in Africa?" (continental narrowing)
-5. Diet: "Does it eat meat?" (carnivore vs herbivore)
-6. Then make specific guesses`
+    return `Start broad, then narrow: Classification → Habitat → Size → Diet → Guess`
   }
 
   protected getExampleProgression(): string {
@@ -171,23 +158,17 @@ export class ObjectsAIQuestioningTemplate extends AIQuestioningTemplate {
 
   protected getStrategicQuestions(): string[] {
     return [
-      'Size: "Can you hold it in one hand?" "Is it furniture?" (major size categories)',
-      'Function: "Is it electronic?" "Is it a tool?" "Is it for entertainment?" (purpose split)',
-      'Location: "Is it typically found in a kitchen?" "Is it found in a bedroom?" (room-specific)',
-      'Material: "Is it made of metal?" "Is it made of plastic?" (material composition)',
-      'Usage: "Do most people use it daily?" "Is it used for work?" (frequency/purpose)',
-      'Portability: "Is it portable?" "Is it built-in/fixed?" (mobility)'
+      'Can you hold it in one hand?',
+      'Is it electronic?',
+      'Is it found in a kitchen?', 
+      'Is it made of metal?',
+      'Do most people use it daily?',
+      'Is it portable?'
     ]
   }
 
   protected getQuestionProgression(): string {
-    return `MOST EFFICIENT QUESTIONING ORDER:
-1. Size: "Can you hold it in one hand?" (handheld vs large)
-2. Function: "Is it electronic?" (tech vs non-tech split)
-3. Location: "Is it found in a kitchen?" (room narrowing)
-4. Material: "Is it made of metal?" (material type)
-5. Usage: "Do most people use it daily?" (commonness)
-6. Then make specific guesses`
+    return `Start broad, then narrow: Size → Function → Location → Material → Guess`
   }
 
   protected getExampleProgression(): string {
@@ -202,23 +183,17 @@ export class WorldLeadersAIQuestioningTemplate extends AIQuestioningTemplate {
 
   protected getStrategicQuestions(): string[] {
     return [
-      'Life Status: "Are they still alive?" (eliminates ~80% immediately)',
-      'Country: "Are they from India?" "Are they from the United States?" "Are they from the United Kingdom?"',
-      'Role: "Were they a president?" "Were they a prime minister?" "Were they a monarch?"',
-      'Decade: "Did they serve in the 1960s?" "Did they serve in the 2000s?" "Did they serve before 1980?"',
-      'Gender: "Are they male?" (50/50 split)',
-      'Tenure: "Did they serve for more than 10 years?" "Did they serve less than 5 years?"'
+      'Are they still alive?',
+      'Are they from the United States?',
+      'Were they a president?',
+      'Did they serve in the 2000s?',
+      'Are they male?',
+      'Did they serve for more than 8 years?'
     ]
   }
 
   protected getQuestionProgression(): string {
-    return `MOST EFFICIENT QUESTIONING ORDER:
-1. Life Status: "Are they still alive?" (massive elimination)
-2. Country: "Are they from [major country]?" (geographic narrowing)
-3. Role: "Were they a [president/PM/monarch]?" (position type)
-4. Era: "Did they serve in [specific decade]?" (time narrowing)
-5. Gender: "Are they male?" (50/50 split if needed)
-6. Then make specific guesses`
+    return `Start broad, then narrow: Life Status → Country → Role → Era → Guess`
   }
 
   protected getExampleProgression(): string {
