@@ -53,7 +53,7 @@ export class SearchService {
       }
     } catch (error) {
       console.error('Search service error:', error)
-      throw new Error(`Failed to perform search: ${error.message}`)
+      throw new Error(`Failed to perform search: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 }

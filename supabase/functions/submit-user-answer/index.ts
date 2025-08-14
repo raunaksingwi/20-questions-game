@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { SubmitUserAnswerRequest, SubmitUserAnswerResponse, isValidUUID, isValidString, isValidAnswerType } from '../../../shared/types.ts'
 import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
+import { DecisionTree } from '../_shared/logic/DecisionTree.ts'
+import { ConversationState } from '../_shared/state/ConversationState.ts'
 
 // Initialize shared Supabase client
 const supabase = EdgeFunctionBase.initialize()
@@ -214,73 +216,100 @@ const handler = async (req: Request) => {
 
     const totalQuestionsUsed = questionsCountedForLimit
     const yesNoFactsCount = yesFacts.length + noFacts.length
-    const minQuestionsForGuess = 14
-    const minFactsForGuess = 6
-    const allowGuessEarly = totalQuestionsUsed >= minQuestionsForGuess || yesNoFactsCount >= minFactsForGuess
     
-    const systemPrompt = `You are playing 20 Questions in AI Guessing mode. The user has thought of an item within the category: ${session.category}.
-Your job is to ask up to 20 yes/no questions to identify the item.
+    // Try to use decision tree logic to generate optimal question
+    const conversationHistory = messages.map(m => ({
+      question: m.role === 'assistant' ? m.content : '',
+      answer: m.role === 'user' ? m.content : ''
+    })).filter(item => item.question && item.answer)
+    
+    // Add the current answer to history
+    conversationHistory.push({
+      question: messages.filter(m => m.role === 'assistant').pop()?.content || '',
+      answer: answer
+    })
+    
+    // Get category items for decision tree (simplified list for now)
+    const getCategoryItems = (category: string): string[] => {
+      switch (category.toLowerCase()) {
+        case 'animals': return ['dog', 'cat', 'elephant', 'lion', 'penguin', 'dolphin', 'eagle', 'snake', 'tiger', 'bear', 'rabbit', 'horse', 'cow', 'sheep', 'pig', 'chicken', 'duck', 'fish', 'shark', 'whale']
+        case 'food': return ['pizza', 'apple', 'chocolate', 'bread', 'cheese', 'sushi', 'ice cream', 'pasta', 'banana', 'orange', 'rice', 'chicken', 'beef', 'fish', 'salad', 'soup', 'cake', 'cookies', 'sandwich', 'burger']
+        case 'objects': return ['chair', 'computer', 'phone', 'book', 'car', 'bicycle', 'television', 'lamp', 'table', 'pen', 'pencil', 'watch', 'camera', 'guitar', 'piano', 'mirror', 'clock', 'scissors', 'hammer', 'screwdriver']
+        case 'cricketers': return ['Virat Kohli', 'MS Dhoni', 'Rohit Sharma', 'Joe Root', 'Steve Smith', 'Kane Williamson', 'Babar Azam', 'AB de Villiers', 'Chris Gayle', 'David Warner', 'Ben Stokes', 'Jasprit Bumrah', 'Pat Cummins', 'Rashid Khan', 'Trent Boult']
+        default: return []
+      }
+    }
+    
+    const categoryItems = getCategoryItems(session.category)
+    
+    let suggestedQuestion: string
+    try {
+      // Use decision tree logic to get optimal question
+      suggestedQuestion = DecisionTree.generateOptimalQuestion(
+        session.category,
+        conversationHistory,
+        categoryItems
+      )
+    } catch (error) {
+      console.warn('[submit-user-answer] Decision tree failed, using fallback:', error)
+      suggestedQuestion = '' // Will fall back to LLM generation
+    }
+    
+    const systemPrompt = `You are playing 20 Questions in AI Guessing mode using OPTIMAL DECISION TREE STRATEGY.
+The user has thought of an item within the category: ${session.category}.
 
- CRITICAL ANTI-REDUNDANCY RULES:
- 🚫 NEVER ask about combinations or variations of facts already confirmed as TRUE
- 🚫 NEVER ask essentially the same question in different words  
- 🚫 NEVER ask "Does it have A and B?" if you already know A=YES and B=YES
- 🧠 USE LOGICAL DEDUCTION: If curved=YES and hooked=YES, then "curved and hooked"=YES automatically
+🎯 DECISION TREE LOGIC (FOLLOW THIS EXACTLY):
+- Each question should eliminate approximately 50% of remaining possibilities
+- Use BINARY SEARCH strategy: divide the possibility space in half
+- Progress systematically: Category → Subcategory → Properties → Specific Items
+- Build upon previous answers using LOGICAL DEDUCTION
 
- Questioning Strategy:
-- Start with BROAD categorical questions to divide the category into major groups
-- Each question should eliminate roughly half of the remaining possibilities
-- Use established facts to narrow down logically, don't re-verify them
-- Move to NEW distinguishing properties that haven't been explored
-- Progress: Physical traits → Habitat → Behavior → Size → Specific identification
+💡 OPTIMAL QUESTION SUGGESTION:
+${suggestedQuestion ? `The decision tree suggests: "${suggestedQuestion}"\nThis question has high information gain and follows optimal strategy.\nUSE THIS QUESTION unless it's clearly redundant with established facts.` : 'No optimal suggestion available - use your best judgment with the rules below.'}
 
- Hard constraints you must obey:
- - Every new question MUST be consistent with ALL prior YES facts
- - Do NOT ask questions that contradict any prior NO facts
- - NEVER ask redundant questions about established facts
- - Choose questions that explore NEW dimensions of the remaining possibility space
- - Before asking, mentally check: "Is this already established by previous answers?"
+🚫 CRITICAL ANTI-REDUNDANCY RULES:
+- NEVER ask combinations of already-confirmed facts
+- NEVER ask the same question in different words
+- USE DEDUCTION: If A=YES and B=YES, then "A and B"=YES automatically
+- Check conversation history to avoid repetition
 
-Output format requirements:
-- Output ONLY the bare question text as a single line ending with a question mark.
-- Do NOT include numbering, prefixes, explanations, qualifiers, or any other text.
-- If you are highly confident (e.g., only 1-2 plausible items remain), make a specific confirmatory guess phrased as "Is it <item>?". Otherwise, ask a property-based yes/no question to further narrow down.
+📊 INFORMATION GAIN PRIORITY:
+1. Questions that eliminate ~50% of possibilities (HIGHEST PRIORITY)
+2. Questions that establish major categories/subcategories
+3. Questions about distinguishing properties
+4. Specific confirmatory guesses (only when narrowed to 1-3 items)
 
-Rules:
-- Ask exactly one yes/no question per turn
-- Keep each question short and unambiguous
-- CRITICAL: Questions must be answerable with YES or NO only
-- NEVER ask "Is it A or B?" - instead ask "Is it A?" or "Is it B?"
-- NEVER present multiple options in a single question
-- Stay strictly within the category
-- Use the user's answers to systematically narrow down the possibilities
-- Only ask specific item confirmations when you've narrowed it down significantly
-- User can answer: Yes, No, Maybe, or "Don't know" (Don't know responses don't count toward the 20 question limit)
-- Do not reveal internal reasoning or ask multiple questions at once
-- Stop asking after 20 meaningful questions; await result
-
-QUESTION ${totalQuestionsUsed + 1} of 20 - Make it count!
+🎲 BINARY ELIMINATION EXAMPLES:
+- "Is it living?" (living vs non-living)
+- "Is it a mammal?" (mammals vs other animals)
+- "Is it edible?" (food vs non-food objects)
+- "Is it electronic?" (electronic vs mechanical objects)
 
 ${categorizedSummary}
 
-CONVERSATION HISTORY (to avoid repeating questions):
+QUESTION ${totalQuestionsUsed + 1} of 20 - MAXIMIZE INFORMATION GAIN!
+
+CONVERSATION HISTORY:
 ${conversationContext}
 
-Before asking your next question, think:
-1. What NEW information do I need that isn't already established above?
-2. What dimension haven't I explored yet?
-3. Is this question redundant with established facts?
-4. Have I already asked this question in the conversation history above?
+STRATEGIC ANALYSIS:
+- Confirmed facts: ${yesNoFactsCount}
+- Information gathered: ${Math.round((yesNoFactsCount / 10) * 100)}% of optimal
+- Remaining questions: ${20 - totalQuestionsUsed}
+- Strategy phase: ${totalQuestionsUsed <= 5 ? 'BROAD CATEGORIZATION' : totalQuestionsUsed <= 12 ? 'PROPERTY IDENTIFICATION' : totalQuestionsUsed <= 18 ? 'NARROWING FOCUS' : 'FINAL GUESSES'}
 
-Output only your next strategic yes/no question that explores NEW territory.`
+FORMAT: Output ONLY the question text ending with "?" - no explanations or numbering.
+${suggestedQuestion ? `\nRECOMMENDED: Use the suggested question above unless clearly redundant.` : ''}`
 
-    const userPrompt = `Based on my previous answers, ask your next yes/no question.`
+    const userPrompt = suggestedQuestion 
+      ? `${suggestedQuestion} appears to be the optimal next question based on decision tree analysis. Unless this question is clearly redundant with established facts, use it. Otherwise, generate the next best strategic question.`
+      : `Based on my previous answers and the decision tree strategy, ask your next optimal yes/no question that maximizes information gain.`
 
     let llmResponse = await llmProvider.generateResponse({
       messages: [{ role: 'user', content: userPrompt }],
       systemPrompt: systemPrompt,
-      temperature: 0.2,
-      maxTokens: 160
+      temperature: 0.05, // Reduced for more deterministic behavior
+      maxTokens: 100 // Reduced since we want just the question
     })
     let nextQuestion = llmResponse.content
     
@@ -371,7 +400,7 @@ Output only your next strategic yes/no question that explores NEW territory.`
     return EdgeFunctionBase.createSuccessResponse(responseData)
 
   } catch (error) {
-    return EdgeFunctionBase.createErrorResponse(error)
+    return EdgeFunctionBase.createErrorResponse(error instanceof Error ? error : new Error(String(error)))
   }
 }
 

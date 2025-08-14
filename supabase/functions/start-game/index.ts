@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { StartGameRequest, StartGameResponse } from '../../../shared/types.ts'
+import { StartGameRequest, StartGameResponse, GameMode } from '../../../shared/types.ts'
 import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
 import { PromptTemplateFactory } from '../_shared/prompts/PromptTemplate.ts'
 
@@ -12,7 +12,7 @@ const handler = async (req: Request) => {
 
   try {
     const requestStart = Date.now()
-    const { category, mode = 'user_guessing', user_id }: StartGameRequest = await req.json()
+    const { category, mode = GameMode.USER_GUESSING, user_id }: StartGameRequest = await req.json()
     console.log(`[start-game] Starting game with category: ${category || 'random'}, mode: ${mode}`)
 
     // Get available categories with caching headers
@@ -59,7 +59,7 @@ const handler = async (req: Request) => {
 
     // Create category-specific system message using template
     const promptStart = Date.now()
-    const promptTemplate = PromptTemplateFactory.createTemplate(selectedCategory)
+    const promptTemplate = PromptTemplateFactory.createTemplate(selectedCategory!)
     const gamePrompt = promptTemplate.generate(secretItem)
     console.log(`[start-game] Prompt generated in ${Date.now() - promptStart}ms`)
 
@@ -81,7 +81,7 @@ const handler = async (req: Request) => {
 
     const responseData: StartGameResponse = {
       game_id: game.id,
-      category: selectedCategory,
+      category: selectedCategory!,
       message: `Let's play 20 Questions! I'm thinking of something in the ${selectedCategory} category. You have 20 questions to guess what it is. Ask yes/no questions!`
     }
     
@@ -91,7 +91,7 @@ const handler = async (req: Request) => {
     return EdgeFunctionBase.createSuccessResponse(responseData)
 
   } catch (error) {
-    return EdgeFunctionBase.createErrorResponse(error)
+    return EdgeFunctionBase.createErrorResponse(error instanceof Error ? error : new Error(String(error)))
   }
 }
 

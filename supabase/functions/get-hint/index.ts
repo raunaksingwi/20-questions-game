@@ -32,7 +32,7 @@ const handler = async (req: Request) => {
     if (data.status !== 'active') throw new Error('Game is not active')
     
     const game = data
-    const messages = (data.game_messages || []).sort((a, b) => 
+    const messages = (data.game_messages || []).sort((a: any, b: any) => 
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     )
 
@@ -42,15 +42,15 @@ const handler = async (req: Request) => {
     }
 
     // Prepare hint request with full conversation context
-    const chatMessages = messages.map(msg => ({
+    const chatMessages = messages.map((msg: any) => ({
       role: msg.role as 'user' | 'assistant' | 'system',
       content: msg.content
     }))
 
     // Extract and summarize key information from conversation
-    const userQuestions = messages.filter(m => m.role === 'user' && m.message_type === 'question')
-    const previousHints = messages.filter(m => m.role === 'assistant' && m.message_type === 'hint')
-    const answers = messages.filter(m => m.role === 'assistant' && m.message_type === 'answer')
+    const userQuestions = messages.filter((m: any) => m.role === 'user' && m.message_type === 'question')
+    const previousHints = messages.filter((m: any) => m.role === 'assistant' && m.message_type === 'hint')
+    const answers = messages.filter((m: any) => m.role === 'assistant' && m.message_type === 'answer')
     
     // Build conversation summary
     let conversationSummary = `[HINT CONTEXT SUMMARY:
@@ -61,7 +61,7 @@ const handler = async (req: Request) => {
 PREVIOUS HINTS PROVIDED:`
 
     if (previousHints.length > 0) {
-      previousHints.forEach((hint, index) => {
+      previousHints.forEach((hint: any, index: number) => {
         conversationSummary += `\nHint #${index + 1}: "${hint.content}"`
       })
     } else {
@@ -71,8 +71,8 @@ PREVIOUS HINTS PROVIDED:`
     conversationSummary += `\n\nKEY ANSWERS FROM CONVERSATION:`
     
     // Summarize Yes/No pattern to help generate consistent hints
-    const yesAnswers = answers.filter(a => a.content.toLowerCase().includes('yes')).length
-    const noAnswers = answers.filter(a => a.content.toLowerCase().includes('no')).length
+    const yesAnswers = answers.filter((a: any) => a.content.toLowerCase().includes('yes')).length
+    const noAnswers = answers.filter((a: any) => a.content.toLowerCase().includes('no')).length
     conversationSummary += `\n- "Yes" answers: ${yesAnswers}, "No" answers: ${noAnswers}`
     conversationSummary += `\n\nThe conversation above shows what the player already knows about the secret item.]`
 
@@ -87,7 +87,7 @@ PREVIOUS HINTS PROVIDED:`
 
 CRITICAL REQUIREMENTS:
 1. MUST be consistent with ALL previous answers - review the entire conversation
-2. MUST NOT contradict any previous hints: ${previousHints.map(h => `"${h.content}"`).join(', ') || 'none'}
+2. MUST NOT contradict any previous hints: ${previousHints.map((h: any) => `"${h.content}"`).join(', ') || 'none'}
 3. MUST NOT repeat previous hints - provide NEW information each time
 4. Should build upon what the player already knows
 5. Don't reveal the answer directly
@@ -210,7 +210,7 @@ Provide only the hint text:`
     return EdgeFunctionBase.createSuccessResponse(responseData)
 
   } catch (error) {
-    return EdgeFunctionBase.createErrorResponse(error)
+    return EdgeFunctionBase.createErrorResponse(error instanceof Error ? error : new Error(String(error)))
   }
 }
 

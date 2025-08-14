@@ -20,10 +20,8 @@ export abstract class EdgeFunctionBase {
       const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
       this.supabase = createClient(supabaseUrl, supabaseKey, {
         db: { 
-          schema: 'public',
-          // Optimize for performance
-          poolSize: 5,
-          connectionTimeoutMillis: 2000
+          schema: 'public'
+          // Note: removed poolSize as it's not a valid Supabase client option
         },
         global: { 
           headers: { 
@@ -56,7 +54,7 @@ export abstract class EdgeFunctionBase {
         this.llmProviders.set(functionName, provider)
         console.log(`✅ LLM provider initialized successfully for ${functionName}`)
       } catch (error) {
-        const errorMessage = `Failed to initialize LLM provider: ${error.message}`
+        const errorMessage = `Failed to initialize LLM provider: ${error instanceof Error ? error.message : String(error)}`
         this.llmProviderErrors.set(functionName, errorMessage)
         console.error(`❌ LLM provider initialization failed for ${functionName}:`, error)
         throw new Error(errorMessage)

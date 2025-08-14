@@ -5,9 +5,8 @@ export abstract class BaseLLMProvider implements LLMProvider {
 
   constructor(config: LLMConfig) {
     this.config = config
-    if (!this.validateConfig()) {
-      throw new Error(`Invalid configuration for ${this.name} provider`)
-    }
+    // Note: Cannot access abstract property 'name' in constructor
+    // Validation will be done in the concrete class
   }
 
   abstract get name(): string
@@ -53,7 +52,7 @@ export abstract class BaseLLMProvider implements LLMProvider {
         
         if (attempt === retries) {
           console.error(`[${this.name}] Request failed after ${duration}ms and ${retries} attempts`)
-          throw new Error(`${this.name} API request failed after ${retries} attempts: ${error.message}`)
+          throw new Error(`${this.name} API request failed after ${retries} attempts: ${error instanceof Error ? error.message : String(error)}`)
         }
         
         const delay = 200 + Math.random() * 300 // Shorter randomized delay

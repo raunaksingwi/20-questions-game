@@ -3,7 +3,8 @@ import { AskQuestionRequest, AskQuestionResponse } from '../../../shared/types.t
 import { ResponseParser } from '../_shared/llm/index.ts'
 import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
 import { DEFAULT_GAME_LIMITS } from '../_shared/common/GameConfig.ts'
-import { SEARCH_FUNCTION, FunctionHandler } from '../_shared/llm/functions.ts'
+import { SEARCH_FUNCTION, FunctionHandler, createContextualSearchFunction } from '../_shared/llm/functions.ts'
+import { ConversationState } from '../_shared/state/ConversationState.ts'
 
 // Initialize shared services
 const supabase = EdgeFunctionBase.initialize()
@@ -35,7 +36,7 @@ const handler = async (req: Request) => {
     if (data.status !== 'active') throw new Error('Game is not active')
     
     const game = data
-    const messages = (data.game_messages || []).sort((a, b) => 
+    const messages = (data.game_messages || []).sort((a: any, b: any) => 
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     )
 
@@ -59,18 +60,55 @@ const handler = async (req: Request) => {
     // Messages already fetched in the combined query above
 
     // Prepare messages for LLM with enhanced context
-    const chatMessages = messages.map(msg => ({
+    const chatMessages = messages.map((msg: any) => ({
       role: msg.role as 'user' | 'assistant' | 'system',
       content: msg.content
     }))
     
-    // Add consistency reminder if there's conversation history
+    // Enhanced consistency tracking with fact extraction
     if (messages.length > 2) { // Only add if there's actual conversation history
-      const consistencyReminder = `[CONSISTENCY REMINDER: Review all your previous answers above to ensure this response is consistent with what you've already established about the secret item.]`
+      // Extract structured facts from conversation
+      const facts = ConversationState.extractFacts(messages)
+      
+      // Build comprehensive fact summary
+      let factSummary = '[ESTABLISHED FACTS - MAINTAIN CONSISTENCY]\n'
+      
+      if (facts.confirmed_yes.length > 0) {
+        factSummary += '\nCONFIRMED TRUE (Previous YES answers):\n'
+        facts.confirmed_yes.forEach(fact => {
+          factSummary += `  ✓ ${fact.question} (Confidence: ${Math.round(fact.confidence * 100)}%)\n`
+        })
+      }
+      
+      if (facts.confirmed_no.length > 0) {
+        factSummary += '\nCONFIRMED FALSE (Previous NO answers):\n'
+        facts.confirmed_no.forEach(fact => {
+          factSummary += `  ✗ ${fact.question} (Confidence: ${Math.round(fact.confidence * 100)}%)\n`
+        })
+      }
+      
+      if (facts.uncertain.length > 0) {
+        factSummary += '\nUNCERTAIN (Maybe/Sometimes answers):\n'
+        facts.uncertain.forEach(fact => {
+          factSummary += `  ? ${fact.question} → ${fact.answer}\n`
+        })
+      }
+      
+      factSummary += '\n🚨 CRITICAL: Your answer to the current question MUST be logically consistent with ALL facts above.'
+      factSummary += '\n🧠 LOGICAL DEDUCTION: Use established facts to answer, don\'t contradict previous responses.'
+      
+      // Add enhanced consistency reminder
+      chatMessages.push({
+        role: 'system',
+        content: factSummary
+      })
+      
+      // Add logical consistency check prompt
+      const logicalCheck = `[LOGICAL CONSISTENCY CHECK]\nBefore answering "${question}", verify:\n1. Does this answer contradict any established facts above?\n2. Can I deduce this answer from what's already confirmed?\n3. Am I being consistent with the secret item's established properties?\n\nIf you can deduce the answer from established facts, use that deduction.`
       
       chatMessages.push({
         role: 'system',
-        content: consistencyReminder
+        content: logicalCheck
       })
     }
     
@@ -85,13 +123,15 @@ const handler = async (req: Request) => {
     const provider = EdgeFunctionBase.getLLMProvider('ask-question')
     console.log(`[ask-question] LLM provider ready in ${Date.now() - llmStart}ms`)
 
-    // Call LLM provider with search function available
+    // Call LLM provider with contextual search function
     const llmCallStart = Date.now()
+    const contextualSearchFunction = createContextualSearchFunction(game.category, game.secret_item)
+    
     let llmResponse = await provider.generateResponse({
       messages: chatMessages,
       temperature: 0.1,
       maxTokens: 80, // Reduced for faster responses
-      functions: [SEARCH_FUNCTION],
+      functions: [contextualSearchFunction],
       function_call: 'auto'
     })
     console.log(`[ask-question] LLM response received in ${Date.now() - llmCallStart}ms`)
@@ -137,8 +177,20 @@ const handler = async (req: Request) => {
     // Additional validation: is_guess should ONLY be true if answer is Yes
     const gameWon = parsedResponse.is_guess === true && answer.toLowerCase().includes('yes')
     
-    // Safety validation - log suspicious cases
+    // Enhanced validation with fact checking
     ResponseParser.validateGameResponse(parsedResponse, rawResponse, question, game.secret_item)
+    
+    // Additional consistency validation
+    if (messages.length > 2) {
+      const facts = ConversationState.extractFacts(messages)
+      const isConsistent = validateAnswerConsistency(question, answer, facts, game.secret_item)
+      
+      if (!isConsistent) {
+        console.warn(`[ask-question] Potential inconsistency detected for question: "${question}" answer: "${answer}"`)
+        console.warn(`[ask-question] Secret item: "${game.secret_item}"`)
+        console.warn(`[ask-question] Established facts:`, facts)
+      }
+    }
 
     // Determine game status
     let gameStatus: 'active' | 'won' | 'lost' = 'active'
@@ -206,8 +258,66 @@ const handler = async (req: Request) => {
     return EdgeFunctionBase.createSuccessResponse(responseData)
 
   } catch (error) {
-    return EdgeFunctionBase.createErrorResponse(error)
+    return EdgeFunctionBase.createErrorResponse(error instanceof Error ? error : new Error(String(error)))
   }
+}
+
+/**
+ * Validates if the current answer is consistent with established facts
+ */
+function validateAnswerConsistency(
+  question: string, 
+  answer: string, 
+  facts: any, 
+  secretItem: string
+): boolean {
+  // Simple consistency checks - could be much more sophisticated
+  const questionLower = question.toLowerCase()
+  const answerLower = answer.toLowerCase()
+  const isYesAnswer = answerLower.includes('yes')
+  const isNoAnswer = answerLower.includes('no')
+  
+  // Check if we're contradicting a previous answer
+  for (const fact of [...facts.confirmed_yes, ...facts.confirmed_no]) {
+    const factQuestion = fact.question.toLowerCase()
+    
+    // Simple similarity check
+    if (questionsAreSimilar(questionLower, factQuestion)) {
+      const factWasYes = facts.confirmed_yes.includes(fact)
+      if (factWasYes && isNoAnswer) {
+        console.warn(`[consistency] Contradiction detected: Previously answered YES to "${fact.question}", now answering NO to "${question}"`)
+        return false
+      }
+      if (!factWasYes && isYesAnswer) {
+        console.warn(`[consistency] Contradiction detected: Previously answered NO to "${fact.question}", now answering YES to "${question}"`)
+        return false
+      }
+    }
+  }
+  
+  return true
+}
+
+/**
+ * Simple function to check if two questions are asking about the same thing
+ */
+function questionsAreSimilar(q1: string, q2: string): boolean {
+  // Remove common question words and punctuation
+  const normalize = (s: string) => s.replace(/[^a-z0-9\s]/g, '').replace(/\b(is|it|a|an|the|does|do|can|will|would)\b/g, '').replace(/\s+/g, ' ').trim()
+  
+  const n1 = normalize(q1)
+  const n2 = normalize(q2)
+  
+  // Check for substantial word overlap
+  const words1 = n1.split(' ').filter(w => w.length > 2)
+  const words2 = n2.split(' ').filter(w => w.length > 2)
+  
+  if (words1.length === 0 || words2.length === 0) return false
+  
+  const overlap = words1.filter(w => words2.includes(w))
+  const overlapRatio = overlap.length / Math.min(words1.length, words2.length)
+  
+  return overlapRatio > 0.6 // 60% word overlap threshold
 }
 
 // Export handler for tests
