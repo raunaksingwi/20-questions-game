@@ -93,15 +93,22 @@ IMPORTANT: Frame your guess as a yes/no question: "Is it [specific item name]?"`
 - Make educated guesses when you feel confident about the answer
 - Stay within the category and build on previous answers
 
-❌ AVOID THESE:
-- Vague questions: "Does it have special characteristics?"
-- Obscure details users might not know
-- Questions requiring specific expertise
+❌ AVOID THESE VAGUE QUESTIONS:
+- "Does it have special characteristics?"
+- "Does it have unique features?"
+- "Is it from a specific region or time period?"
+- "Does it have multiple forms or variations?"
+- "Are there any notable aspects?"
+- "Is it known for particular qualities?"
 
-✅ ASK THESE TYPES:
-- Basic properties everyone knows
-- Simple yes/no facts
-- Common knowledge questions`
+✅ ASK THESE SPECIFIC TYPES:
+- Basic properties everyone knows: "Are they male?", "Are they still alive?"
+- Concrete time periods: "Did they serve before 1990?", "Were they active in the 2000s?"
+- Specific locations: "Are they from Asia?", "Did they lead the United States?"
+- Clear yes/no facts: "Were they a president?", "Did they win a war?"
+- Binary characteristics: "Did they serve more than 8 years?", "Were they elected?"
+
+CRITICAL: Every question must be CONCRETE and SPECIFIC, not vague or subjective!`
   }
 
   private getRepetitionPrevention(alreadyAskedQuestions: string[]): string {
@@ -183,21 +190,38 @@ export class WorldLeadersAIQuestioningTemplate extends AIQuestioningTemplate {
 
   protected getStrategicQuestions(): string[] {
     return [
-      'Are they still alive?',
-      'Are they from the United States?',
-      'Were they a president?',
-      'Did they serve in the 2000s?',
-      'Are they male?',
-      'Did they serve for more than 8 years?'
+      'Life Status: "Are they still alive?" (eliminates historical vs current)',
+      'Continent: "Are they from Europe?", "Are they from Asia?", "Are they from Africa?"',
+      'Country: "Are they from the United States?", "Are they from a major power?"',
+      'Role: "Were they a president?", "Were they a prime minister?", "Were they a monarch?"',
+      'Era: "Did they serve before 1990?", "Were they active in the 2000s?", "Did they serve in the 20th century?"',
+      'Gender: "Are they male?" (eliminates roughly half)',
+      'Duration: "Did they serve more than 8 years?", "Were they in power for decades?"',
+      'Conflict: "Did they lead during a major war?", "Were they involved in World War II?"',
+      'Democracy: "Were they democratically elected?", "Did they come to power through revolution?"',
+      'Fame: "Are they considered one of the most famous leaders?", "Did they win a Nobel Peace Prize?"'
     ]
   }
 
   protected getQuestionProgression(): string {
-    return `Start broad, then narrow: Life Status → Country → Role → Era → Guess`
+    return `MOST EFFICIENT QUESTIONING ORDER:
+1. Life Status: "Are they still alive?" (huge elimination)
+2. Continent: "Are they from Europe/Asia/Africa?" (geographic narrowing)
+3. Era: "Did they serve before 1990?" (time period split)  
+4. Role: "Were they a president/prime minister?" (position type)
+5. Country: "Are they from [specific major country]?" (nation identification)
+6. Then make specific guesses
+
+AVOID VAGUE QUESTIONS:
+❌ "Is it from a specific region or time period?" 
+✅ "Are they from Asia?" + "Did they serve before 1990?"
+
+❌ "Does the world leader have multiple forms?"
+✅ "Were they both a military and political leader?"`
   }
 
   protected getExampleProgression(): string {
-    return `EXAMPLE PROGRESSION: Dead → Asian → Head of Govt → 1960s → India → Prime Minister`
+    return `EXAMPLE PROGRESSION: Dead → European → Before 1990 → Prime Minister → Britain → Winston Churchill`
   }
 }
 
