@@ -54,6 +54,17 @@ const handler = async (req: Request) => {
 
     // Create AI guessing session (using games table with mode='ai_guessing')
     const sessionStart = Date.now()
+    
+    // Initialize knowledge tree for this category
+    const initialKnowledgeTree = {
+      category: selectedCategory,
+      domain_path: [selectedCategory],
+      confirmed_facts: {},
+      narrowed_domain: `${selectedCategory} category`,
+      logical_eliminations: [],
+      next_strategic_focus: "Start with broad categorical questions to divide the space"
+    }
+    
     const { data: session, error: sessionError } = await supabase
       .from('games')
       .insert({
@@ -62,6 +73,7 @@ const handler = async (req: Request) => {
         category: selectedCategory,
         mode: 'ai_guessing',
         status: 'active',
+        knowledge_tree: initialKnowledgeTree,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })

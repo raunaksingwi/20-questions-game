@@ -1,11 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { SubmitUserAnswerRequest, SubmitUserAnswerResponse, isValidUUID, isValidString, isValidAnswerType } from '../../../shared/types.ts'
 import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
-import { DecisionTree } from '../_shared/logic/DecisionTree.ts'
-import { ConversationState } from '../_shared/state/ConversationState.ts'
 
 // Initialize shared Supabase client
 const supabase = EdgeFunctionBase.initialize()
+
 
 const handler = async (req: Request) => {
   const corsResponse = EdgeFunctionBase.handleCors(req)
@@ -40,7 +39,7 @@ const handler = async (req: Request) => {
     // Get session data and conversation history
     const { data: session, error: sessionError } = await supabase
       .from('games')
-      .select('id, category, questions_asked, status')
+      .select('id, category, questions_asked, status, knowledge_tree')
       .eq('id', session_id)
       .eq('mode', 'ai_guessing')
       .single()
@@ -208,102 +207,115 @@ const handler = async (req: Request) => {
       })
     }
     
-    // Add logical deduction helper
+    // Add logical deduction helper and domain constraints
     if (yesFacts.length >= 2) {
       categorizedSummary += '\n⚠️  REDUNDANCY CHECK: The item already has ALL of these properties confirmed as TRUE.\n'
       categorizedSummary += 'Do NOT ask about combinations of these confirmed properties.\n'
+    }
+    
+    // Add domain constraint analysis instruction
+    if (yesFacts.length > 0 || noFacts.length > 0) {
+      categorizedSummary += '\n🎯 DOMAIN NARROWING ANALYSIS:\n'
+      categorizedSummary += 'Before asking your next question, analyze what domain space remains possible based on ALL the confirmed facts above.\n'
+      categorizedSummary += 'Ask yourself: "Given these confirmed facts, what specific sub-domain am I now working within?"\n'
+      categorizedSummary += 'Your next question MUST further narrow within that established domain - do NOT jump to unrelated properties!\n'
+      categorizedSummary += '\nExamples of proper domain narrowing:\n'
+      categorizedSummary += '- If confirmed: "mammal + wild animal" → ask about size, habitat, diet within wild mammals\n'
+      categorizedSummary += '- If confirmed: "cricket player + from Australia" → ask about batting/bowling, era, specific team\n'
+      categorizedSummary += '- If confirmed: "electronic + found in home" → ask about size, room, specific function\n'
+      categorizedSummary += '\n❌ DOMAIN VIOLATION EXAMPLES (DO NOT DO THIS):\n'
+      categorizedSummary += '- If confirmed "mammal + wild" and you ask "Is it electronic?" (completely wrong domain)\n'
+      categorizedSummary += '- If confirmed "Australian bowler" and you ask "Is it alive?" (already established as person)\n'
     }
 
     const totalQuestionsUsed = questionsCountedForLimit
     const yesNoFactsCount = yesFacts.length + noFacts.length
     
-    // Try to use decision tree logic to generate optimal question
-    const conversationHistory = messages.map(m => ({
-      question: m.role === 'assistant' ? m.content : '',
-      answer: m.role === 'user' ? m.content : ''
-    })).filter(item => item.question && item.answer)
-    
-    // Add the current answer to history
-    conversationHistory.push({
-      question: messages.filter(m => m.role === 'assistant').pop()?.content || '',
-      answer: answer
-    })
-    
-    // Get category items for decision tree (simplified list for now)
-    const getCategoryItems = (category: string): string[] => {
-      switch (category.toLowerCase()) {
-        case 'animals': return ['dog', 'cat', 'elephant', 'lion', 'penguin', 'dolphin', 'eagle', 'snake', 'tiger', 'bear', 'rabbit', 'horse', 'cow', 'sheep', 'pig', 'chicken', 'duck', 'fish', 'shark', 'whale']
-        case 'food': return ['pizza', 'apple', 'chocolate', 'bread', 'cheese', 'sushi', 'ice cream', 'pasta', 'banana', 'orange', 'rice', 'chicken', 'beef', 'fish', 'salad', 'soup', 'cake', 'cookies', 'sandwich', 'burger']
-        case 'objects': return ['chair', 'computer', 'phone', 'book', 'car', 'bicycle', 'television', 'lamp', 'table', 'pen', 'pencil', 'watch', 'camera', 'guitar', 'piano', 'mirror', 'clock', 'scissors', 'hammer', 'screwdriver']
-        case 'cricketers': return ['Virat Kohli', 'MS Dhoni', 'Rohit Sharma', 'Joe Root', 'Steve Smith', 'Kane Williamson', 'Babar Azam', 'AB de Villiers', 'Chris Gayle', 'David Warner', 'Ben Stokes', 'Jasprit Bumrah', 'Pat Cummins', 'Rashid Khan', 'Trent Boult']
-        default: return []
-      }
-    }
-    
-    const categoryItems = getCategoryItems(session.category)
-    
-    let suggestedQuestion: string
-    try {
-      // Use decision tree logic to get optimal question
-      suggestedQuestion = DecisionTree.generateOptimalQuestion(
-        session.category,
-        conversationHistory,
-        categoryItems
-      )
-    } catch (error) {
-      console.warn('[submit-user-answer] Decision tree failed, using fallback:', error)
-      suggestedQuestion = '' // Will fall back to LLM generation
-    }
-    
-    const systemPrompt = `You are playing 20 Questions in AI Guessing mode using OPTIMAL DECISION TREE STRATEGY.
-The user has thought of an item within the category: ${session.category}.
+    // Generate/update knowledge tree instead of using raw conversation history
+    const existingTree = session.knowledge_tree || {}
+    const knowledgeTreePrompt = `Update this knowledge tree based on the latest Q&A in the 20 questions game.
 
-🎯 DECISION TREE LOGIC (FOLLOW THIS EXACTLY):
-- Each question should eliminate approximately 50% of remaining possibilities
-- Use BINARY SEARCH strategy: divide the possibility space in half
-- Progress systematically: Category → Subcategory → Properties → Specific Items
-- Build upon previous answers using LOGICAL DEDUCTION
+CATEGORY: ${session.category}
+CURRENT ANSWER: ${answer}
+LAST QUESTION: ${messages.filter(m => m.role === 'assistant').pop()?.content || ''}
 
-💡 OPTIMAL QUESTION SUGGESTION:
-${suggestedQuestion ? `The decision tree suggests: "${suggestedQuestion}"\nThis question has high information gain and follows optimal strategy.\nUSE THIS QUESTION unless it's clearly redundant with established facts.` : 'No optimal suggestion available - use your best judgment with the rules below.'}
+EXISTING KNOWLEDGE TREE:
+${JSON.stringify(existingTree, null, 2)}
 
-🚫 CRITICAL ANTI-REDUNDANCY RULES:
-- NEVER ask combinations of already-confirmed facts
-- NEVER ask the same question in different words
-- USE DEDUCTION: If A=YES and B=YES, then "A and B"=YES automatically
-- Check conversation history to avoid repetition
-
-📊 INFORMATION GAIN PRIORITY:
-1. Questions that eliminate ~50% of possibilities (HIGHEST PRIORITY)
-2. Questions that establish major categories/subcategories
-3. Questions about distinguishing properties
-4. Specific confirmatory guesses (only when narrowed to 1-3 items)
-
-🎲 BINARY ELIMINATION EXAMPLES:
-- "Is it living?" (living vs non-living)
-- "Is it a mammal?" (mammals vs other animals)
-- "Is it edible?" (food vs non-food objects)
-- "Is it electronic?" (electronic vs mechanical objects)
-
-${categorizedSummary}
-
-QUESTION ${totalQuestionsUsed + 1} of 20 - MAXIMIZE INFORMATION GAIN!
-
-CONVERSATION HISTORY:
+ALL Q&A HISTORY (for context):
 ${conversationContext}
 
-STRATEGIC ANALYSIS:
-- Confirmed facts: ${yesNoFactsCount}
-- Information gathered: ${Math.round((yesNoFactsCount / 10) * 100)}% of optimal
-- Remaining questions: ${20 - totalQuestionsUsed}
-- Strategy phase: ${totalQuestionsUsed <= 5 ? 'BROAD CATEGORIZATION' : totalQuestionsUsed <= 12 ? 'PROPERTY IDENTIFICATION' : totalQuestionsUsed <= 18 ? 'NARROWING FOCUS' : 'FINAL GUESSES'}
+Update the JSON knowledge tree with this structure:
+{
+  "category": "${session.category}",
+  "domain_path": ["General Category", "Subcategory", "Specific Domain"],
+  "confirmed_facts": {
+    "attribute_group_1": {
+      "yes": ["confirmed true facts"],
+      "no": ["confirmed false facts"], 
+      "maybe": ["uncertain/sometimes facts"],
+      "unknown": ["don't know responses"]
+    },
+    "attribute_group_2": { ... }
+  },
+  "narrowed_domain": "Current specific domain description",
+  "logical_eliminations": ["What has been ruled out"],
+  "next_strategic_focus": "What domain aspect to explore next"
+}
 
-FORMAT: Output ONLY the question text ending with "?" - no explanations or numbering.
-${suggestedQuestion ? `\nRECOMMENDED: Use the suggested question above unless clearly redundant.` : ''}`
+Group facts by logical categories (geography, size, material, role, era, etc). 
+Output ONLY the JSON - no explanations.`
 
-    const userPrompt = suggestedQuestion 
-      ? `${suggestedQuestion} appears to be the optimal next question based on decision tree analysis. Unless this question is clearly redundant with established facts, use it. Otherwise, generate the next best strategic question.`
-      : `Based on my previous answers and the decision tree strategy, ask your next optimal yes/no question that maximizes information gain.`
+    // Generate knowledge tree
+    const treeResponse = await llmProvider.generateResponse({
+      messages: [{ role: 'user', content: knowledgeTreePrompt }],
+      systemPrompt: 'You are a structured data expert. Create precise, logical knowledge trees.',
+      temperature: 0.1,
+      maxTokens: 800
+    })
+    let knowledgeTree = ''
+    try {
+      // Validate it's valid JSON
+      JSON.parse(treeResponse.content)
+      knowledgeTree = treeResponse.content
+    } catch (error) {
+      console.warn('[submit-user-answer] Knowledge tree generation failed, using fallback:', error)
+      knowledgeTree = JSON.stringify({
+        category: session.category,
+        domain_path: [session.category],
+        confirmed_facts: {},
+        narrowed_domain: `${session.category} category`,
+        logical_eliminations: [],
+        next_strategic_focus: "Continue systematic questioning"
+      })
+    }
+    
+    const systemPrompt = `You are playing 20 Questions to guess an item in the ${session.category} category.
+
+CORE RULE: Ask questions that eliminate about half the remaining possibilities.
+
+CRITICAL DOMAIN NARROWING RULE: 
+Use the structured knowledge tree below to understand your current domain constraints.
+Your next question MUST stay within the narrowed domain and further subdivide it.
+NEVER jump to unrelated properties outside the established domain.
+
+LOGICAL DEDUCTION - If you know:
+- "Is it a mammal?" = YES, then you know it's NOT a bird, reptile, or fish
+- "Is it living?" = YES, then you know it's NOT electronic, furniture, or objects
+- "Is it dead?" = YES, then you know it's NOT alive
+
+AVOID REDUNDANCY:
+- DON'T ask about facts already confirmed in the knowledge tree
+- DON'T ask compound questions like "Is it big or small?" - pick one
+
+KNOWLEDGE TREE (Structured facts from conversation):
+${knowledgeTree}
+
+Question ${totalQuestionsUsed + 1} of 20.
+
+TASK: Based on the knowledge tree above, ask your next strategic yes/no question that further narrows the domain. Focus on the "next_strategic_focus" guidance. Output ONLY the question.`
+
+    const userPrompt = `Based on the knowledge tree, ask your next optimal yes/no question that follows the strategic focus.`
 
     let llmResponse = await llmProvider.generateResponse({
       messages: [{ role: 'user', content: userPrompt }],
@@ -369,7 +381,8 @@ ${suggestedQuestion ? `\nRECOMMENDED: Use the suggested question above unless cl
           .from('games')
           .update({ 
             questions_asked: questionsCountedForLimit,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            knowledge_tree: JSON.parse(knowledgeTree)
           })
           .eq('id', session_id)
       ]);

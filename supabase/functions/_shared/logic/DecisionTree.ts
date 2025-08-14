@@ -31,11 +31,23 @@ export class DecisionTree {
     // Generate decision tree nodes for potential questions
     const candidateNodes = this.generateCandidateQuestions(category, facts, possibilitySpace)
     
-    // Filter out already-asked questions
+    // Filter out already-asked questions and logically redundant questions
     const askedQuestions = conversationHistory.map(h => h.question.toLowerCase())
-    const unaskedNodes = candidateNodes.filter(node => 
-      !askedQuestions.some(asked => this.questionsAreSimilar(asked, node.question.toLowerCase()))
-    )
+    const unaskedNodes = candidateNodes.filter(node => {
+      const nodeQ = node.question.toLowerCase()
+      
+      // Skip if already asked
+      if (askedQuestions.some(asked => this.questionsAreSimilar(asked, nodeQ))) {
+        return false
+      }
+      
+      // Skip if answer is logically deducible from previous answers
+      if (this.isQuestionRedundant(nodeQ, facts)) {
+        return false
+      }
+      
+      return true
+    })
     
     if (unaskedNodes.length === 0) {
       // Fallback to generic exploration
@@ -351,8 +363,15 @@ export class DecisionTree {
   }
   
   private static makeEducatedGuess(space: PossibilitySpace): string {
+    // If no items remain due to over-elimination, ask a broader question
     if (space.remaining.length === 0) {
-      return "Is it something I haven't considered yet?"
+      const fallbackQuestions = [
+        "Does it have any unique characteristics I should know about?",
+        "Is it from a specific region or time period?",
+        "Does it have multiple forms or variations?",
+        "Is it commonly associated with a particular group or activity?"
+      ]
+      return fallbackQuestions[Math.floor(Math.random() * fallbackQuestions.length)]
     }
     
     // Pick the item with highest confidence score
@@ -407,25 +426,151 @@ export class DecisionTree {
   }
   
   private static extractFactsFromHistory(history: Array<{question: string, answer: string}>): Record<string, any> {
-    const facts: Record<string, any> = {}
+    const facts: Record<string, any> = {
+      confirmedYes: new Set<string>(),
+      confirmedNo: new Set<string>(),
+      deducedFacts: new Set<string>()
+    }
     
     history.forEach(({question, answer}) => {
-      const q = question.toLowerCase()
-      const a = answer.toLowerCase()
+      const q = question.toLowerCase().trim()
+      const a = answer.toLowerCase().trim()
+      const isYes = a.startsWith('y') || a === 'yes' || a.includes('yeah') || a.includes('yep')
+      const isNo = a.startsWith('n') || a === 'no' || a.includes('nope')
       
-      // Extract categories of information
+      if (isYes) {
+        facts.confirmedYes.add(q)
+        // Add logical deductions
+        this.addLogicalDeductions(q, true, facts)
+      } else if (isNo) {
+        facts.confirmedNo.add(q)
+        // Add logical deductions
+        this.addLogicalDeductions(q, false, facts)
+      }
+      
+      // Extract specific categories of information
       if (q.includes('mammal') || q.includes('bird') || q.includes('reptile')) {
-        facts.taxonomic_class = a.startsWith('y') ? this.extractClass(q) : 'other'
+        facts.taxonomic_class = isYes ? this.extractClass(q) : 'other'
       }
       if (q.includes('water') || q.includes('land') || q.includes('wild')) {
-        facts.habitat = a.startsWith('y') ? this.extractHabitat(q) : 'other'
+        facts.habitat = isYes ? this.extractHabitat(q) : 'other'
       }
       if (q.includes('large') || q.includes('small') || q.includes('hold')) {
-        facts.size = a.startsWith('y') ? this.extractSize(q) : 'other'
+        facts.size = isYes ? this.extractSize(q) : 'other'
+      }
+      if (q.includes('living') || q.includes('alive')) {
+        facts.living_status = isYes ? 'living' : 'non-living'
+      }
+      if (q.includes('electronic')) {
+        facts.electronic = isYes ? 'yes' : 'no'
+      }
+      if (q.includes('edible') || q.includes('eat')) {
+        facts.edible = isYes ? 'yes' : 'no'
       }
     })
     
     return facts
+  }
+  
+  private static addLogicalDeductions(question: string, answer: boolean, facts: Record<string, any>): void {
+    const q = question.toLowerCase()
+    
+    if (answer) {
+      // Positive deductions
+      if (q.includes('mammal')) {
+        facts.deducedFacts.add('is an animal')
+        facts.deducedFacts.add('is living')
+        facts.deducedFacts.add('is not a bird')
+        facts.deducedFacts.add('is not a reptile')
+        facts.deducedFacts.add('is not a fish')
+      }
+      if (q.includes('bird')) {
+        facts.deducedFacts.add('is an animal')
+        facts.deducedFacts.add('is living')
+        facts.deducedFacts.add('is not a mammal')
+        facts.deducedFacts.add('is not a reptile')
+        facts.deducedFacts.add('is not a fish')
+      }
+      if (q.includes('living') || q.includes('alive')) {
+        facts.deducedFacts.add('is not an object')
+        facts.deducedFacts.add('is not electronic')
+        facts.deducedFacts.add('is not furniture')
+        facts.deducedFacts.add('is not a tool')
+      }
+      if (q.includes('electronic')) {
+        facts.deducedFacts.add('is not living')
+        facts.deducedFacts.add('is man-made')
+        facts.deducedFacts.add('is not edible')
+      }
+      if (q.includes('dead')) {
+        facts.deducedFacts.add('is not alive')
+        facts.deducedFacts.add('was once living')
+      }
+    } else {
+      // Negative deductions
+      if (q.includes('mammal')) {
+        // If not a mammal, could still be another type of animal
+        // Don't make too strong assumptions
+      }
+      if (q.includes('living') || q.includes('alive')) {
+        facts.deducedFacts.add('is not an animal')
+        facts.deducedFacts.add('is not a plant')
+        facts.deducedFacts.add('is not dead')
+      }
+      if (q.includes('dead')) {
+        facts.deducedFacts.add('is alive')
+      }
+    }
+  }
+  
+  private static isQuestionRedundant(question: string, facts: Record<string, any>): boolean {
+    const q = question.toLowerCase()
+    const confirmedYes = facts.confirmedYes || new Set()
+    const confirmedNo = facts.confirmedNo || new Set()
+    const deducedFacts = facts.deducedFacts || new Set()
+    
+    // Check if we can deduce the answer from confirmed facts
+    if (q.includes('alive') || q.includes('living')) {
+      if (deducedFacts.has('is living') || confirmedYes.has('is it living') || confirmedYes.has('is it alive')) return true
+      if (deducedFacts.has('is not living') || confirmedNo.has('is it living') || confirmedNo.has('is it alive')) return true
+    }
+    
+    if (q.includes('dead')) {
+      if (deducedFacts.has('is not alive') || deducedFacts.has('is alive')) return true
+      if (confirmedYes.has('is it alive') || confirmedNo.has('is it alive')) return true
+    }
+    
+    if (q.includes('animal')) {
+      if (deducedFacts.has('is an animal') || deducedFacts.has('is not an animal')) return true
+      if (confirmedYes.has('is it a mammal') || confirmedYes.has('is it a bird')) return true
+    }
+    
+    if (q.includes('mammal')) {
+      if (deducedFacts.has('is not a mammal')) return true
+      if (confirmedYes.has('is it a bird') || confirmedYes.has('is it a reptile') || confirmedYes.has('is it a fish')) return true
+    }
+    
+    if (q.includes('bird')) {
+      if (deducedFacts.has('is not a bird')) return true
+      if (confirmedYes.has('is it a mammal') || confirmedYes.has('is it a reptile') || confirmedYes.has('is it a fish')) return true
+    }
+    
+    if (q.includes('electronic')) {
+      if (deducedFacts.has('is not electronic') || deducedFacts.has('is electronic')) return true
+      if (confirmedYes.has('is it living') || confirmedYes.has('is it alive')) return true
+    }
+    
+    // Check for contradictory combinations
+    if (q.includes('or')) {
+      // Questions like "Is it dead or alive?" are redundant if we know living status
+      if ((q.includes('dead') && q.includes('alive')) && 
+          (deducedFacts.has('is living') || deducedFacts.has('is not living') || 
+           confirmedYes.has('is it living') || confirmedNo.has('is it living'))) {
+        return true
+      }
+    }
+    
+    return false
   }
   
   private static extractClass(question: string): string {
@@ -453,14 +598,14 @@ export class DecisionTree {
     allItems: string[]
   ): PossibilitySpace {
     
-    // For now, use all items as remaining - in practice would filter based on facts
-    const remaining = allItems.slice()
-    const eliminated: string[] = []
+    // Actually filter items based on confirmed facts
+    const remaining = allItems.filter(item => !this.isItemEliminated(item, facts, category))
+    const eliminated = allItems.filter(item => this.isItemEliminated(item, facts, category))
     const confidence_scores: Record<string, number> = {}
     
-    // Assign confidence scores (simplified)
+    // Calculate confidence scores based on how well items match the facts
     remaining.forEach(item => {
-      confidence_scores[item] = Math.random() * 0.3 + 0.7 // 0.7 to 1.0 range
+      confidence_scores[item] = this.calculateItemConfidence(item, facts, category)
     })
     
     return {
@@ -470,5 +615,38 @@ export class DecisionTree {
       confidence_scores,
       category
     }
+  }
+  
+  private static isItemEliminated(item: string, facts: Record<string, any>, category: string): boolean {
+    const itemLower = item.toLowerCase()
+    const confirmedYes = facts.confirmedYes || new Set()
+    const confirmedNo = facts.confirmedNo || new Set()
+    const deducedFacts = facts.deducedFacts || new Set()
+    
+    // Category-specific elimination logic
+    switch (category.toLowerCase()) {
+      case 'animals':
+        return this.isAnimalEliminated(itemLower, facts, confirmedYes, confirmedNo, deducedFacts)
+      case 'food':
+        return this.isFoodEliminated(itemLower, facts, confirmedYes, confirmedNo, deducedFacts)
+      case 'objects':
+        return this.isObjectEliminated(itemLower, facts, confirmedYes, confirmedNo, deducedFacts)
+      case 'cricketers':
+        return this.isCricketerEliminated(itemLower, facts, confirmedYes, confirmedNo, deducedFacts)
+      default:
+        return false
+    }
+  }
+  
+  private static calculateItemConfidence(item: string, facts: Record<string, any>, category: string): number {
+    // Base confidence
+    let confidence = 0.8
+    
+    // Adjust based on how well the item matches confirmed facts
+    const confirmedYes = facts.confirmedYes || new Set()
+    const confirmedNo = facts.confirmedNo || new Set()
+    
+    // This is a simplified approach - in practice you'd need extensive domain knowledge
+    return Math.max(0.1, Math.min(1.0, confidence))
   }
 }
