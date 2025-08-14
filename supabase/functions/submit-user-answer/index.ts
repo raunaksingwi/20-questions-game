@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { SubmitUserAnswerRequest, SubmitUserAnswerResponse, isValidUUID, isValidString, isValidAnswerType } from '../../../shared/types.ts'
 import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
+import { DecisionTree } from '../_shared/logic/DecisionTree.ts'
+import { AIQuestioningTemplateFactory } from '../_shared/prompts/AIQuestioningTemplate.ts'
 
 // Initialize shared Supabase client
 const supabase = EdgeFunctionBase.initialize()
@@ -39,7 +41,7 @@ const handler = async (req: Request) => {
     // Get session data and conversation history
     const { data: session, error: sessionError } = await supabase
       .from('games')
-      .select('id, category, questions_asked, status, knowledge_tree')
+      .select('id, category, questions_asked, status')
       .eq('id', session_id)
       .eq('mode', 'ai_guessing')
       .single()
@@ -117,18 +119,6 @@ const handler = async (req: Request) => {
     const llmStart = Date.now()
     const llmProvider = EdgeFunctionBase.getLLMProvider('submit-user-answer')
     
-    // Build conversation context
-    let conversationContext = `Previous conversation:\n`
-    messages.forEach(msg => {
-      if (msg.role === 'assistant' && msg.question_number > 0) {
-        conversationContext += `Q${msg.question_number}: ${msg.content}\n`
-      } else if (msg.role === 'user' && msg.question_number > 0) {
-        conversationContext += `A${msg.question_number}: ${msg.content}\n`
-      }
-    })
-    
-    // Add current answer
-    conversationContext += `A${currentQuestionNumber}: ${answer}\n`
 
     // Build categorized summary (Yes / No / Maybe-Unknown)
     const questionsByNumber: Record<number, string> = {}
@@ -207,6 +197,24 @@ const handler = async (req: Request) => {
       })
     }
     
+    // Add explicit question repetition prevention
+    const allAskedQuestions: string[] = []
+    Object.keys(questionsByNumber)
+      .map(k => Number(k))
+      .sort((a, b) => a - b)
+      .forEach(n => {
+        const q = questionsByNumber[n]
+        if (q) allAskedQuestions.push(q)
+      })
+
+    if (allAskedQuestions.length > 0) {
+      categorizedSummary += '\n🚫 ALREADY ASKED QUESTIONS - DO NOT REPEAT THESE EXACT QUESTIONS:\n'
+      allAskedQuestions.forEach((q, index) => {
+        categorizedSummary += `  ${index + 1}. ${q}\n`
+      })
+      categorizedSummary += 'CRITICAL: You must ask a NEW question that has never been asked before!\n'
+    }
+
     // Add logical deduction helper and domain constraints
     if (yesFacts.length >= 2) {
       categorizedSummary += '\n⚠️  REDUNDANCY CHECK: The item already has ALL of these properties confirmed as TRUE.\n'
@@ -231,73 +239,73 @@ const handler = async (req: Request) => {
     const totalQuestionsUsed = questionsCountedForLimit
     const yesNoFactsCount = yesFacts.length + noFacts.length
     
-    // Generate/update knowledge tree instead of using raw conversation history
-    const existingTree = session.knowledge_tree || {}
-    const knowledgeTreePrompt = `Update this knowledge tree based on the latest Q&A in the 20 questions game.
-
-CATEGORY: ${session.category}
-CURRENT ANSWER: ${answer}
-LAST QUESTION: ${messages.filter(m => m.role === 'assistant').pop()?.content || ''}
-
-EXISTING KNOWLEDGE TREE:
-${JSON.stringify(existingTree, null, 2)}
-
-ALL Q&A HISTORY (for context):
-${conversationContext}
-
-Update the JSON knowledge tree with this structure:
-{
-  "category": "${session.category}",
-  "domain_path": ["General Category", "Subcategory", "Specific Domain"],
-  "confirmed_facts": {
-    "attribute_group_1": {
-      "yes": ["confirmed true facts"],
-      "no": ["confirmed false facts"], 
-      "maybe": ["uncertain/sometimes facts"],
-      "unknown": ["don't know responses"]
-    },
-    "attribute_group_2": { ... }
-  },
-  "narrowed_domain": "Current specific domain description",
-  "logical_eliminations": ["What has been ruled out"],
-  "next_strategic_focus": "What domain aspect to explore next"
-}
-
-Group facts by logical categories (geography, size, material, role, era, etc). 
-Output ONLY the JSON - no explanations.`
-
-    // Generate knowledge tree
-    const treeResponse = await llmProvider.generateResponse({
-      messages: [{ role: 'user', content: knowledgeTreePrompt }],
-      systemPrompt: 'You are a structured data expert. Create precise, logical knowledge trees.',
-      temperature: 0.1,
-      maxTokens: 800
+    // Use simplified decision tree approach
+    const conversationHistory = messages.map(m => ({
+      question: m.role === 'assistant' ? m.content : '',
+      answer: m.role === 'user' ? m.content : ''
+    })).filter(item => item.question && item.answer)
+    
+    // Add the current answer to history
+    conversationHistory.push({
+      question: messages.filter(m => m.role === 'assistant').pop()?.content || '',
+      answer: answer
     })
-    let knowledgeTree = ''
-    try {
-      // Validate it's valid JSON
-      JSON.parse(treeResponse.content)
-      knowledgeTree = treeResponse.content
-    } catch (error) {
-      console.warn('[submit-user-answer] Knowledge tree generation failed, using fallback:', error)
-      knowledgeTree = JSON.stringify({
-        category: session.category,
-        domain_path: [session.category],
-        confirmed_facts: {},
-        narrowed_domain: `${session.category} category`,
-        logical_eliminations: [],
-        next_strategic_focus: "Continue systematic questioning"
-      })
+    
+    // Build conversation context for the AI questioning template
+    let conversationContext = `Previous conversation:\n`
+    messages.forEach(msg => {
+      if (msg.role === 'assistant' && msg.question_number > 0) {
+        conversationContext += `Q${msg.question_number}: ${msg.content}\n`
+      } else if (msg.role === 'user' && msg.question_number > 0) {
+        conversationContext += `A${msg.question_number}: ${msg.content}\n`
+      }
+    })
+    
+    // Add current answer
+    conversationContext += `A${currentQuestionNumber}: ${answer}\n`
+
+    // Get category items for decision tree
+    const getCategoryItems = (category: string): string[] => {
+      switch (category.toLowerCase()) {
+        case 'animals': return ['dog', 'cat', 'elephant', 'lion', 'penguin', 'dolphin', 'eagle', 'snake', 'tiger', 'bear', 'rabbit', 'horse', 'cow', 'sheep', 'pig', 'chicken', 'duck', 'fish', 'shark', 'whale']
+        case 'objects': return ['chair', 'computer', 'phone', 'book', 'car', 'bicycle', 'television', 'lamp', 'table', 'pen', 'pencil', 'watch', 'camera', 'guitar', 'piano', 'mirror', 'clock', 'scissors', 'hammer', 'screwdriver']
+        case 'cricket players': return ['Virat Kohli', 'MS Dhoni', 'Rohit Sharma', 'Joe Root', 'Steve Smith', 'Kane Williamson', 'Babar Azam', 'AB de Villiers', 'Chris Gayle', 'David Warner', 'Ben Stokes', 'Jasprit Bumrah', 'Pat Cummins', 'Rashid Khan', 'Trent Boult']
+        case 'football players': return ['Tom Brady', 'Patrick Mahomes', 'Aaron Rodgers', 'Josh Allen', 'Lamar Jackson', 'Russell Wilson', 'Dak Prescott', 'Justin Herbert', 'Joe Burrow', 'Derrick Henry', 'Christian McCaffrey', 'Cooper Kupp', 'Davante Adams', 'Travis Kelce', 'Aaron Donald']
+        case 'world leaders': return [] // Will be handled by strategic questions above
+        case 'nba players': return [] // Add if needed
+        default: return []
+      }
     }
     
-    const systemPrompt = `You are playing 20 Questions to guess an item in the ${session.category} category.
+    const categoryItems = getCategoryItems(session.category)
+    
+    let suggestedQuestion: string
+    try {
+      // Use decision tree logic to get optimal question
+      suggestedQuestion = DecisionTree.generateOptimalQuestion(
+        session.category,
+        conversationHistory,
+        categoryItems
+      )
+    } catch (error) {
+      console.warn('[submit-user-answer] Decision tree failed, using fallback:', error)
+      suggestedQuestion = '' // Will fall back to LLM generation
+    }
+    
+    // Use the AI questioning template system
+    const aiQuestioningTemplate = AIQuestioningTemplateFactory.createTemplate(session.category)
+    const systemPrompt = aiQuestioningTemplate.generate(
+      totalQuestionsUsed,
+      conversationContext,
+      allAskedQuestions
+    )
+    
+    // Add the categorized summary for additional context
+    const enhancedSystemPrompt = `${systemPrompt}
 
-CORE RULE: Ask questions that eliminate about half the remaining possibilities.
+${categorizedSummary}
 
-CRITICAL DOMAIN NARROWING RULE: 
-Use the structured knowledge tree below to understand your current domain constraints.
-Your next question MUST stay within the narrowed domain and further subdivide it.
-NEVER jump to unrelated properties outside the established domain.
+${suggestedQuestion ? `RECOMMENDED QUESTION: "${suggestedQuestion}"\nThis question was suggested by decision tree analysis for optimal information gain.\nUse this question unless it's clearly redundant with what you already know.` : ''}
 
 LOGICAL DEDUCTION - If you know:
 - "Is it a mammal?" = YES, then you know it's NOT a bird, reptile, or fish
@@ -305,22 +313,20 @@ LOGICAL DEDUCTION - If you know:
 - "Is it dead?" = YES, then you know it's NOT alive
 
 AVOID REDUNDANCY:
-- DON'T ask about facts already confirmed in the knowledge tree
+- DON'T ask "Is it a bird?" if they already said YES to "Is it a mammal?"
+- DON'T ask "Is it alive?" if they already answered about being dead
 - DON'T ask compound questions like "Is it big or small?" - pick one
 
-KNOWLEDGE TREE (Structured facts from conversation):
-${knowledgeTree}
+Ask your next strategic yes/no question. Output ONLY the question.`
 
-Question ${totalQuestionsUsed + 1} of 20.
-
-TASK: Based on the knowledge tree above, ask your next strategic yes/no question that further narrows the domain. Focus on the "next_strategic_focus" guidance. Output ONLY the question.`
-
-    const userPrompt = `Based on the knowledge tree, ask your next optimal yes/no question that follows the strategic focus.`
+    const userPrompt = suggestedQuestion 
+      ? `Use the recommended question "${suggestedQuestion}" unless it's clearly redundant. Otherwise, ask your next strategic yes/no question.`
+      : `Ask your next strategic yes/no question that eliminates about half the remaining possibilities.`
 
     let llmResponse = await llmProvider.generateResponse({
       messages: [{ role: 'user', content: userPrompt }],
-      systemPrompt: systemPrompt,
-      temperature: 0.05, // Reduced for more deterministic behavior
+      systemPrompt: enhancedSystemPrompt,
+      temperature: 0.1, // Slightly higher for variety while maintaining consistency
       maxTokens: 100 // Reduced since we want just the question
     })
     let nextQuestion = llmResponse.content
@@ -336,17 +342,64 @@ TASK: Based on the knowledge tree above, ask your next strategic yes/no question
     
     const hasInvalidFormat = invalidPatterns.some(pattern => pattern.test(nextQuestion))
     
-    if (hasInvalidFormat) {
-      const correctiveSystemPrompt = `${systemPrompt}\n\nIMPORTANT: Your previous question had an invalid format. Questions must be simple YES/NO format only. Never use "or", never present multiple options. Regenerate as a simple, single-property yes/no question.`
-      const correctiveUserPrompt = `Regenerate as a proper yes/no question without "or" or multiple options.`
+    // Check for question repetition with robust similarity detection
+    const normalizeQuestion = (q: string) => {
+      return q.toLowerCase()
+        .trim()
+        .replace(/[^\w\s]/g, '') // Remove punctuation
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim()
+    }
+    
+    const normalizedNextQuestion = normalizeQuestion(nextQuestion)
+    const isRepeatedQuestion = allAskedQuestions.some(existingQ => {
+      const normalizedExisting = normalizeQuestion(existingQ)
+      
+      // Exact match after normalization
+      if (normalizedExisting === normalizedNextQuestion) {
+        console.log(`[submit-user-answer] Exact repetition detected: "${existingQ}" vs "${nextQuestion}"`)
+        return true
+      }
+      
+      // High similarity match (90%+ similar for very similar questions)
+      const similarity = calculateSimilarity(normalizedExisting, normalizedNextQuestion)
+      if (similarity > 0.9) {
+        console.log(`[submit-user-answer] High similarity repetition detected (${Math.round(similarity * 100)}%): "${existingQ}" vs "${nextQuestion}"`)
+        return true
+      }
+      
+      return false
+    })
+    
+    // Simple similarity calculation using word overlap
+    function calculateSimilarity(str1: string, str2: string): number {
+      const words1 = new Set(str1.split(' ').filter(w => w.length > 2)) // Ignore short words
+      const words2 = new Set(str2.split(' ').filter(w => w.length > 2))
+      
+      const intersection = new Set([...words1].filter(w => words2.has(w)))
+      const union = new Set([...words1, ...words2])
+      
+      return union.size > 0 ? intersection.size / union.size : 0
+    }
+    
+    if (hasInvalidFormat || isRepeatedQuestion) {
+      const issueType = isRepeatedQuestion ? 'repeated question' : 'invalid format'
+      console.log(`[submit-user-answer] Detected ${issueType}: "${nextQuestion}"`)
+      
+      const correctiveSystemPrompt = `${enhancedSystemPrompt}\n\nIMPORTANT: Your previous question had an issue (${issueType}). ${isRepeatedQuestion ? 'You repeated a question that was already asked. You must ask a completely new and different question.' : 'Questions must be simple YES/NO format only. Never use "or", never present multiple options.'} Regenerate as a simple, single-property yes/no question that has never been asked before.`
+      
+      const correctiveUserPrompt = isRepeatedQuestion 
+        ? `You repeated a question. Generate a completely NEW yes/no question that has never been asked before.`
+        : `Regenerate as a proper yes/no question without "or" or multiple options.`
+        
       llmResponse = await llmProvider.generateResponse({
         messages: [{ role: 'user', content: correctiveUserPrompt }],
         systemPrompt: correctiveSystemPrompt,
-        temperature: 0.1,
+        temperature: 0.2, // Slightly higher for more variety
         maxTokens: 100
       })
       nextQuestion = llmResponse.content
-      console.log(`[submit-user-answer] Corrected invalid question format: "${nextQuestion}"`)
+      console.log(`[submit-user-answer] Corrected ${issueType}: "${nextQuestion}"`)
     }
     
     // Removed guess validation - LLM can guess whenever it wants, user controls wins via button
@@ -381,8 +434,7 @@ TASK: Based on the knowledge tree above, ask your next strategic yes/no question
           .from('games')
           .update({ 
             questions_asked: questionsCountedForLimit,
-            updated_at: new Date().toISOString(),
-            knowledge_tree: JSON.parse(knowledgeTree)
+            updated_at: new Date().toISOString()
           })
           .eq('id', session_id)
       ]);
