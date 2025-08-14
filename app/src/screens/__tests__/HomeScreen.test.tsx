@@ -1,5 +1,10 @@
 // Mock the shared types module first
-jest.mock('../../types/types', () => ({}));
+jest.mock('../../../shared/types', () => ({
+  GameMode: {
+    USER_GUESSING: 'user_guessing',
+    AI_GUESSING: 'ai_guessing'
+  }
+}));
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';

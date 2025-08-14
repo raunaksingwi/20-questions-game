@@ -2,7 +2,12 @@ import React from 'react';
 import { render, waitFor, act } from '@testing-library/react-native';
 
 // Mock all the dependencies
-jest.mock('../types/types', () => ({}));
+jest.mock('../../../shared/types', () => ({
+  GameMode: {
+    USER_GUESSING: 'user_guessing',
+    AI_GUESSING: 'ai_guessing'
+  }
+}));
 
 jest.mock('../../services/AudioManager', () => ({
   audioManager: {

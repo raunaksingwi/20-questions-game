@@ -8,7 +8,12 @@ jest.mock('react-native', () => ({
   },
 }));
 
-jest.mock('../../types/types', () => ({}));
+jest.mock('../../../shared/types', () => ({
+  GameMode: {
+    USER_GUESSING: 'user_guessing',
+    AI_GUESSING: 'ai_guessing'
+  }
+}));
 
 jest.mock('../useGameState', () => ({
   GameState: {},
@@ -502,7 +507,7 @@ describe('useGameActions', () => {
   });
 
   describe('submitUserAnswer (Think Mode)', () => {
-    const thinkModeState = { ...defaultState, mode: 'think' as const };
+    const thinkModeState = { ...defaultState, mode: 'ai_guessing' as const };
 
     it('successfully submits user answer and gets next question', async () => {
       const mockResponse = {
@@ -561,7 +566,7 @@ describe('useGameActions', () => {
       const mockResponse = {
         next_question: null,
         questions_asked: 20,
-        game_status: 'won' as const,
+        game_status: 'lost' as const,
         final_message: 'I couldn\'t guess it! You win!'
       };
 
@@ -625,7 +630,7 @@ describe('useGameActions', () => {
   });
 
   describe('handleWin (Think Mode)', () => {
-    const thinkModeState = { ...defaultState, mode: 'think' as const };
+    const thinkModeState = { ...defaultState, mode: 'ai_guessing' as const };
 
     it('successfully handles WIN button press', async () => {
       const mockResponse = {
@@ -727,7 +732,7 @@ describe('useGameActions', () => {
 
   describe('Think Mode quit handling', () => {
     it('handles quit in Think mode correctly', async () => {
-      const thinkModeState = { ...defaultState, mode: 'think' as const };
+      const thinkModeState = { ...defaultState, mode: 'ai_guessing' as const };
 
       const { result } = renderHook(() => useGameActions(thinkModeState, defaultActions));
 
