@@ -38,3 +38,9 @@ yarn-error.*
 
 # react
 coverage/*
+
+# Build outputs
+/builds/
+ios/
+android/
+*.keystore
