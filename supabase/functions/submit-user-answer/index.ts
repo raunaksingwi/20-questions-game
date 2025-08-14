@@ -221,6 +221,29 @@ const handler = async (req: Request) => {
       categorizedSummary += 'Do NOT ask about combinations of these confirmed properties.\n'
     }
     
+    // Special handling for uncertain responses
+    const hasRecentUncertain = unknownFacts.some(fact => 
+      fact.n === currentQuestionNumber || fact.n === currentQuestionNumber - 1
+    )
+    
+    if (hasRecentUncertain) {
+      categorizedSummary += '\n⚠️  UNCERTAIN RESPONSE DETECTED:\n'
+      categorizedSummary += 'The user just gave an uncertain answer (Maybe/Don\'t know/Sometimes).\n'
+      categorizedSummary += 'CRITICAL: Ask a completely DIFFERENT type of concrete question that they CAN answer definitively.\n'
+      categorizedSummary += 'Move to a different aspect entirely - don\'t ask similar or vague questions.\n'
+      categorizedSummary += '\n✅ CONCRETE PIVOT EXAMPLES:\n'
+      categorizedSummary += '- If uncertain about era → pivot to geography: "Are they from Europe?"\n'
+      categorizedSummary += '- If uncertain about region → pivot to role: "Were they a president?"\n'
+      categorizedSummary += '- If uncertain about characteristics → pivot to time: "Are they still alive?"\n'
+      categorizedSummary += '- If uncertain about role → pivot to gender: "Are they male?"\n'
+      categorizedSummary += '\n❌ NEVER DO THESE AFTER UNCERTAIN RESPONSES:\n'
+      categorizedSummary += '- "Does it have unique characteristics?" (vague)\n'
+      categorizedSummary += '- "Is it from a specific region?" (vague)\n'
+      categorizedSummary += '- "Does it have multiple forms?" (vague)\n'
+      categorizedSummary += '- Ask the same type of question again\n'
+      categorizedSummary += '\nSTRATEGY: Change topic to something concrete and binary!\n'
+    }
+
     // Add domain constraint analysis instruction
     if (yesFacts.length > 0 || noFacts.length > 0) {
       categorizedSummary += '\n🎯 DOMAIN NARROWING ANALYSIS:\n'
@@ -317,6 +340,19 @@ AVOID REDUNDANCY:
 - DON'T ask "Is it alive?" if they already answered about being dead
 - DON'T ask compound questions like "Is it big or small?" - pick one
 
+🚫 NEVER ASK VAGUE QUESTIONS:
+- "Does it have unique characteristics?" → Ask "Are they male?" instead
+- "Is it from a specific region?" → Ask "Are they from Europe?" instead  
+- "Does it have multiple forms?" → Ask "Were they both military and political?" instead
+- "Is it from a time period?" → Ask "Did they serve before 1990?" instead
+- "Does it have notable aspects?" → Ask "Did they win a war?" instead
+
+✅ ALWAYS ASK CONCRETE, SPECIFIC QUESTIONS:
+- Geographic: "Are they from Asia?", "Did they lead Germany?"
+- Temporal: "Did they serve before 1990?", "Were they active in the 2000s?"
+- Demographic: "Are they male?", "Are they still alive?"
+- Functional: "Were they a president?", "Did they win a Nobel Prize?"
+
 Ask your next strategic yes/no question. Output ONLY the question.`
 
     const userPrompt = suggestedQuestion 
@@ -331,7 +367,7 @@ Ask your next strategic yes/no question. Output ONLY the question.`
     })
     let nextQuestion = llmResponse.content
     
-    // Check for invalid question formats (multiple choice, contradictory structure)
+    // Check for invalid question formats (multiple choice, contradictory structure, vague questions)
     const invalidPatterns = [
       /\bor\b/i,  // Contains "or" 
       /\ba or b\b/i, // Direct A or B pattern
@@ -340,15 +376,85 @@ Ask your next strategic yes/no question. Output ONLY the question.`
       /\?.*\?/  // Multiple question marks
     ]
     
-    const hasInvalidFormat = invalidPatterns.some(pattern => pattern.test(nextQuestion))
+    // Check for vague question patterns that should be avoided
+    const vaguePatterns = [
+      /unique characteristics/i,
+      /special characteristics/i,
+      /multiple forms/i,
+      /variations/i,
+      /specific region or time period/i,
+      /specific region/i,
+      /time period/i,
+      /notable aspects/i,
+      /particular qualities/i,
+      /distinctive features/i,
+      /any unique/i,
+      /any special/i,
+      /any notable/i,
+      /specific attributes/i,
+      /distinguishing features/i,
+      /remarkable/i,
+      /anything unique/i,
+      /anything special/i,
+      /anything notable/i,
+      /specific details/i,
+      /particular details/i
+    ]
     
-    // Check for question repetition with robust similarity detection
+    const hasInvalidFormat = invalidPatterns.some(pattern => pattern.test(nextQuestion))
+    const isVagueQuestion = vaguePatterns.some(pattern => pattern.test(nextQuestion))
+    
+    // Enhanced question repetition detection with semantic similarity
     const normalizeQuestion = (q: string) => {
       return q.toLowerCase()
         .trim()
         .replace(/[^\w\s]/g, '') // Remove punctuation
         .replace(/\s+/g, ' ') // Normalize whitespace
+        .replace(/\b(is|it|a|an|the|does|do|can|will|would|are|they|have|has|did|was|were)\b/g, '') // Remove common question words
+        .replace(/\s+/g, ' ')
         .trim()
+    }
+    
+    // Enhanced similarity calculation with semantic understanding
+    function calculateSimilarity(str1: string, str2: string): number {
+      const words1 = new Set(str1.split(' ').filter(w => w.length > 2)) // Ignore short words
+      const words2 = new Set(str2.split(' ').filter(w => w.length > 2))
+      
+      const intersection = new Set([...words1].filter(w => words2.has(w)))
+      const union = new Set([...words1, ...words2])
+      
+      return union.size > 0 ? intersection.size / union.size : 0
+    }
+    
+    // Semantic similarity check for questions that ask about the same concept
+    function areQuestionsSemanticallySimilar(q1: string, q2: string): boolean {
+      const semanticGroups = [
+        ['size', 'big', 'large', 'small', 'tiny', 'huge'],
+        ['alive', 'living', 'life', 'dead', 'deceased'],
+        ['male', 'female', 'man', 'woman', 'gender'],
+        ['country', 'nation', 'nationality', 'from'],
+        ['president', 'leader', 'prime minister', 'head'],
+        ['time', 'era', 'period', 'century', 'decade', 'when'],
+        ['color', 'coloured', 'colored'],
+        ['electronic', 'digital', 'technology', 'tech'],
+        ['mammal', 'animal', 'creature', 'species'],
+        ['food', 'eat', 'edible', 'consume'],
+        ['house', 'home', 'domestic', 'household'],
+        ['region', 'area', 'place', 'location', 'where']
+      ]
+      
+      const q1Lower = q1.toLowerCase()
+      const q2Lower = q2.toLowerCase()
+      
+      for (const group of semanticGroups) {
+        const q1HasGroup = group.some(word => q1Lower.includes(word))
+        const q2HasGroup = group.some(word => q2Lower.includes(word))
+        if (q1HasGroup && q2HasGroup) {
+          return true
+        }
+      }
+      
+      return false
     }
     
     const normalizedNextQuestion = normalizeQuestion(nextQuestion)
@@ -361,36 +467,49 @@ Ask your next strategic yes/no question. Output ONLY the question.`
         return true
       }
       
-      // High similarity match (90%+ similar for very similar questions)
+      // High similarity match (lowered threshold to 75% for better detection)
       const similarity = calculateSimilarity(normalizedExisting, normalizedNextQuestion)
-      if (similarity > 0.9) {
+      if (similarity > 0.75) {
         console.log(`[submit-user-answer] High similarity repetition detected (${Math.round(similarity * 100)}%): "${existingQ}" vs "${nextQuestion}"`)
+        return true
+      }
+      
+      // Semantic similarity check
+      if (areQuestionsSemanticallySimilar(existingQ, nextQuestion)) {
+        console.log(`[submit-user-answer] Semantic repetition detected: "${existingQ}" vs "${nextQuestion}"`)
         return true
       }
       
       return false
     })
     
-    // Simple similarity calculation using word overlap
-    function calculateSimilarity(str1: string, str2: string): number {
-      const words1 = new Set(str1.split(' ').filter(w => w.length > 2)) // Ignore short words
-      const words2 = new Set(str2.split(' ').filter(w => w.length > 2))
+    if (hasInvalidFormat || isRepeatedQuestion || isVagueQuestion) {
+      let issueType = 'invalid format'
+      if (isRepeatedQuestion) issueType = 'repeated question'
+      else if (isVagueQuestion) issueType = 'vague question'
       
-      const intersection = new Set([...words1].filter(w => words2.has(w)))
-      const union = new Set([...words1, ...words2])
-      
-      return union.size > 0 ? intersection.size / union.size : 0
-    }
-    
-    if (hasInvalidFormat || isRepeatedQuestion) {
-      const issueType = isRepeatedQuestion ? 'repeated question' : 'invalid format'
       console.log(`[submit-user-answer] Detected ${issueType}: "${nextQuestion}"`)
       
-      const correctiveSystemPrompt = `${enhancedSystemPrompt}\n\nIMPORTANT: Your previous question had an issue (${issueType}). ${isRepeatedQuestion ? 'You repeated a question that was already asked. You must ask a completely new and different question.' : 'Questions must be simple YES/NO format only. Never use "or", never present multiple options.'} Regenerate as a simple, single-property yes/no question that has never been asked before.`
+      let correctiveInstructions = ''
+      let correctiveUserPrompt = ''
       
-      const correctiveUserPrompt = isRepeatedQuestion 
-        ? `You repeated a question. Generate a completely NEW yes/no question that has never been asked before.`
-        : `Regenerate as a proper yes/no question without "or" or multiple options.`
+      if (isRepeatedQuestion) {
+        correctiveInstructions = 'You repeated a question that was already asked. You must ask a completely new and different question.'
+        correctiveUserPrompt = 'You repeated a question. Generate a completely NEW yes/no question that has never been asked before.'
+      } else if (isVagueQuestion) {
+        correctiveInstructions = `You asked a VAGUE question: "${nextQuestion}". Vague questions are not allowed. You must ask CONCRETE, SPECIFIC yes/no questions that people can answer definitively.`
+        correctiveUserPrompt = `Your question was too VAGUE. Generate a CONCRETE, SPECIFIC yes/no question instead. For example:
+        ❌ VAGUE: "Does it have unique characteristics?"
+        ✅ CONCRETE: "Are they from Europe?"
+        ❌ VAGUE: "Is it from a specific region?"  
+        ✅ CONCRETE: "Are they from Asia?"
+        Generate a specific, concrete question now.`
+      } else {
+        correctiveInstructions = 'Questions must be simple YES/NO format only. Never use "or", never present multiple options.'
+        correctiveUserPrompt = 'Regenerate as a proper yes/no question without "or" or multiple options.'
+      }
+      
+      const correctiveSystemPrompt = `${enhancedSystemPrompt}\n\nIMPORTANT: Your previous question had an issue (${issueType}). ${correctiveInstructions} Regenerate as a simple, single-property yes/no question that has never been asked before.`
         
       llmResponse = await llmProvider.generateResponse({
         messages: [{ role: 'user', content: correctiveUserPrompt }],
