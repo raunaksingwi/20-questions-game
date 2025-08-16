@@ -25,6 +25,11 @@ This is a 20 Questions game application where players try to guess a secret item
 │   │   ├── services/      # API and Supabase clients
 │   │   └── types/         # App-specific types
 │   └── .env              # Environment variables (create from .env.example)
+├── docs/                   # Project documentation
+│   ├── BUILD_GUIDE.md     # Building and distribution guide
+│   ├── TESTING.md         # Testing setup and guidelines
+│   ├── DOCUMENTATION_STANDARDS.md  # Code documentation requirements
+│   └── TDD_STANDARDS.md   # Test-driven development requirements
 ├── supabase/
 │   ├── functions/         # Edge functions (game logic)
 │   │   ├── start-game/
@@ -32,8 +37,9 @@ This is a 20 Questions game application where players try to guess a secret item
 │   │   ├── get-hint/
 │   │   └── make-guess/
 │   └── migrations/        # Database schema
-└── shared/
-    └── types.ts          # Shared TypeScript types
+├── shared/
+│   └── types.ts          # Shared TypeScript types
+└── CLAUDE.md             # Main development guidance
 ```
 
 ## Development Setup
@@ -61,9 +67,9 @@ npm run ios              # Run on iOS simulator
 npm run android          # Run on Android emulator
 npm run web              # Run in web browser
 
-# Testing
+# Testing (TDD Required - see docs/TDD_STANDARDS.md)
 npm test                 # Run React Native tests
-npm run test:coverage    # Run tests with coverage
+npm run test:coverage    # Run tests with coverage (must be 80%+)
 cd supabase/functions && deno test --allow-all  # Run edge function tests
 
 # Building and deployment
@@ -110,9 +116,10 @@ supabase functions deploy get-hint
 
 For detailed information about specific aspects of the project:
 
-- **Building and Distribution**: See [BUILD_GUIDE.md](./BUILD_GUIDE.md)
-- **Testing Setup and Guidelines**: See [TESTING.md](./TESTING.md)
-- **App-specific Documentation**: See [app/CLAUDE.md](./app/CLAUDE.md)
-- **Backend Documentation**: See [supabase/CLAUDE.md](./supabase/CLAUDE.md)
-- **Type Definitions**: See [shared/CLAUDE.md](./shared/CLAUDE.md)
-- Always follow test driven development
+- **Building and Distribution**: See [docs/BUILD_GUIDE.md](./docs/BUILD_GUIDE.md)
+- **Testing Setup and Guidelines**: See [docs/TESTING.md](./docs/TESTING.md)
+- **App-specific Documentation**: See [app/CLAUDE.md](./app/README.md)
+- **Backend Documentation**: See [supabase/CLAUDE.md](./supabase/README.md)
+- **Type Definitions**: See [shared/CLAUDE.md](./shared/README.md)
+- **Code Documentation Standards**: See [docs/DOCUMENTATION_STANDARDS.md](./docs/DOCUMENTATION_STANDARDS.md) - **MANDATORY** for all code
+- **Test-Driven Development**: See [docs/TDD_STANDARDS.md](./docs/TDD_STANDARDS.md) - **MANDATORY** for all code changes
