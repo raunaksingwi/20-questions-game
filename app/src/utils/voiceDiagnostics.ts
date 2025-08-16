@@ -1,6 +1,11 @@
-// Voice Input Diagnostics Utility
-// Helps debug voice input issues with comprehensive logging and state tracking
+/**
+ * Voice input diagnostics utility for debugging voice recognition issues.
+ * Provides comprehensive logging, metrics tracking, and session monitoring.
+ */
 
+/**
+ * Singleton class for tracking voice input diagnostics and metrics.
+ */
 export class VoiceDiagnostics {
   private static instance: VoiceDiagnostics;
   private sessionLog: Array<{
@@ -18,6 +23,9 @@ export class VoiceDiagnostics {
     lastFailureReason: null as string | null,
   };
 
+  /**
+   * Gets the singleton instance of VoiceDiagnostics.
+   */
   static getInstance(): VoiceDiagnostics {
     if (!VoiceDiagnostics.instance) {
       VoiceDiagnostics.instance = new VoiceDiagnostics();
@@ -25,6 +33,9 @@ export class VoiceDiagnostics {
     return VoiceDiagnostics.instance;
   }
 
+  /**
+   * Logs a voice session event with timestamp and optional data.
+   */
   logEvent(sessionId: number, event: string, data?: any) {
     const timestamp = Date.now();
     this.sessionLog.push({
@@ -43,6 +54,9 @@ export class VoiceDiagnostics {
     }
   }
 
+  /**
+   * Starts a new voice recording session and tracks metrics.
+   */
   startSession(sessionId: number) {
     this.recordingMetrics.totalSessions++;
     this.logEvent(sessionId, 'SESSION_START', {

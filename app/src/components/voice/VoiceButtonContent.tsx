@@ -1,16 +1,33 @@
+/**
+ * Content component for voice button that renders different states.
+ * Shows appropriate icons and visualizers based on recording state.
+ */
 import React from 'react';
 import { View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import WaveformVisualizer from '../WaveformVisualizer';
 
+/**
+ * Possible states for the voice recording button.
+ */
 type RecordingState = 'idle' | 'recording' | 'error';
 
+/**
+ * Props for the VoiceButtonContent component.
+ */
 interface VoiceButtonContentProps {
+  /** Current state of voice recording */
   recordingState: RecordingState;
+  /** Current text in the input field */
   inputText: string;
+  /** Volume level for waveform visualization */
   volumeLevel: number;
 }
 
+/**
+ * Renders appropriate content for the voice button based on current state.
+ * Shows waveform during recording, error icon on failure, or send/mic icon otherwise.
+ */
 export const VoiceButtonContent: React.FC<VoiceButtonContentProps> = ({
   recordingState,
   inputText,

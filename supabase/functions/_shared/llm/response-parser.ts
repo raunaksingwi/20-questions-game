@@ -1,6 +1,17 @@
+/**
+ * Response parser utility for processing LLM outputs.
+ * Handles JSON extraction, answer cleaning, and response validation.
+ */
 import { GameLLMResponse } from './types.ts'
 
+/**
+ * Utility class for parsing and cleaning LLM responses.
+ */
 export class ResponseParser {
+  /**
+   * Parses raw LLM response into structured game response format.
+   * Handles both JSON and plain text responses with fallback logic.
+   */
   static parseGameResponse(rawResponse: string): GameLLMResponse {
     // Try to extract JSON from the response
     let llmResponse: GameLLMResponse
@@ -39,6 +50,9 @@ export class ResponseParser {
     return llmResponse
   }
 
+  /**
+   * Cleans and normalizes answer text to standard Yes/No/Sometimes format.
+   */
   private static cleanAnswer(answer: string): string {
     const cleaned = answer.trim();
     
@@ -63,6 +77,10 @@ export class ResponseParser {
     return cleaned.substring(0, 50);
   }
 
+  /**
+   * Parses raw LLM response for hint generation.
+   * Extracts hint text from JSON or returns plain text.
+   */
   static parseHintResponse(rawResponse: string): string {
     let hint: string
     try {

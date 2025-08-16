@@ -1,9 +1,18 @@
+/**
+ * Quick answer chips component for AI-guessing mode.
+ * Provides Yes/No/Maybe buttons and a WIN button for efficient user responses.
+ */
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, ScrollView } from 'react-native';
 
+/**
+ * Type definition for different quick answer options available to users.
+ */
 export type QuickAnswerType = 'yes' | 'no' | 'maybe' | 'dont_know' | 'you_won';
 
-// Move quick answers to constants for better maintainability
+/**
+ * Configuration for all available quick answer chips with their display labels.
+ */
 const QUICK_ANSWER_CHIPS = [
   { type: 'yes' as const, label: 'Yes', canonical: 'Yes' },
   { type: 'no' as const, label: 'No', canonical: 'No' },
@@ -13,12 +22,22 @@ const QUICK_ANSWER_CHIPS = [
 ] as const;
 
 
+/**
+ * Props for the QuickAnswerChips component.
+ */
 interface QuickAnswerChipsProps {
+  /** Callback when a quick answer chip is pressed */
   onChipPress: (answer: string, type: QuickAnswerType) => void;
+  /** Optional callback for the WIN button press */
   onWinPress?: () => void;
+  /** Whether all chips should be disabled */
   disabled?: boolean;
 }
 
+/**
+ * Renders a horizontal scrollable row of quick answer buttons.
+ * Used in AI-guessing mode to provide fast response options.
+ */
 export const QuickAnswerChips: React.FC<QuickAnswerChipsProps> = ({
   onChipPress,
   onWinPress,

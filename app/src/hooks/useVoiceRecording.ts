@@ -1,20 +1,40 @@
+/**
+ * Hook for managing voice recording functionality with speech recognition.
+ * Handles microphone permissions, recording state, and speech-to-text conversion.
+ */
 import { useState, useEffect, useRef } from 'react';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import * as Haptics from 'expo-haptics';
 import { audioManager } from '../services/AudioManager';
 import { voiceDiagnostics } from '../utils/voiceDiagnostics';
 
+/**
+ * Possible states for voice recording.
+ */
 type RecordingState = 'idle' | 'recording' | 'error';
 
+/**
+ * Interface for the voice recording hook return value.
+ */
 export interface VoiceRecordingHook {
+  /** Current state of the voice recording */
   recordingState: RecordingState;
+  /** Whether microphone permission has been granted */
   hasPermission: boolean | null;
+  /** Current volume level for visualization */
   volumeLevel: number;
+  /** Function to start voice recording */
   startRecording: () => Promise<void>;
+  /** Function to stop voice recording */
   stopRecording: () => Promise<void>;
+  /** Function to manually set recording state */
   setRecordingState: (state: RecordingState) => void;
 }
 
+/**
+ * Custom hook for managing voice recording with speech recognition.
+ * Provides recording state management, permission handling, and cleanup.
+ */
 export const useVoiceRecording = (
   onVoiceResult: (transcript: string) => void
 ): VoiceRecordingHook => {
@@ -37,7 +57,10 @@ export const useVoiceRecording = (
     };
   }, []);
 
-  // Enhanced cleanup function to handle all cleanup scenarios
+  /**
+   * Comprehensive cleanup function that handles all recording cleanup scenarios.
+   * Ensures proper resource cleanup and state reset.
+   */
   const performFullCleanup = async (reason: string) => {
     const cleanupId = Date.now();
     lastCleanupRef.current = cleanupId;

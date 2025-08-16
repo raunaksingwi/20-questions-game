@@ -76,6 +76,10 @@ class GameService {
     }
   }
 
+  /**
+   * Starts a new game with the specified category and mode.
+   * Handles user authentication and falls back to anonymous play if needed.
+   */
   async startGame(category?: string, mode?: string): Promise<StartGameResponse> {
     return optimizedRequest('start-game', async () => {
       let user_id: string | undefined
@@ -96,6 +100,10 @@ class GameService {
     })
   }
 
+  /**
+   * Submits a question to the game and gets an AI response.
+   * Uses request optimization to prevent duplicate calls.
+   */
   async askQuestion(gameId: string, question: string): Promise<AskQuestionResponse> {
     return optimizedRequest('ask-question', async () => {
       const request: AskQuestionRequest = {
@@ -106,6 +114,10 @@ class GameService {
     })
   }
 
+  /**
+   * Requests a hint for the current game.
+   * Returns contextual clues based on conversation history.
+   */
   async getHint(gameId: string): Promise<GetHintResponse> {
     const request: GetHintRequest = {
       game_id: gameId
@@ -113,6 +125,10 @@ class GameService {
     return this.callFunction<GetHintRequest, GetHintResponse>('get-hint', request)
   }
 
+  /**
+   * Quits the current game and reveals the secret item.
+   * Ends the game session and provides the answer.
+   */
   async quitGame(gameId: string): Promise<QuitGameResponse> {
     const request: QuitGameRequest = {
       game_id: gameId
@@ -121,6 +137,10 @@ class GameService {
   }
 
 
+  /**
+   * Retrieves game data by ID from the database.
+   * Returns null if the game is not found or an error occurs.
+   */
   async getGame(gameId: string): Promise<Game | null> {
     const { data, error } = await supabase
       .from('games')
@@ -136,6 +156,10 @@ class GameService {
     return data
   }
 
+  /**
+   * Retrieves all messages for a specific game in chronological order.
+   * Returns empty array if no messages found or an error occurs.
+   */
   async getGameMessages(gameId: string): Promise<GameMessage[]> {
     const { data, error } = await supabase
       .from('game_messages')

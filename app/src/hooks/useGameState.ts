@@ -5,17 +5,31 @@
 import { useState } from 'react';
 import { GameMessage, GameStatus, GameMode } from '../types/types';
 
+/**
+ * Interface defining the complete game state structure.
+ */
 export interface GameState {
+  /** Unique identifier for the current game */
   gameId: string | null;
+  /** The secret item the user is trying to guess */
   secretItem: string | null;
+  /** Array of all game messages in the conversation */
   messages: GameMessage[];
+  /** Whether the game is in a loading state */
   loading: boolean;
+  /** Whether a request is currently being sent */
   sending: boolean;
+  /** Number of questions remaining */
   questionsRemaining: number;
+  /** Number of hints remaining */
   hintsRemaining: number;
+  /** Current status of the game */
   gameStatus: GameStatus;
+  /** Current game mode */
   mode: GameMode;
+  /** Whether the result modal should be shown */
   showResultModal: boolean;
+  /** Data for the result modal */
   resultModalData: {
     isWin: boolean;
     title: string;
@@ -23,18 +37,33 @@ export interface GameState {
   };
 }
 
+/**
+ * Interface defining all available state update actions.
+ */
 export interface GameStateActions {
+  /** Set the current game ID */
   setGameId: (id: string | null) => void;
+  /** Set the secret item being guessed */
   setSecretItem: (item: string | null) => void;
+  /** Set or update the messages array */
   setMessages: (messages: GameMessage[] | ((prev: GameMessage[]) => GameMessage[])) => void;
+  /** Set the loading state */
   setLoading: (loading: boolean) => void;
+  /** Set the sending state */
   setSending: (sending: boolean) => void;
+  /** Set the number of questions remaining */
   setQuestionsRemaining: (count: number) => void;
+  /** Set the number of hints remaining */
   setHintsRemaining: (count: number) => void;
+  /** Set the current game status */
   setGameStatus: (status: GameStatus) => void;
+  /** Set the current game mode */
   setMode: (mode: GameMode) => void;
+  /** Set whether to show the result modal */
   setShowResultModal: (show: boolean) => void;
+  /** Set the result modal data */
   setResultModalData: (data: { isWin: boolean; title: string; message: string }) => void;
+  /** Update multiple state properties at once */
   setBatchState: (updates: Partial<GameState>) => void;
 }
 
@@ -73,7 +102,9 @@ export const useGameState = () => {
     resultModalData,
   };
 
-  // Batch state update function to reduce re-renders
+  /**
+   * Batch state update function to reduce re-renders by updating multiple properties together.
+   */
   const setBatchState = (updates: Partial<GameState>) => {
     // Use functional updates to ensure all changes are applied together
     Object.entries(updates).forEach(([key, value]) => {

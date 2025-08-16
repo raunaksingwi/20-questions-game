@@ -1,6 +1,14 @@
+/**
+ * Animated typing indicator component that shows three bouncing dots.
+ * Used to indicate when the AI is thinking or processing a response.
+ */
 import React from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 
+/**
+ * Renders an animated three-dot typing indicator with scaling animation.
+ * Each dot animates with a staggered delay to create a wave effect.
+ */
 export default function TypingIndicator() {
   const dot1 = React.useRef(new Animated.Value(0)).current;
   const dot2 = React.useRef(new Animated.Value(0)).current;

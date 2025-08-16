@@ -1,6 +1,14 @@
+/**
+ * Loading component specifically for game initialization.
+ * Shows a spinner with "Starting new game..." message.
+ */
 import React from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 
+/**
+ * Displays a loading indicator during game initialization.
+ * Used while the game is being set up on the backend.
+ */
 export const LoadingGame: React.FC = () => {
   return (
     <View style={styles.centerContainer}>

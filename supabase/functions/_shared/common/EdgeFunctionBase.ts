@@ -6,6 +6,10 @@ import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-
 import { LLMConfigLoader, LLMProviderFactory } from '../llm/index.ts'
 import { PerformanceOptimizer } from './PerformanceOptimizer.ts'
 
+/**
+ * CORS headers configuration for edge functions.
+ * Allows cross-origin requests from the React Native app.
+ */
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, cache-control',
@@ -76,6 +80,9 @@ export abstract class EdgeFunctionBase {
     return provider
   }
 
+  /**
+   * Handles CORS preflight requests by returning appropriate headers.
+   */
   static handleCors(req: Request): Response | null {
     if (req.method === 'OPTIONS') {
       return new Response('ok', { headers: corsHeaders })
@@ -83,6 +90,9 @@ export abstract class EdgeFunctionBase {
     return null
   }
 
+  /**
+   * Creates a standardized error response with CORS headers.
+   */
   static createErrorResponse(error: Error, status: number = 400): Response {
     return new Response(
       JSON.stringify({ error: error.message }),
@@ -90,6 +100,9 @@ export abstract class EdgeFunctionBase {
     )
   }
 
+  /**
+   * Creates a standardized success response with CORS headers.
+   */
   static createSuccessResponse(data: any): Response {
     return new Response(
       JSON.stringify(data),

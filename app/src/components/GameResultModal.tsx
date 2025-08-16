@@ -1,3 +1,7 @@
+/**
+ * Modal component that displays game results (win/loss) with animation.
+ * Shows appropriate messaging and styling based on game outcome.
+ */
 import React from 'react';
 import {
   View,
@@ -8,15 +12,28 @@ import {
   Animated,
 } from 'react-native';
 
+/**
+ * Props for the GameResultModal component.
+ */
 type GameResultModalProps = {
+  /** Whether the modal should be visible */
   visible: boolean;
+  /** Whether this is a win or loss result */
   isWin: boolean;
+  /** Title text to display in the modal */
   title: string;
+  /** Detailed message about the result */
   message: string;
+  /** Text for the action button */
   buttonText: string;
+  /** Callback when the action button is pressed */
   onButtonPress: () => void;
 };
 
+/**
+ * Renders an animated modal showing game results with appropriate styling.
+ * Uses spring animation for entrance and different colors for win/loss states.
+ */
 export default function GameResultModal({
   visible,
   isWin,

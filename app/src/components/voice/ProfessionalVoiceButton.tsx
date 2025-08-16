@@ -1,3 +1,7 @@
+/**
+ * Professional voice input button with gesture detection and visual feedback.
+ * Handles long-press gestures for voice recording with expanding overlay animation.
+ */
 import React, { useEffect } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -8,22 +12,43 @@ import { useVoiceRecording } from '../../hooks/useVoiceRecording';
 import { ExpandingWaveVisualizer } from './ExpandingWaveVisualizer';
 import { INPUT_DIMENSIONS } from '../../constants/inputDimensions';
 
+/**
+ * Shared values representing the text input's layout dimensions.
+ * Used for positioning the voice recording overlay.
+ */
 type InputDimensions = {
+  /** Width of the text input */
   width: SharedValue<number>;
+  /** Height of the text input */
   height: SharedValue<number>;
+  /** X position of the text input */
   x: SharedValue<number>;
+  /** Y position of the text input */
   y: SharedValue<number>;
 };
 
+/**
+ * Props for the ProfessionalVoiceButton component.
+ */
 type ProfessionalVoiceButtonProps = {
+  /** Callback for submitting text input */
   onTextSubmit: () => void;
+  /** Callback for submitting voice input with transcribed text */
   onVoiceSubmit: (text: string) => void;
+  /** Current text in the input field */
   inputText: string;
+  /** Function to update the text input */
   setInputText: (text: string) => void;
+  /** Whether the button should be disabled */
   disabled?: boolean;
+  /** Layout dimensions of the associated text input */
   inputDimensions: InputDimensions;
 };
 
+/**
+ * Professional voice recording button with gesture-based interaction.
+ * Supports long-press to record voice input with visual feedback overlay.
+ */
 export const ProfessionalVoiceButton: React.FC<ProfessionalVoiceButtonProps> = ({
   onTextSubmit,
   onVoiceSubmit,
@@ -32,6 +57,9 @@ export const ProfessionalVoiceButton: React.FC<ProfessionalVoiceButtonProps> = (
   disabled = false,
   inputDimensions,
 }) => {
+  /**
+   * Handles the result of voice recognition by updating input and submitting.
+   */
   const handleVoiceResult = (transcript: string) => {
     if (transcript.trim()) {
       setInputText(transcript);
