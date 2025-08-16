@@ -3,6 +3,7 @@ import { GameMessage } from '../../../../shared/types.ts'
 export interface FactDictionary {
   confirmed_yes: Array<{ question: string; confidence: number }>
   confirmed_no: Array<{ question: string; confidence: number }>
+  partial_yes: Array<{ question: string; confidence: number }>
   uncertain: Array<{ question: string; answer: string }>
   eliminated_categories: string[]
   remaining_properties: string[]
@@ -25,6 +26,7 @@ export class ConversationState {
     const facts: FactDictionary = {
       confirmed_yes: [],
       confirmed_no: [],
+      partial_yes: [],
       uncertain: [],
       eliminated_categories: [],
       remaining_properties: []
@@ -71,6 +73,17 @@ export class ConversationState {
         // Extract negative category information
         if (question.toLowerCase().includes('animal')) {
           facts.eliminated_categories.push('animals')
+        }
+      } else if (this.isMaybeAnswer(normalizedAnswer)) {
+        facts.partial_yes.push({ question, confidence })
+        
+        // Partial confirmations can still provide some category information
+        // but with lower weight
+        if (question.toLowerCase().includes('living') || question.toLowerCase().includes('alive')) {
+          // Don't eliminate non-living entirely, but note the partial confirmation
+        }
+        if (question.toLowerCase().includes('animal')) {
+          // Don't eliminate other categories entirely, but note the partial confirmation
         }
       } else {
         facts.uncertain.push({ question, answer })
@@ -252,6 +265,15 @@ export class ConversationState {
       }
     })
     
+    // Consider partial_yes facts with reduced weight
+    facts.partial_yes.forEach(fact => {
+      if (this.itemMatchesFact(item, fact.question, true, category)) {
+        score += 0.1 // Small boost for matching partial facts
+      } else {
+        score -= 0.1 // Small penalty for not matching partial facts
+      }
+    })
+    
     return Math.max(0, score)
   }
   
@@ -278,5 +300,11 @@ export class ConversationState {
     return answer.startsWith('n') || answer === 'no' || 
            answer.includes('nope') || answer.includes('wrong') || 
            answer.includes('incorrect')
+  }
+  
+  private static isMaybeAnswer(answer: string): boolean {
+    return answer.includes('maybe') || answer.includes('sometimes') || 
+           answer.includes('it depends') || answer.includes('partly') ||
+           answer.includes('sort of') || answer.includes('kind of')
   }
 }

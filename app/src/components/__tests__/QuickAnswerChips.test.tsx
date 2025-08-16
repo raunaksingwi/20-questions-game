@@ -19,7 +19,7 @@ describe('QuickAnswerChips', () => {
     
     expect(getByText('Yes')).toBeTruthy();
     expect(getByText('No')).toBeTruthy();
-    expect(getByText('Maybe')).toBeTruthy();
+    expect(getByText('Sometimes')).toBeTruthy();
     expect(getByText("Don't know")).toBeTruthy();
   });
 
@@ -32,8 +32,8 @@ describe('QuickAnswerChips', () => {
     fireEvent.press(getByText('No'));
     expect(mockOnChipPress).toHaveBeenCalledWith('No', 'no');
     
-    fireEvent.press(getByText('Maybe'));
-    expect(mockOnChipPress).toHaveBeenCalledWith('Maybe', 'maybe');
+    fireEvent.press(getByText('Sometimes'));
+    expect(mockOnChipPress).toHaveBeenCalledWith('Sometimes', 'maybe');
     
     fireEvent.press(getByText("Don't know"));
     expect(mockOnChipPress).toHaveBeenCalledWith("Don't know", 'dont_know');
@@ -63,12 +63,12 @@ describe('QuickAnswerChips', () => {
     const { getByText } = render(<QuickAnswerChips {...defaultProps} />);
     
     fireEvent.press(getByText('Yes'));
-    fireEvent.press(getByText('Maybe'));
+    fireEvent.press(getByText('Sometimes'));
     fireEvent.press(getByText('No'));
     
     expect(mockOnChipPress).toHaveBeenCalledTimes(3);
     expect(mockOnChipPress).toHaveBeenNthCalledWith(1, 'Yes', 'yes');
-    expect(mockOnChipPress).toHaveBeenNthCalledWith(2, 'Maybe', 'maybe');
+    expect(mockOnChipPress).toHaveBeenNthCalledWith(2, 'Sometimes', 'maybe');
     expect(mockOnChipPress).toHaveBeenNthCalledWith(3, 'No', 'no');
   });
 
@@ -77,7 +77,7 @@ describe('QuickAnswerChips', () => {
     
     expect(getByLabelText('Quick answer: Yes')).toBeTruthy();
     expect(getByLabelText('Quick answer: No')).toBeTruthy();
-    expect(getByLabelText('Quick answer: Maybe')).toBeTruthy();
+    expect(getByLabelText('Quick answer: Sometimes')).toBeTruthy();
     expect(getByLabelText("Quick answer: Don't know")).toBeTruthy();
   });
 

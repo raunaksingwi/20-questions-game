@@ -16,7 +16,7 @@ export type QuickAnswerType = 'yes' | 'no' | 'maybe' | 'dont_know' | 'you_won';
 const QUICK_ANSWER_CHIPS = [
   { type: 'yes' as const, label: 'Yes', canonical: 'Yes' },
   { type: 'no' as const, label: 'No', canonical: 'No' },
-  { type: 'maybe' as const, label: 'Maybe', canonical: 'Maybe' },
+  { type: 'maybe' as const, label: 'Sometimes', canonical: 'Sometimes' },
   { type: 'dont_know' as const, label: "Don't know", canonical: "Don't know" },
   { type: 'you_won' as const, label: 'You won!', canonical: 'You won!' },
 ] as const;

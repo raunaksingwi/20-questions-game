@@ -155,6 +155,7 @@ const handler = async (req: Request) => {
 
     const yesFacts: Array<{ n: number, q: string }> = []
     const noFacts: Array<{ n: number, q: string }> = []
+    const maybeFacts: Array<{ n: number, q: string }> = []
     const unknownFacts: Array<{ n: number, q: string }> = []
 
     Object.keys(questionsByNumber)
@@ -168,7 +169,9 @@ const handler = async (req: Request) => {
           yesFacts.push({ n, q })
         } else if (isNegativeAnswer(a)) {
           noFacts.push({ n, q })
-        } else if (isDontKnowAnswer(a) || isMaybeAnswer(a)) {
+        } else if (isMaybeAnswer(a)) {
+          maybeFacts.push({ n, q })
+        } else if (isDontKnowAnswer(a)) {
           unknownFacts.push({ n, q })
         }
       })
@@ -190,22 +193,29 @@ const handler = async (req: Request) => {
       })
     }
     
+    if (maybeFacts.length > 0) {
+      categorizedSummary += '\n~ PARTIAL YES (Sometimes/Maybe answers - treat as weak confirmations):\n'
+      maybeFacts.forEach(item => { 
+        categorizedSummary += `  → ${item.q}\n`
+      })
+    }
+    
     if (unknownFacts.length > 0) {
-      categorizedSummary += '\n? UNCERTAIN (Maybe/Unknown answers):\n'
+      categorizedSummary += '\n? UNKNOWN (Don\'t know answers):\n'
       unknownFacts.forEach(item => { 
         categorizedSummary += `  → ${item.q}\n`
       })
     }
 
     // Add explicit logical deductions to prevent redundant questions
-    if (yesFacts.length > 0 || noFacts.length > 0) {
+    if (yesFacts.length > 0 || noFacts.length > 0 || maybeFacts.length > 0) {
       categorizedSummary += '\n💡 LOGICAL DEDUCTIONS - You already know these facts (DO NOT ask about them):\n'
       
       // Objects category deductions
       if (session.category.toLowerCase() === 'objects') {
-        const hasElectronic = yesFacts.some(f => f.q.includes('electronic'))
+        const hasElectronic = yesFacts.some(f => f.q.includes('electronic')) || maybeFacts.some(f => f.q.includes('electronic'))
         const notElectronic = noFacts.some(f => f.q.includes('electronic'))
-        const hasHandheld = yesFacts.some(f => f.q.includes('hold') || f.q.includes('hand'))
+        const hasHandheld = yesFacts.some(f => f.q.includes('hold') || f.q.includes('hand')) || maybeFacts.some(f => f.q.includes('hold') || f.q.includes('hand'))
         const notHandheld = noFacts.some(f => f.q.includes('hold') || f.q.includes('hand'))
         
         if (hasElectronic) {
@@ -229,9 +239,9 @@ const handler = async (req: Request) => {
       
       // World leaders category deductions  
       if (session.category.toLowerCase() === 'world leaders') {
-        const isAlive = yesFacts.some(f => f.q.includes('alive'))
-        const isDead = noFacts.some(f => f.q.includes('alive')) || yesFacts.some(f => f.q.includes('dead'))
-        const isMale = yesFacts.some(f => f.q.includes('male'))
+        const isAlive = yesFacts.some(f => f.q.includes('alive')) || maybeFacts.some(f => f.q.includes('alive'))
+        const isDead = noFacts.some(f => f.q.includes('alive')) || yesFacts.some(f => f.q.includes('dead')) || maybeFacts.some(f => f.q.includes('dead'))
+        const isMale = yesFacts.some(f => f.q.includes('male')) || maybeFacts.some(f => f.q.includes('male'))
         const isFemale = noFacts.some(f => f.q.includes('male'))
         
         if (isAlive) {
@@ -252,9 +262,9 @@ const handler = async (req: Request) => {
       
       // Animals category deductions
       if (session.category.toLowerCase() === 'animals') {
-        const isMammal = yesFacts.some(f => f.q.includes('mammal'))
+        const isMammal = yesFacts.some(f => f.q.includes('mammal')) || maybeFacts.some(f => f.q.includes('mammal'))
         const notMammal = noFacts.some(f => f.q.includes('mammal'))
-        const isWild = yesFacts.some(f => f.q.includes('wild'))
+        const isWild = yesFacts.some(f => f.q.includes('wild')) || maybeFacts.some(f => f.q.includes('wild'))
         const notWild = noFacts.some(f => f.q.includes('wild'))
         
         if (isMammal) {
@@ -298,46 +308,58 @@ const handler = async (req: Request) => {
       categorizedSummary += 'Do NOT ask about combinations of these confirmed properties.\n'
     }
     
-    // Special handling for uncertain responses
+    // Special handling for different response types
     const hasRecentUncertain = unknownFacts.some(fact => 
       fact.n === currentQuestionNumber || fact.n === currentQuestionNumber - 1
     )
     
+    const hasRecentMaybe = maybeFacts.some(fact => 
+      fact.n === currentQuestionNumber || fact.n === currentQuestionNumber - 1
+    )
+    
     if (hasRecentUncertain) {
-      categorizedSummary += '\n⚠️  UNCERTAIN RESPONSE DETECTED:\n'
-      categorizedSummary += 'The user just gave an uncertain answer (Maybe/Don\'t know/Sometimes).\n'
-      categorizedSummary += 'CRITICAL: Ask a completely DIFFERENT type of concrete question that they CAN answer definitively.\n'
-      categorizedSummary += 'Move to a different aspect entirely - don\'t ask similar or vague questions.\n'
-      categorizedSummary += '\n✅ CONCRETE PIVOT EXAMPLES:\n'
-      categorizedSummary += '- If uncertain about era → pivot to geography: "Are they from Europe?"\n'
-      categorizedSummary += '- If uncertain about region → pivot to role: "Were they a president?"\n'
-      categorizedSummary += '- If uncertain about characteristics → pivot to time: "Are they still alive?"\n'
-      categorizedSummary += '- If uncertain about role → pivot to gender: "Are they male?"\n'
-      categorizedSummary += '\n❌ NEVER DO THESE AFTER UNCERTAIN RESPONSES:\n'
-      categorizedSummary += '- "Does it have unique characteristics?" (vague)\n'
-      categorizedSummary += '- "Is it from a specific region?" (vague)\n'
-      categorizedSummary += '- "Does it have multiple forms?" (vague)\n'
-      categorizedSummary += '- Ask the same type of question again\n'
-      categorizedSummary += '\nSTRATEGY: Change topic to something concrete and binary!\n'
+      categorizedSummary += '\n⚠️  UNKNOWN RESPONSE DETECTED:\n'
+      categorizedSummary += 'The user just gave a "Don\'t know" answer - they lack information about this topic.\n'
+      categorizedSummary += 'STRATEGY: Ask a completely DIFFERENT type of concrete question about a topic they DO know.\n'
+      categorizedSummary += 'Move to a different aspect entirely - don\'t ask similar questions.\n'
+      categorizedSummary += '\n✅ PIVOT TO DIFFERENT TOPICS:\n'
+      categorizedSummary += '- If unknown about era → pivot to geography: "Are they from Europe?"\n'
+      categorizedSummary += '- If unknown about region → pivot to role: "Were they a president?"\n'
+      categorizedSummary += '- If unknown about characteristics → pivot to time: "Are they still alive?"\n'
+      categorizedSummary += '- If unknown about role → pivot to gender: "Are they male?"\n'
+    }
+    
+    if (hasRecentMaybe) {
+      categorizedSummary += '\n📍 PARTIAL YES RESPONSE DETECTED:\n'
+      categorizedSummary += 'The user just gave a "Sometimes/Maybe" answer - this is a WEAK CONFIRMATION.\n'
+      categorizedSummary += 'STRATEGY: Build on this partial information to get more specific details.\n'
+      categorizedSummary += 'Ask follow-up questions that help distinguish this item from others with similar properties.\n'
+      categorizedSummary += '\n✅ BUILD ON PARTIAL CONFIRMATION:\n'
+      categorizedSummary += '- If "sometimes in bedroom" → ask about primary location: "Is it mainly found in kitchens?"\n'
+      categorizedSummary += '- If "sometimes electronic" → ask about specific features: "Does it need batteries?"\n'
+      categorizedSummary += '- If "sometimes wild" → ask about domestication: "Is it commonly kept as a pet?"\n'
+      categorizedSummary += '- If "sometimes used for work" → ask about specific function: "Is it primarily for entertainment?"\n'
+      categorizedSummary += '\n🎯 GOAL: Find the PRIMARY or MOST DISTINCTIVE characteristic!\n'
     }
 
     // Add domain constraint analysis instruction
-    if (yesFacts.length > 0 || noFacts.length > 0) {
+    if (yesFacts.length > 0 || noFacts.length > 0 || maybeFacts.length > 0) {
       categorizedSummary += '\n🎯 DOMAIN NARROWING ANALYSIS:\n'
       categorizedSummary += 'Before asking your next question, analyze what domain space remains possible based on ALL the confirmed facts above.\n'
-      categorizedSummary += 'Ask yourself: "Given these confirmed facts, what specific sub-domain am I now working within?"\n'
+      categorizedSummary += 'Ask yourself: "Given these confirmed facts (including partial YES answers), what specific sub-domain am I now working within?"\n'
       categorizedSummary += 'Your next question MUST further narrow within that established domain - do NOT jump to unrelated properties!\n'
       categorizedSummary += '\nExamples of proper domain narrowing:\n'
       categorizedSummary += '- If confirmed: "mammal + wild animal" → ask about size, habitat, diet within wild mammals\n'
       categorizedSummary += '- If confirmed: "cricket player + from Australia" → ask about batting/bowling, era, specific team\n'
       categorizedSummary += '- If confirmed: "electronic + found in home" → ask about size, room, specific function\n'
+      categorizedSummary += '- If partial: "sometimes in bedroom" → ask about primary location or specific room\n'
       categorizedSummary += '\n❌ DOMAIN VIOLATION EXAMPLES (DO NOT DO THIS):\n'
       categorizedSummary += '- If confirmed "mammal + wild" and you ask "Is it electronic?" (completely wrong domain)\n'
       categorizedSummary += '- If confirmed "Australian bowler" and you ask "Is it alive?" (already established as person)\n'
     }
 
     const totalQuestionsUsed = questionsCountedForLimit
-    const yesNoFactsCount = yesFacts.length + noFacts.length
+    const yesNoFactsCount = yesFacts.length + noFacts.length + maybeFacts.length
     
     // Use simplified decision tree approach
     const conversationHistory = messages.map(m => ({
