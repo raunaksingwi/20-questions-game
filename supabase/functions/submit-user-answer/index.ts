@@ -196,6 +196,83 @@ const handler = async (req: Request) => {
         categorizedSummary += `  → ${item.q}\n`
       })
     }
+
+    // Add explicit logical deductions to prevent redundant questions
+    if (yesFacts.length > 0 || noFacts.length > 0) {
+      categorizedSummary += '\n💡 LOGICAL DEDUCTIONS - You already know these facts (DO NOT ask about them):\n'
+      
+      // Objects category deductions
+      if (session.category.toLowerCase() === 'objects') {
+        const hasElectronic = yesFacts.some(f => f.q.includes('electronic'))
+        const notElectronic = noFacts.some(f => f.q.includes('electronic'))
+        const hasHandheld = yesFacts.some(f => f.q.includes('hold') || f.q.includes('hand'))
+        const notHandheld = noFacts.some(f => f.q.includes('hold') || f.q.includes('hand'))
+        
+        if (hasElectronic) {
+          categorizedSummary += '  → It is NOT living, NOT organic, NOT edible\n'
+          categorizedSummary += '  → It requires power/electricity\n'
+          categorizedSummary += '  → It is man-made\n'
+        }
+        if (notElectronic) {
+          categorizedSummary += '  → It does NOT require electricity\n'
+          categorizedSummary += '  → It is NOT a digital device\n'
+        }
+        if (hasHandheld) {
+          categorizedSummary += '  → It is portable/small\n'
+          categorizedSummary += '  → It is NOT furniture or large objects\n'
+        }
+        if (notHandheld) {
+          categorizedSummary += '  → It is large/heavy\n'
+          categorizedSummary += '  → You cannot carry it easily\n'
+        }
+      }
+      
+      // World leaders category deductions  
+      if (session.category.toLowerCase() === 'world leaders') {
+        const isAlive = yesFacts.some(f => f.q.includes('alive'))
+        const isDead = noFacts.some(f => f.q.includes('alive')) || yesFacts.some(f => f.q.includes('dead'))
+        const isMale = yesFacts.some(f => f.q.includes('male'))
+        const isFemale = noFacts.some(f => f.q.includes('male'))
+        
+        if (isAlive) {
+          categorizedSummary += '  → They are currently serving or recently served\n'
+          categorizedSummary += '  → They are NOT historical figures\n'
+        }
+        if (isDead) {
+          categorizedSummary += '  → They are historical figures\n'
+          categorizedSummary += '  → They are NOT currently in office\n'
+        }
+        if (isMale) {
+          categorizedSummary += '  → They are NOT female\n'
+        }
+        if (isFemale) {
+          categorizedSummary += '  → They are NOT male\n'
+        }
+      }
+      
+      // Animals category deductions
+      if (session.category.toLowerCase() === 'animals') {
+        const isMammal = yesFacts.some(f => f.q.includes('mammal'))
+        const notMammal = noFacts.some(f => f.q.includes('mammal'))
+        const isWild = yesFacts.some(f => f.q.includes('wild'))
+        const notWild = noFacts.some(f => f.q.includes('wild'))
+        
+        if (isMammal) {
+          categorizedSummary += '  → It is NOT a bird, reptile, fish, or insect\n'
+          categorizedSummary += '  → It has fur/hair and warm blood\n'
+        }
+        if (notMammal) {
+          categorizedSummary += '  → It could be a bird, reptile, fish, or insect\n'
+        }
+        if (isWild) {
+          categorizedSummary += '  → It is NOT a domestic pet\n'
+          categorizedSummary += '  → It lives in natural habitats\n'
+        }
+        if (notWild) {
+          categorizedSummary += '  → It could be a pet or farm animal\n'
+        }
+      }
+    }
     
     // Add explicit question repetition prevention
     const allAskedQuestions: string[] = []
@@ -398,7 +475,33 @@ Ask your next strategic yes/no question. Output ONLY the question.`
       /anything special/i,
       /anything notable/i,
       /specific details/i,
-      /particular details/i
+      /particular details/i,
+      /famous/i,
+      /well-known/i,
+      /significance/i,
+      /important/i,
+      /generally/i,
+      /typically/i,
+      /usually/i,
+      /commonly/i,
+      /mostly/i,
+      /often/i,
+      /frequently/i,
+      /normally/i,
+      /average/i,
+      /standard/i,
+      /regular/i,
+      /ordinary/i,
+      /common\?$/i, // "Is it common?" at end
+      /popular\?$/i, // "Is it popular?" at end
+      /useful\?$/i, // "Is it useful?" at end
+      /good\?$/i, // "Is it good?" at end
+      /bad\?$/i, // "Is it bad?" at end
+      /expensive\?$/i, // "Is it expensive?" at end
+      /cheap\?$/i, // "Is it cheap?" at end
+      /complex\?$/i, // "Is it complex?" at end
+      /simple\?$/i, // "Is it simple?" at end
+      /obvious\?$/i // "Is it obvious?" at end
     ]
     
     const hasInvalidFormat = invalidPatterns.some(pattern => pattern.test(nextQuestion))
