@@ -1,3 +1,7 @@
+/**
+ * Home screen where users select game mode and category to start a new game.
+ * Features animated transitions between different game modes and category selection.
+ */
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -29,6 +33,10 @@ const CATEGORIES = [
   { id: '6', name: 'World Leaders' },
 ];
 
+/**
+ * Main component that renders the home screen with game mode selection and category grid.
+ * Handles navigation to the game screen with selected parameters.
+ */
 export default function HomeScreen({ navigation }: Props) {
   const [selectedMode, setSelectedMode] = useState<GameMode>(GameMode.USER_GUESSING);
   
@@ -57,6 +65,10 @@ export default function HomeScreen({ navigation }: Props) {
   }));
 
 
+  /**
+   * Initiates a new game with the selected category and current game mode.
+   * Navigates to the GameScreen with the selected parameters.
+   */
   const startGame = (category: string) => {
     console.log(`[HomeScreen] Starting game with category: ${category}, mode: ${selectedMode}`);
     const startTime = Date.now();

@@ -1,3 +1,7 @@
+/**
+ * Edge function that initializes a new 20 Questions game.
+ * Selects a random secret item from the chosen category and creates the game in the database.
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { StartGameRequest, StartGameResponse, GameMode } from '../../../shared/types.ts'
 import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
@@ -6,6 +10,10 @@ import { PromptTemplateFactory } from '../_shared/prompts/PromptTemplate.ts'
 // Initialize shared Supabase client
 const supabase = EdgeFunctionBase.initialize()
 
+/**
+ * Handles game initialization requests.
+ * Creates a new game with a random secret item from the specified category.
+ */
 const handler = async (req: Request) => {
   const corsResponse = EdgeFunctionBase.handleCors(req)
   if (corsResponse) return corsResponse

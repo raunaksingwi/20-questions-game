@@ -1,3 +1,7 @@
+/**
+ * Base class providing common functionality for all edge functions.
+ * Handles Supabase client initialization, CORS, LLM provider management, and error handling.
+ */
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { LLMConfigLoader, LLMProviderFactory } from '../llm/index.ts'
 import { PerformanceOptimizer } from './PerformanceOptimizer.ts'
@@ -14,6 +18,10 @@ export abstract class EdgeFunctionBase {
   private static llmProviderErrors: Map<string, string> = new Map()
   private static initialized = false
 
+  /**
+   * Initializes and returns a configured Supabase client with optimized settings.
+   * Performs one-time setup including performance warmup.
+   */
   static initialize(): SupabaseClient {
     if (!this.supabase) {
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -40,6 +48,10 @@ export abstract class EdgeFunctionBase {
     return this.supabase
   }
 
+  /**
+   * Gets or creates an LLM provider instance with caching and error handling.
+   * Caches providers per function to avoid repeated initialization.
+   */
   static getLLMProvider(functionName: string): any {
     const cachedError = this.llmProviderErrors.get(functionName)
     if (cachedError) {

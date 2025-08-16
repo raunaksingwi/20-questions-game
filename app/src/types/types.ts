@@ -1,3 +1,7 @@
+/**
+ * App-specific type definitions for the React Native 20 Questions game.
+ * Extends shared types with frontend-specific interfaces and utilities.
+ */
 export type GameStatus = 'active' | 'won' | 'lost';
 export type MessageRole = 'system' | 'user' | 'assistant';
 export type MessageType = 'question' | 'answer' | 'hint' | 'guess';

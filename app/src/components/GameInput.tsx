@@ -1,3 +1,7 @@
+/**
+ * Game input component that handles both text and voice input for the game.
+ * Adapts interface based on game mode (user-guessing vs AI-guessing).
+ */
 import React, { useCallback, useRef } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +24,10 @@ interface GameInputProps {
   onWinPress?: () => void;
 }
 
+/**
+ * Renders the appropriate input interface based on the current game mode.
+ * Shows quick answer chips for AI-guessing mode or text/voice input for user-guessing mode.
+ */
 export const GameInput: React.FC<GameInputProps> = ({
   question,
   setQuestion,
@@ -39,7 +47,9 @@ export const GameInput: React.FC<GameInputProps> = ({
   const inputX = useSharedValue(0);
   const inputY = useSharedValue(0);
 
-  // Handle text input layout to get actual dimensions
+  /**
+   * Captures text input layout dimensions for voice button positioning.
+   */
   const handleTextInputLayout = useCallback((event: any) => {
     const { width, height, x, y } = event.nativeEvent.layout;
     inputWidth.value = width;
@@ -53,6 +63,9 @@ export const GameInput: React.FC<GameInputProps> = ({
     ? "Answer the question or type your response..."
     : "Ask a yes/no question or make a guess...";
 
+  /**
+   * Handles quick answer chip selections and forwards them to the parent component.
+   */
   const handleQuickAnswer = useCallback((answer: string, type: QuickAnswerType) => {
     if (onQuickAnswer) {
       onQuickAnswer(answer, type);

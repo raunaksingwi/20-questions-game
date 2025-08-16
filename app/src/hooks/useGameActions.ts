@@ -1,3 +1,7 @@
+/**
+ * Custom hook that provides game action functions for handling user interactions.
+ * Manages game logic, API calls, and state updates with request deduplication.
+ */
 import { Alert } from 'react-native';
 import { gameService } from '../services/gameService';
 import { audioManager } from '../services/AudioManager';
@@ -5,7 +9,10 @@ import { GameMessage, GameMode, AnswerType } from '../types/types';
 import { GameState, GameStateActions } from './useGameState';
 import { useRef } from 'react';
 
-// Standard error handling
+/**
+ * Standardized error handling for game actions.
+ * Logs errors and shows user-friendly alerts.
+ */
 const handleError = (error: any, operation: string, fallbackMessage?: string) => {
   console.error(`[${operation.toUpperCase()} ERROR]`, error);
   const message = error?.message || fallbackMessage || 'An unexpected error occurred';
@@ -22,6 +29,10 @@ export interface GameActionsHook {
   handleWin: () => Promise<void>;
 }
 
+/**
+ * Creates game action functions that interact with the game service and update state.
+ * Handles request deduplication and provides methods for all game interactions.
+ */
 export const useGameActions = (
   state: GameState,
   actions: GameStateActions
@@ -29,6 +40,10 @@ export const useGameActions = (
   // Request deduplication
   const lastRequestRef = useRef<{ type: string; content: string; timestamp: number } | null>(null);
   
+  /**
+   * Checks if a request is a duplicate of the last request within 2 seconds.
+   * Prevents accidental double-taps and duplicate API calls.
+   */
   const isDuplicateRequest = (type: string, content: string): boolean => {
     const now = Date.now();
     const lastRequest = lastRequestRef.current;
@@ -43,6 +58,9 @@ export const useGameActions = (
     );
   };
   
+  /**
+   * Records the current request for duplicate detection.
+   */
   const recordRequest = (type: string, content: string) => {
     lastRequestRef.current = {
       type,

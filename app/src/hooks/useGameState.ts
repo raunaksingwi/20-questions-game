@@ -1,3 +1,7 @@
+/**
+ * Custom hook for managing the overall game state using React useState.
+ * Provides centralized state management for game data, UI state, and actions.
+ */
 import { useState } from 'react';
 import { GameMessage, GameStatus, GameMode } from '../types/types';
 
@@ -34,6 +38,10 @@ export interface GameStateActions {
   setBatchState: (updates: Partial<GameState>) => void;
 }
 
+/**
+ * Creates and manages game state with actions for updating individual state pieces.
+ * Returns both the current state and action functions for state updates.
+ */
 export const useGameState = () => {
   const [gameId, setGameId] = useState<string | null>(null);
   const [secretItem, setSecretItem] = useState<string | null>(null);

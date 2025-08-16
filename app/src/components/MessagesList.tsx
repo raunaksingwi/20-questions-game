@@ -1,3 +1,7 @@
+/**
+ * Messages list component that displays the conversation history in a chat-like interface.
+ * Handles auto-scrolling, loading indicators, and different message types.
+ */
 import React, { useRef, useEffect, useCallback } from 'react';
 import { FlatList, View, Text, StyleSheet } from 'react-native';
 import { GameMessage } from '../types/types';
@@ -16,6 +20,10 @@ interface MessagesListProps {
   sending: boolean;
 }
 
+/**
+ * Renders a scrollable list of game messages with typing indicator when sending.
+ * Automatically scrolls to bottom when new messages arrive.
+ */
 export const MessagesList: React.FC<MessagesListProps> = ({
   messages,
   sending,
@@ -37,6 +45,9 @@ export const MessagesList: React.FC<MessagesListProps> = ({
     paddingBottom: 20,
   }), []);
 
+  /**
+   * Scrolls the message list to the bottom to show the latest message.
+   */
   const scrollToBottom = useCallback(() => {
     if (flatListRef.current) {
       setTimeout(() => {
@@ -50,6 +61,9 @@ export const MessagesList: React.FC<MessagesListProps> = ({
     scrollToBottom();
   }, [data, scrollToBottom]);
 
+  /**
+   * Renders individual message items with appropriate styling based on role and type.
+   */
   const renderItem = useCallback(({ item, index }: { item: MessageItem, index: number }) => {
     if (item.content === 'loading') {
       return <TypingIndicator />;

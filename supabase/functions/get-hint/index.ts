@@ -1,3 +1,7 @@
+/**
+ * Edge function that generates contextual hints for the 20 Questions game.
+ * Analyzes conversation history to provide helpful hints without revealing the answer.
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GetHintRequest, GetHintResponse } from '../../../shared/types.ts'
 import { ResponseParser } from '../_shared/llm/index.ts'
@@ -9,6 +13,10 @@ import { ConversationState } from '../_shared/state/ConversationState.ts'
 // Initialize shared services
 const supabase = EdgeFunctionBase.initialize()
 
+/**
+ * Handles hint generation requests by analyzing conversation context.
+ * Provides progressive hints that avoid repeating known information.
+ */
 const handler = async (req: Request) => {
   const corsResponse = EdgeFunctionBase.handleCors(req)
   if (corsResponse) return corsResponse

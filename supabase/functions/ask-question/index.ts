@@ -1,3 +1,7 @@
+/**
+ * Edge function that processes user questions in the 20 Questions game.
+ * Uses LLM to generate contextually appropriate yes/no answers while maintaining consistency.
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { AskQuestionRequest, AskQuestionResponse } from '../../../shared/types.ts'
 import { ResponseParser } from '../_shared/llm/index.ts'
@@ -9,6 +13,10 @@ import { ConversationState } from '../_shared/state/ConversationState.ts'
 // Initialize shared services
 const supabase = EdgeFunctionBase.initialize()
 
+/**
+ * Handles question processing requests with consistency tracking and guess detection.
+ * Maintains conversation context and validates answer consistency.
+ */
 const handler = async (req: Request) => {
   const corsResponse = EdgeFunctionBase.handleCors(req)
   if (corsResponse) return corsResponse
@@ -263,7 +271,8 @@ const handler = async (req: Request) => {
 }
 
 /**
- * Validates if the current answer is consistent with established facts
+ * Validates if the current answer is consistent with previously established facts.
+ * Checks for contradictions with earlier yes/no responses.
  */
 function validateAnswerConsistency(
   question: string, 
@@ -299,7 +308,8 @@ function validateAnswerConsistency(
 }
 
 /**
- * Simple function to check if two questions are asking about the same thing
+ * Determines if two questions are semantically similar by comparing normalized word overlap.
+ * Used to detect potential contradictions in responses.
  */
 function questionsAreSimilar(q1: string, q2: string): boolean {
   // Remove common question words and punctuation

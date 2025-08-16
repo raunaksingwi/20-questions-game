@@ -1,3 +1,7 @@
+/**
+ * Game header component that displays current game status and action buttons.
+ * Shows category, question counter, and context-appropriate buttons (Win/Hint/Quit).
+ */
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
 import { GameMode } from '../types/types';
@@ -14,6 +18,10 @@ interface GameHeaderProps {
   disabled?: boolean;
 }
 
+/**
+ * Renders the game header with status information and action buttons.
+ * Adapts UI based on game mode (user-guessing vs AI-guessing).
+ */
 export const GameHeader: React.FC<GameHeaderProps> = ({
   category,
   questionsRemaining,
@@ -27,6 +35,10 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
 }) => {
   const isThinkMode = mode === GameMode.AI_GUESSING;
   
+  /**
+   * Handles quit button press with confirmation dialog.
+   * Shows platform-appropriate confirmation (Alert vs window.confirm).
+   */
   const handleQuitPress = () => {
     if (Platform.OS === 'web') {
       if (window.confirm('Are you sure you want to quit? Your progress will be lost.')) {

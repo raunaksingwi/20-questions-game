@@ -1,3 +1,8 @@
+/**
+ * Shared TypeScript type definitions for the 20 Questions game.
+ * Used by both React Native app and Supabase edge functions to ensure type safety.
+ */
+
 export type GameStatus = 'active' | 'won' | 'lost';
 export type MessageRole = 'system' | 'user' | 'assistant';
 export type MessageType = 'question' | 'answer' | 'hint' | 'guess';
@@ -22,18 +27,33 @@ export const THINK_RESULT_TYPES: ThinkResultType[] = ['llm_win', 'llm_loss'];
 // UUID validation regex
 export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-// Input validation functions
+/**
+ * Validates if a string is a properly formatted UUID.
+ */
 export const isValidUUID = (value: string): boolean => UUID_REGEX.test(value);
+/**
+ * Type guard to validate game mode values.
+ */
 export const isValidGameMode = (value: string): value is GameMode => GAME_MODES.includes(value as GameMode);
+/**
+ * Type guard to validate answer type values.
+ */
 export const isValidAnswerType = (value: string): value is AnswerType => ANSWER_TYPES.includes(value as AnswerType);
+/**
+ * Type guard to validate think mode result types.
+ */
 export const isValidThinkResultType = (value: string): value is ThinkResultType => THINK_RESULT_TYPES.includes(value as ThinkResultType);
 
-// String validation
+/**
+ * Validates string input with configurable length constraints.
+ */
 export const isValidString = (value: any, minLength = 1, maxLength = 1000): boolean => {
   return typeof value === 'string' && value.trim().length >= minLength && value.length <= maxLength;
 };
 
-// Category validation
+/**
+ * Validates if a category name is allowed in the game.
+ */
 export const isValidCategory = (value: string): boolean => {
   const allowedCategories = ['Animals', 'Food', 'Objects', 'Places', 'Random'];
   return allowedCategories.includes(value);

@@ -1,5 +1,7 @@
-// Frontend Performance Optimizer
-// Handles request optimization, caching, and performance monitoring
+/**
+ * Frontend performance optimizer that handles request optimization, caching, and monitoring.
+ * Tracks performance metrics and provides optimized request handling for the React Native app.
+ */
 
 interface PerformanceMetrics {
   action: string
@@ -14,6 +16,9 @@ class FrontendPerformanceOptimizer {
   private metrics: PerformanceMetrics[] = []
   private readonly MAX_METRICS = 50
   
+  /**
+   * Starts a performance timer for tracking action duration.
+   */
   startTimer(action: string): PerformanceMetrics {
     const metric: PerformanceMetrics = {
       action,

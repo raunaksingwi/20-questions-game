@@ -1,3 +1,7 @@
+/**
+ * Main game screen where the 20 Questions game is played.
+ * Manages the conversation interface, handles user input (text/voice), and displays game state.
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -31,6 +35,10 @@ type Props = {
 };
 
 
+/**
+ * Main game screen component that orchestrates the 20 Questions gameplay.
+ * Handles both user-guessing and AI-guessing game modes with voice/text input.
+ */
 export default function GameScreen({ route, navigation }: Props) {
   const { category, mode } = route.params;
   const [question, setQuestion] = useState('');
@@ -53,6 +61,10 @@ export default function GameScreen({ route, navigation }: Props) {
     gameActions.startNewGame(category, mode, () => navigation.goBack());
   }, []);
 
+  /**
+   * Processes voice input from the user and submits it based on current game mode.
+   * Routes to appropriate action (question or answer) depending on game mode.
+   */
   const handleVoiceSubmit = (voiceText: string) => {
     console.log('🎬 GameScreen: Voice text received:', voiceText);
     console.log('🎬 GameScreen: Voice text length:', voiceText.length, 'words:', voiceText.split(' ').length);
@@ -65,6 +77,10 @@ export default function GameScreen({ route, navigation }: Props) {
     setQuestion('');
   };
 
+  /**
+   * Processes text input from the user and submits it based on current game mode.
+   * Validates input and routes to appropriate action.
+   */
   const handleTextSubmit = () => {
     const textToSubmit = question.trim();
     if (!textToSubmit) return;
@@ -77,17 +93,26 @@ export default function GameScreen({ route, navigation }: Props) {
     setQuestion('');
   };
 
+  /**
+   * Handles closing the game result modal and navigating back to home screen.
+   */
   const handleResultModalClose = () => {
     actions.setShowResultModal(false);
     navigation.goBack();
   };
 
+  /**
+   * Handles the WIN button press in AI-guessing mode when AI correctly guesses the secret.
+   */
   const handleWinPress = () => {
     console.log('🎯 WIN button pressed - AI guessing mode victory');
     console.log('🎯 Current mode:', mode, 'Game status:', state.gameStatus);
     gameActions.handleWin();
   };
 
+  /**
+   * Handles quick answer chip selections (Yes/No/Maybe) in AI-guessing mode.
+   */
   const handleQuickAnswer = (answer: string, type: string) => {
     console.log(`Quick answer: ${answer} (${type})`);
     gameActions.submitUserAnswer(answer, 'chip');

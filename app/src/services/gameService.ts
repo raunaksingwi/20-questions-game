@@ -1,3 +1,7 @@
+/**
+ * Service class that handles all game-related API calls to Supabase edge functions.
+ * Provides methods for game lifecycle, questions, hints, and AI interactions.
+ */
 import { supabase } from './supabase'
 import { 
   StartGameRequest, 
@@ -28,6 +32,10 @@ class GameService {
   private readonly CACHE_DURATION = 30 * 60 * 1000; // 30 minutes - longer cache
   private categoriesPromise: Promise<any[]> | null = null; // Promise deduplication
   
+  /**
+   * Generic method to call Supabase edge functions with timeout and error handling.
+   * Provides consistent API call pattern across all game operations.
+   */
   private async callFunction<T, R>(functionName: string, data: T): Promise<R> {
     const startTime = Date.now()
     console.log(`[gameService] Calling ${functionName}...`)

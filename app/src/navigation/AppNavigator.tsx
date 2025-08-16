@@ -1,3 +1,7 @@
+/**
+ * Main navigation setup for the 20 Questions game app.
+ * Defines the navigation stack and screen routing between Home and Game screens.
+ */
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -12,6 +16,10 @@ export type RootStackParamList = {
 
 const Stack = createStackNavigator<RootStackParamList>();
 
+/**
+ * Creates and configures the main navigation container for the app.
+ * Sets up stack navigation with consistent header styling.
+ */
 export default function AppNavigator() {
   return (
     <NavigationContainer>

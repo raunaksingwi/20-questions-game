@@ -1,3 +1,7 @@
+/**
+ * Main entry point for the React Native 20 Questions game app.
+ * Registers the root component with Expo for both development and production builds.
+ */
 import { registerRootComponent } from 'expo';
 
 import App from './App';
