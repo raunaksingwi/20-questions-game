@@ -363,13 +363,15 @@ export class DecisionTree {
   }
   
   private static makeEducatedGuess(space: PossibilitySpace): string {
-    // If no items remain due to over-elimination, ask a broader question
+    // If no items remain due to over-elimination, ask concrete backup questions
     if (space.remaining.length === 0) {
       const fallbackQuestions = [
-        "Does it have any unique characteristics I should know about?",
-        "Is it from a specific region or time period?",
-        "Does it have multiple forms or variations?",
-        "Is it commonly associated with a particular group or activity?"
+        "Is it made of plastic?",
+        "Is it black in color?",
+        "Is it used for communication?",
+        "Is it smaller than a book?",
+        "Is it used in offices?",
+        "Does it connect to other devices?"
       ]
       return fallbackQuestions[Math.floor(Math.random() * fallbackQuestions.length)]
     }
