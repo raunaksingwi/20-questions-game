@@ -57,7 +57,7 @@ async function testProvider(providerName: 'anthropic' | 'openai') {
     
     return true
   } catch (error) {
-    console.log(`❌ Error testing ${providerName}:`, error.message)
+    console.log(`❌ Error testing ${providerName}:`, error instanceof Error ? error.message : String(error))
     return false
   }
 }

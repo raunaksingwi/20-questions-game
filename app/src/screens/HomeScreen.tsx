@@ -16,7 +16,7 @@ import {
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { Category, GameMode } from '../types/types';
+import { GameMode } from '../types/types';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -275,11 +275,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#6366f1',
-    marginBottom: 5,
-  },
-  categoryDescription: {
-    fontSize: 14,
-    color: '#6b7280',
   },
   rulesContainer: {
     margin: 20,
