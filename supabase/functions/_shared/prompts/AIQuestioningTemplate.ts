@@ -14,6 +14,8 @@ ${this.getCoreRules()}
 
 ${this.getRepetitionPrevention(alreadyAskedQuestions)}
 
+${this.getStructuredReasoningPrompt(questionsAsked, conversationHistory, alreadyAskedQuestions)}
+
 ${shouldGuess ? this.getGuessingGuidance(questionsAsked) : this.getStrategicGuidance()}
 
 ${this.getQuestionProgression()}
@@ -26,7 +28,7 @@ ${this.getOutputFormat()}
 
 ${conversationHistory}
 
-${shouldGuess ? 'Based on the information gathered, make a specific guess about the exact item.' : 'Output only the next strategic yes/no question.'}`;
+${shouldGuess ? 'Based on the information gathered, make a specific guess about the exact item.' : 'Work through the structured reasoning steps above, then output only the next strategic yes/no question.'}`;
   }
 
   private shouldMakeSpecificGuess(questionsAsked: number, conversationHistory: string): boolean {
@@ -125,9 +127,43 @@ CRITICAL: You must ask a NEW question that has never been asked before!`
 ${questions.map(q => `• ${q}`).join('\n')}`
   }
 
+  private getStructuredReasoningPrompt(questionsAsked: number, conversationHistory: string, alreadyAskedQuestions: string[]): string {
+    return `🧠 STRUCTURED REASONING - You MUST complete these steps before asking your question:
+
+STEP 1: DOMAIN ANALYSIS
+- Based on all confirmed YES/NO answers, what specific sub-domain am I working within?
+- Example: If confirmed "electronic + portable + daily use" → I'm in "portable electronics" domain
+- What broader categories have I already eliminated?
+
+STEP 2: REMAINING POSSIBILITIES ANALYSIS  
+- Given ALL confirmed facts, list 3-5 specific items that could still match
+- Example: If "object + electronic + handheld + charges things" → charging cable, power bank, USB cable, etc.
+- How many possibilities roughly remain?
+
+STEP 3: OPTIMAL ELIMINATION STRATEGY
+- Which single property would best split remaining possibilities in half?
+- What concrete, specific question eliminates ~50% while being answerable?
+- Avoid asking about properties that are logical consequences of confirmed facts
+
+STEP 4: REPETITION & REDUNDANCY CHECK
+- Have I asked anything semantically similar to my proposed question?
+- Am I asking about something I can deduce from existing answers?
+- Is this question fundamentally different from all previous questions?
+
+STEP 5: QUESTION VALIDATION
+- Is my question concrete and specific (not vague like "unique characteristics")?
+- Can most people answer this definitively with yes/no?
+- Does this add meaningful new information?
+
+FORMAT: Work through steps 1-4 in your thinking, then output ONLY the final question.
+
+CRITICAL INSTRUCTION: If you cannot think of a good question that passes all checks, ask a very specific guess: "Is it [specific item name]?"`
+  }
+
   private getOutputFormat(): string {
     return `OUTPUT FORMAT REQUIREMENTS:
-- Output ONLY the bare question text as a single line ending with a question mark
+- Work through the structured reasoning steps above first
+- Then output ONLY the bare question text as a single line ending with a question mark  
 - Do NOT include numbering, prefixes, explanations, qualifiers, or any other text
 - Do NOT guess specific items too early; follow the strategic progression above`
   }
