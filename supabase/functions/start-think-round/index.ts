@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { StartThinkRoundRequest, StartThinkRoundResponse, isValidCategory, isValidString, isValidUUID } from '../../../shared/types.ts'
 import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
+import { AIQuestioningTemplateFactory } from '../_shared/prompts/AIQuestioningTemplate.ts'
 
 // Initialize shared Supabase client
 const supabase = EdgeFunctionBase.initialize()
@@ -78,36 +79,17 @@ const handler = async (req: Request) => {
       throw new Error('Failed to create game session: no session ID returned')
     }
 
-    // Generate LLM's first question using Think mode prompting
+    // Generate LLM's first question using category-specific template
     const llmStart = Date.now()
     const llmProvider = EdgeFunctionBase.getLLMProvider('start-think-round')
     
-    const systemPrompt = `You are playing 20 Questions in AI Guessing mode. The user has thought of an item within the category: ${selectedCategory}.
-Your job is to ask up to 20 yes/no questions to identify the item. 
-
-Questioning Strategy:
-- Start with BROAD categorical questions to divide the category into major groups
-- Gradually narrow down based on previous answers - don't jump to specific items too early
-- Use a logical hierarchy: general properties → specific properties → final guesses
-- Each question should eliminate roughly half of the remaining possibilities
-- Build upon what you've learned from previous questions
-
-Rules:
-- Ask exactly one yes/no question per turn
-- Keep each question short and unambiguous
-- Stay strictly within the category
-- Use the user's answers to systematically narrow down the possibilities
-- Only ask specific item confirmations when you've narrowed it down significantly
-- Do not reveal internal reasoning or ask multiple questions at once
-- Stop asking after 20 questions; await result
-
-Current question count: 1 of 20.
-Output format requirements:
-- Output ONLY the bare question text as a single line ending with a question mark.
-- Do NOT include numbering, prefixes, explanations, qualifiers, or any other text.
-- Do NOT guess specific items at this stage; start with broad properties.
-
-Output only the next yes/no question.`
+    // Use the AI questioning template system for category-specific prompts
+    const aiQuestioningTemplate = AIQuestioningTemplateFactory.createTemplate(selectedCategory)
+    const systemPrompt = aiQuestioningTemplate.generate(
+      0, // First question (0 questions asked so far)
+      `Starting new AI Guessing mode session for category: ${selectedCategory}`, // Initial conversation context
+      [] // No questions asked yet
+    )
 
     const userPrompt = `I have thought of an item within the category: ${selectedCategory}. Ask your first yes/no question.`
 
@@ -156,7 +138,7 @@ Output only the next yes/no question.`
     return EdgeFunctionBase.createSuccessResponse(responseData)
 
   } catch (error) {
-    return EdgeFunctionBase.createErrorResponse(error)
+    return EdgeFunctionBase.createErrorResponse(error instanceof Error ? error : new Error(String(error)))
   }
 }
 

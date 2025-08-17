@@ -3,6 +3,7 @@ export abstract class AIQuestioningTemplate {
   protected abstract getStrategicQuestions(): string[]
   protected abstract getQuestionProgression(): string
   protected abstract getExampleProgression(): string
+  protected abstract getCategorySpecificDeductions(): string
 
   generate(questionsAsked: number, conversationHistory: string, alreadyAskedQuestions: string[]): string {
     const shouldGuess = this.shouldMakeSpecificGuess(questionsAsked, conversationHistory)
@@ -13,6 +14,8 @@ Your job is to ask up to 20 yes/no questions to identify the item.
 ${this.getCoreRules()}
 
 ${this.getRepetitionPrevention(alreadyAskedQuestions)}
+
+${this.getCategorySpecificDeductions()}
 
 ${this.getStructuredReasoningPrompt(questionsAsked, conversationHistory, alreadyAskedQuestions)}
 
@@ -103,12 +106,12 @@ IMPORTANT: Frame your guess as a yes/no question: "Is it [specific item name]?"`
 - "Are there any notable aspects?"
 - "Is it known for particular qualities?"
 
-✅ ASK THESE SPECIFIC TYPES:
-- Basic properties everyone knows: "Are they male?", "Are they still alive?"
-- Concrete time periods: "Did they serve before 1990?", "Were they active in the 2000s?"
-- Specific locations: "Are they from Asia?", "Did they lead the United States?"
-- Clear yes/no facts: "Were they a president?", "Did they win a war?"
-- Binary characteristics: "Did they serve more than 8 years?", "Were they elected?"
+✅ ASK CONCRETE, SPECIFIC QUESTIONS:
+- Binary properties that can be answered definitively
+- Clear geographic or temporal distinctions  
+- Specific roles, functions, or classifications
+- Physical properties that are observable
+- Historical facts that are well-known
 
 CRITICAL: Every question must be CONCRETE and SPECIFIC, not vague or subjective!`
   }
@@ -192,6 +195,18 @@ export class AnimalsAIQuestioningTemplate extends AIQuestioningTemplate {
   protected getExampleProgression(): string {
     return `EXAMPLE PROGRESSION: Wild → Mammal → Large → Carnivore → African → Lion`
   }
+
+  protected getCategorySpecificDeductions(): string {
+    return `ANIMALS CATEGORY - LOGICAL DEDUCTIONS:
+• If "mammal" = YES → It's NOT a bird, reptile, fish, or insect
+• If "mammal" = NO → It could be a bird, reptile, fish, or insect  
+• If "wild" = YES → It's NOT a domestic pet, lives in natural habitats
+• If "wild" = NO → It could be a pet or farm animal
+• If "carnivore" = YES → It eats meat, has predatory behavior
+• If "herbivore" = YES → It's NOT a carnivore, eats plants only
+• If "large" = YES → It's bigger than most household pets
+• If "small" = YES → It's NOT large animals like elephants or whales`
+  }
 }
 
 export class ObjectsAIQuestioningTemplate extends AIQuestioningTemplate {
@@ -216,6 +231,17 @@ export class ObjectsAIQuestioningTemplate extends AIQuestioningTemplate {
 
   protected getExampleProgression(): string {
     return `EXAMPLE PROGRESSION: Indoor → Electronic → Portable → Communication → Phone`
+  }
+
+  protected getCategorySpecificDeductions(): string {
+    return `OBJECTS CATEGORY - LOGICAL DEDUCTIONS:
+• If "electronic" = YES → It's NOT living, NOT organic, NOT edible, requires power
+• If "electronic" = NO → It doesn't require electricity, NOT a digital device
+• If "handheld" = YES → It's portable/small, NOT furniture or large objects  
+• If "handheld" = NO → It's large/heavy, you cannot carry it easily
+• If "furniture" = YES → It's NOT handheld, likely found indoors
+• If "tool" = YES → It has a specific function, designed for tasks
+• If "kitchen" = YES → It's related to food/cooking, found in homes`
   }
 }
 
@@ -259,6 +285,18 @@ AVOID VAGUE QUESTIONS:
   protected getExampleProgression(): string {
     return `EXAMPLE PROGRESSION: Dead → European → Before 1990 → Prime Minister → Britain → Winston Churchill`
   }
+
+  protected getCategorySpecificDeductions(): string {
+    return `WORLD LEADERS CATEGORY - LOGICAL DEDUCTIONS:
+• If "alive" = YES → They are currently serving or recently served, NOT historical figures
+• If "alive" = NO → They are historical figures, NOT currently in office
+• If "male" = YES → They are NOT female
+• If "male" = NO → They are NOT male (female leaders)
+• If "president" = YES → They held presidential office, NOT monarchs or PMs
+• If "Europe" = YES → They are NOT from Asia, Africa, Americas, or Oceania
+• If "before 1990" = YES → They are historical leaders, likely deceased
+• If "democratically elected" = YES → They came to power through elections, NOT coups/inheritance`
+  }
 }
 
 export class CricketPlayersAIQuestioningTemplate extends AIQuestioningTemplate {
@@ -289,6 +327,16 @@ export class CricketPlayersAIQuestioningTemplate extends AIQuestioningTemplate {
 
   protected getExampleProgression(): string {
     return `EXAMPLE PROGRESSION: Active → Indian → Batsman → Captain → Top scorer → Virat Kohli`
+  }
+
+  protected getCategorySpecificDeductions(): string {
+    return `CRICKET PLAYERS CATEGORY - LOGICAL DEDUCTIONS:
+• If "active" = YES → They are currently playing, NOT retired
+• If "active" = NO → They are retired players, historical figures
+• If "Indian" = YES → They are NOT from Australia, England, or other countries
+• If "batsman" = YES → They are NOT primarily bowlers or wicket-keepers
+• If "captain" = YES → They have leadership experience, likely senior players
+• If "before 2010" = YES → They are from earlier cricket eras`
   }
 }
 
@@ -321,6 +369,16 @@ export class FootballPlayersAIQuestioningTemplate extends AIQuestioningTemplate 
   protected getExampleProgression(): string {
     return `EXAMPLE PROGRESSION: Retired → QB → Multiple Super Bowls → AFC → Patriots → Tom Brady`
   }
+
+  protected getCategorySpecificDeductions(): string {
+    return `FOOTBALL PLAYERS CATEGORY - LOGICAL DEDUCTIONS:
+• If "active" = YES → They are currently playing, NOT retired
+• If "active" = NO → They are retired players, possibly Hall of Famers
+• If "quarterback" = YES → They are NOT defensive players or other positions
+• If "Super Bowl" = YES → They are successful, accomplished players
+• If "AFC" = YES → They are NOT from NFC teams
+• If "offense" = YES → They are NOT defensive players`
+  }
 }
 
 export class NBAPlayersAIQuestioningTemplate extends AIQuestioningTemplate {
@@ -352,6 +410,16 @@ export class NBAPlayersAIQuestioningTemplate extends AIQuestioningTemplate {
   protected getExampleProgression(): string {
     return `EXAMPLE PROGRESSION: Retired → Guard → Championships → Western → Lakers → Kobe Bryant`
   }
+
+  protected getCategorySpecificDeductions(): string {
+    return `NBA PLAYERS CATEGORY - LOGICAL DEDUCTIONS:
+• If "active" = YES → They are currently playing, NOT retired
+• If "active" = NO → They are retired players, possibly legends
+• If "guard" = YES → They are NOT centers or forwards
+• If "champion" = YES → They have won NBA titles, accomplished players
+• If "Western" = YES → They are NOT from Eastern Conference teams
+• If "Lakers" = YES → They have played for this specific franchise`
+  }
 }
 
 export class DefaultAIQuestioningTemplate extends AIQuestioningTemplate {
@@ -378,6 +446,15 @@ export class DefaultAIQuestioningTemplate extends AIQuestioningTemplate {
 
   protected getExampleProgression(): string {
     return `EXAMPLE PROGRESSION: Broad Category → Key Property → Specific Trait → Final Guess`
+  }
+
+  protected getCategorySpecificDeductions(): string {
+    return `GENERAL CATEGORY - LOGICAL DEDUCTIONS:
+• If "living" = YES → It's NOT inanimate objects, NOT electronic devices
+• If "living" = NO → It's NOT biological, likely man-made or natural non-living
+• If "man-made" = YES → It's NOT natural objects, designed by humans
+• If "large" = YES → It's NOT small portable items
+• Apply logical elimination based on confirmed properties`
   }
 }
 

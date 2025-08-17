@@ -3,6 +3,7 @@ import { SubmitUserAnswerRequest, SubmitUserAnswerResponse, isValidUUID, isValid
 import { EdgeFunctionBase } from '../_shared/common/EdgeFunctionBase.ts'
 import { DecisionTree } from '../_shared/logic/DecisionTree.ts'
 import { AIQuestioningTemplateFactory } from '../_shared/prompts/AIQuestioningTemplate.ts'
+import { AIGuessingPromptBuilder } from '../_shared/prompts/AIGuessingPromptBuilder.ts'
 
 // Initialize shared Supabase client
 const supabase = EdgeFunctionBase.initialize()
@@ -120,7 +121,7 @@ const handler = async (req: Request) => {
     const llmProvider = EdgeFunctionBase.getLLMProvider('submit-user-answer')
     
 
-    // Build categorized summary (Yes / No / Maybe-Unknown)
+    // Build categorized summary using the new prompt builder
     const questionsByNumber: Record<number, string> = {}
     const answersByNumber: Record<number, string> = {}
     messages.forEach(msg => {
@@ -135,156 +136,10 @@ const handler = async (req: Request) => {
     // Ensure the just-submitted answer is included
     answersByNumber[currentQuestionNumber] = answer
 
-    const normalize = (s: string) => s.toLowerCase().trim()
-    const isAffirmativeAnswer = (s: string) => {
-      const n = normalize(s)
-      return n.startsWith('y') || n === 'yes' || n.includes('yeah') || n.includes('yep')
-    }
-    const isNegativeAnswer = (s: string) => {
-      const n = normalize(s)
-      return n.startsWith('n') || n === 'no' || n.includes('nope')
-    }
-    const isDontKnowAnswer = (s: string) => {
-      const n = normalize(s)
-      return n.includes("don't know") || n.includes('dont know') || n.includes('unknown')
-    }
-    const isMaybeAnswer = (s: string) => {
-      const n = normalize(s)
-      return n.includes('maybe') || n.includes('sometimes') || n.includes('it depends')
-    }
-
-    const yesFacts: Array<{ n: number, q: string }> = []
-    const noFacts: Array<{ n: number, q: string }> = []
-    const maybeFacts: Array<{ n: number, q: string }> = []
-    const unknownFacts: Array<{ n: number, q: string }> = []
-
-    Object.keys(questionsByNumber)
-      .map(k => Number(k))
-      .sort((a, b) => a - b)
-      .forEach(n => {
-        const q = questionsByNumber[n]
-        const a = answersByNumber[n]
-        if (!q || !a) return
-        if (isAffirmativeAnswer(a)) {
-          yesFacts.push({ n, q })
-        } else if (isNegativeAnswer(a)) {
-          noFacts.push({ n, q })
-        } else if (isMaybeAnswer(a)) {
-          maybeFacts.push({ n, q })
-        } else if (isDontKnowAnswer(a)) {
-          unknownFacts.push({ n, q })
-        }
-      })
-
-    // Create a more comprehensive context that helps prevent redundancy
-    let categorizedSummary = 'ESTABLISHED FACTS - Use these to avoid redundant questions:\n'
+    // Use the prompt builder to categorize facts
+    const facts = AIGuessingPromptBuilder.categorizeFacts(questionsByNumber, answersByNumber)
     
-    if (yesFacts.length > 0) {
-      categorizedSummary += '\n✓ CONFIRMED TRUE (YES answers):\n'
-      yesFacts.forEach(item => { 
-        categorizedSummary += `  → ${item.q}\n`
-      })
-    }
-    
-    if (noFacts.length > 0) {
-      categorizedSummary += '\n✗ CONFIRMED FALSE (NO answers):\n'
-      noFacts.forEach(item => { 
-        categorizedSummary += `  → ${item.q}\n`
-      })
-    }
-    
-    if (maybeFacts.length > 0) {
-      categorizedSummary += '\n~ PARTIAL YES (Sometimes/Maybe answers - treat as weak confirmations):\n'
-      maybeFacts.forEach(item => { 
-        categorizedSummary += `  → ${item.q}\n`
-      })
-    }
-    
-    if (unknownFacts.length > 0) {
-      categorizedSummary += '\n? UNKNOWN (Don\'t know answers):\n'
-      unknownFacts.forEach(item => { 
-        categorizedSummary += `  → ${item.q}\n`
-      })
-    }
-
-    // Add explicit logical deductions to prevent redundant questions
-    if (yesFacts.length > 0 || noFacts.length > 0 || maybeFacts.length > 0) {
-      categorizedSummary += '\n💡 LOGICAL DEDUCTIONS - You already know these facts (DO NOT ask about them):\n'
-      
-      // Objects category deductions
-      if (session.category.toLowerCase() === 'objects') {
-        const hasElectronic = yesFacts.some(f => f.q.includes('electronic')) || maybeFacts.some(f => f.q.includes('electronic'))
-        const notElectronic = noFacts.some(f => f.q.includes('electronic'))
-        const hasHandheld = yesFacts.some(f => f.q.includes('hold') || f.q.includes('hand')) || maybeFacts.some(f => f.q.includes('hold') || f.q.includes('hand'))
-        const notHandheld = noFacts.some(f => f.q.includes('hold') || f.q.includes('hand'))
-        
-        if (hasElectronic) {
-          categorizedSummary += '  → It is NOT living, NOT organic, NOT edible\n'
-          categorizedSummary += '  → It requires power/electricity\n'
-          categorizedSummary += '  → It is man-made\n'
-        }
-        if (notElectronic) {
-          categorizedSummary += '  → It does NOT require electricity\n'
-          categorizedSummary += '  → It is NOT a digital device\n'
-        }
-        if (hasHandheld) {
-          categorizedSummary += '  → It is portable/small\n'
-          categorizedSummary += '  → It is NOT furniture or large objects\n'
-        }
-        if (notHandheld) {
-          categorizedSummary += '  → It is large/heavy\n'
-          categorizedSummary += '  → You cannot carry it easily\n'
-        }
-      }
-      
-      // World leaders category deductions  
-      if (session.category.toLowerCase() === 'world leaders') {
-        const isAlive = yesFacts.some(f => f.q.includes('alive')) || maybeFacts.some(f => f.q.includes('alive'))
-        const isDead = noFacts.some(f => f.q.includes('alive')) || yesFacts.some(f => f.q.includes('dead')) || maybeFacts.some(f => f.q.includes('dead'))
-        const isMale = yesFacts.some(f => f.q.includes('male')) || maybeFacts.some(f => f.q.includes('male'))
-        const isFemale = noFacts.some(f => f.q.includes('male'))
-        
-        if (isAlive) {
-          categorizedSummary += '  → They are currently serving or recently served\n'
-          categorizedSummary += '  → They are NOT historical figures\n'
-        }
-        if (isDead) {
-          categorizedSummary += '  → They are historical figures\n'
-          categorizedSummary += '  → They are NOT currently in office\n'
-        }
-        if (isMale) {
-          categorizedSummary += '  → They are NOT female\n'
-        }
-        if (isFemale) {
-          categorizedSummary += '  → They are NOT male\n'
-        }
-      }
-      
-      // Animals category deductions
-      if (session.category.toLowerCase() === 'animals') {
-        const isMammal = yesFacts.some(f => f.q.includes('mammal')) || maybeFacts.some(f => f.q.includes('mammal'))
-        const notMammal = noFacts.some(f => f.q.includes('mammal'))
-        const isWild = yesFacts.some(f => f.q.includes('wild')) || maybeFacts.some(f => f.q.includes('wild'))
-        const notWild = noFacts.some(f => f.q.includes('wild'))
-        
-        if (isMammal) {
-          categorizedSummary += '  → It is NOT a bird, reptile, fish, or insect\n'
-          categorizedSummary += '  → It has fur/hair and warm blood\n'
-        }
-        if (notMammal) {
-          categorizedSummary += '  → It could be a bird, reptile, fish, or insect\n'
-        }
-        if (isWild) {
-          categorizedSummary += '  → It is NOT a domestic pet\n'
-          categorizedSummary += '  → It lives in natural habitats\n'
-        }
-        if (notWild) {
-          categorizedSummary += '  → It could be a pet or farm animal\n'
-        }
-      }
-    }
-    
-    // Add explicit question repetition prevention
+    // Build list of all asked questions
     const allAskedQuestions: string[] = []
     Object.keys(questionsByNumber)
       .map(k => Number(k))
@@ -294,72 +149,7 @@ const handler = async (req: Request) => {
         if (q) allAskedQuestions.push(q)
       })
 
-    if (allAskedQuestions.length > 0) {
-      categorizedSummary += '\n🚫 ALREADY ASKED QUESTIONS - DO NOT REPEAT THESE EXACT QUESTIONS:\n'
-      allAskedQuestions.forEach((q, index) => {
-        categorizedSummary += `  ${index + 1}. ${q}\n`
-      })
-      categorizedSummary += 'CRITICAL: You must ask a NEW question that has never been asked before!\n'
-    }
-
-    // Add logical deduction helper and domain constraints
-    if (yesFacts.length >= 2) {
-      categorizedSummary += '\n⚠️  REDUNDANCY CHECK: The item already has ALL of these properties confirmed as TRUE.\n'
-      categorizedSummary += 'Do NOT ask about combinations of these confirmed properties.\n'
-    }
-    
-    // Special handling for different response types
-    const hasRecentUncertain = unknownFacts.some(fact => 
-      fact.n === currentQuestionNumber || fact.n === currentQuestionNumber - 1
-    )
-    
-    const hasRecentMaybe = maybeFacts.some(fact => 
-      fact.n === currentQuestionNumber || fact.n === currentQuestionNumber - 1
-    )
-    
-    if (hasRecentUncertain) {
-      categorizedSummary += '\n⚠️  UNKNOWN RESPONSE DETECTED:\n'
-      categorizedSummary += 'The user just gave a "Don\'t know" answer - they lack information about this topic.\n'
-      categorizedSummary += 'STRATEGY: Ask a completely DIFFERENT type of concrete question about a topic they DO know.\n'
-      categorizedSummary += 'Move to a different aspect entirely - don\'t ask similar questions.\n'
-      categorizedSummary += '\n✅ PIVOT TO DIFFERENT TOPICS:\n'
-      categorizedSummary += '- If unknown about era → pivot to geography: "Are they from Europe?"\n'
-      categorizedSummary += '- If unknown about region → pivot to role: "Were they a president?"\n'
-      categorizedSummary += '- If unknown about characteristics → pivot to time: "Are they still alive?"\n'
-      categorizedSummary += '- If unknown about role → pivot to gender: "Are they male?"\n'
-    }
-    
-    if (hasRecentMaybe) {
-      categorizedSummary += '\n📍 PARTIAL YES RESPONSE DETECTED:\n'
-      categorizedSummary += 'The user just gave a "Sometimes/Maybe" answer - this is a WEAK CONFIRMATION.\n'
-      categorizedSummary += 'STRATEGY: Build on this partial information to get more specific details.\n'
-      categorizedSummary += 'Ask follow-up questions that help distinguish this item from others with similar properties.\n'
-      categorizedSummary += '\n✅ BUILD ON PARTIAL CONFIRMATION:\n'
-      categorizedSummary += '- If "sometimes in bedroom" → ask about primary location: "Is it mainly found in kitchens?"\n'
-      categorizedSummary += '- If "sometimes electronic" → ask about specific features: "Does it need batteries?"\n'
-      categorizedSummary += '- If "sometimes wild" → ask about domestication: "Is it commonly kept as a pet?"\n'
-      categorizedSummary += '- If "sometimes used for work" → ask about specific function: "Is it primarily for entertainment?"\n'
-      categorizedSummary += '\n🎯 GOAL: Find the PRIMARY or MOST DISTINCTIVE characteristic!\n'
-    }
-
-    // Add domain constraint analysis instruction
-    if (yesFacts.length > 0 || noFacts.length > 0 || maybeFacts.length > 0) {
-      categorizedSummary += '\n🎯 DOMAIN NARROWING ANALYSIS:\n'
-      categorizedSummary += 'Before asking your next question, analyze what domain space remains possible based on ALL the confirmed facts above.\n'
-      categorizedSummary += 'Ask yourself: "Given these confirmed facts (including partial YES answers), what specific sub-domain am I now working within?"\n'
-      categorizedSummary += 'Your next question MUST further narrow within that established domain - do NOT jump to unrelated properties!\n'
-      categorizedSummary += '\nExamples of proper domain narrowing:\n'
-      categorizedSummary += '- If confirmed: "mammal + wild animal" → ask about size, habitat, diet within wild mammals\n'
-      categorizedSummary += '- If confirmed: "cricket player + from Australia" → ask about batting/bowling, era, specific team\n'
-      categorizedSummary += '- If confirmed: "electronic + found in home" → ask about size, room, specific function\n'
-      categorizedSummary += '- If partial: "sometimes in bedroom" → ask about primary location or specific room\n'
-      categorizedSummary += '\n❌ DOMAIN VIOLATION EXAMPLES (DO NOT DO THIS):\n'
-      categorizedSummary += '- If confirmed "mammal + wild" and you ask "Is it electronic?" (completely wrong domain)\n'
-      categorizedSummary += '- If confirmed "Australian bowler" and you ask "Is it alive?" (already established as person)\n'
-    }
-
     const totalQuestionsUsed = questionsCountedForLimit
-    const yesNoFactsCount = yesFacts.length + noFacts.length + maybeFacts.length
     
     // Use simplified decision tree approach
     const conversationHistory = messages.map(m => ({
@@ -416,43 +206,21 @@ const handler = async (req: Request) => {
     
     // Use the AI questioning template system
     const aiQuestioningTemplate = AIQuestioningTemplateFactory.createTemplate(session.category)
-    const systemPrompt = aiQuestioningTemplate.generate(
+    const baseSystemPrompt = aiQuestioningTemplate.generate(
       totalQuestionsUsed,
       conversationContext,
       allAskedQuestions
     )
     
-    // Add the categorized summary for additional context
-    const enhancedSystemPrompt = `${systemPrompt}
-
-${categorizedSummary}
-
-${suggestedQuestion ? `RECOMMENDED QUESTION: "${suggestedQuestion}"\nThis question was suggested by decision tree analysis for optimal information gain.\nUse this question unless it's clearly redundant with what you already know.` : ''}
-
-LOGICAL DEDUCTION - If you know:
-- "Is it a mammal?" = YES, then you know it's NOT a bird, reptile, or fish
-- "Is it living?" = YES, then you know it's NOT electronic, furniture, or objects
-- "Is it dead?" = YES, then you know it's NOT alive
-
-AVOID REDUNDANCY:
-- DON'T ask "Is it a bird?" if they already said YES to "Is it a mammal?"
-- DON'T ask "Is it alive?" if they already answered about being dead
-- DON'T ask compound questions like "Is it big or small?" - pick one
-
-🚫 NEVER ASK VAGUE QUESTIONS:
-- "Does it have unique characteristics?" → Ask "Are they male?" instead
-- "Is it from a specific region?" → Ask "Are they from Europe?" instead  
-- "Does it have multiple forms?" → Ask "Were they both military and political?" instead
-- "Is it from a time period?" → Ask "Did they serve before 1990?" instead
-- "Does it have notable aspects?" → Ask "Did they win a war?" instead
-
-✅ ALWAYS ASK CONCRETE, SPECIFIC QUESTIONS:
-- Geographic: "Are they from Asia?", "Did they lead Germany?"
-- Temporal: "Did they serve before 1990?", "Were they active in the 2000s?"
-- Demographic: "Are they male?", "Are they still alive?"
-- Functional: "Were they a president?", "Did they win a Nobel Prize?"
-
-Ask your next strategic yes/no question. Output ONLY the question.`
+    // Use the prompt builder to create enhanced system prompt
+    const enhancedSystemPrompt = AIGuessingPromptBuilder.buildEnhancedSystemPrompt(
+      baseSystemPrompt,
+      session.category,
+      facts,
+      allAskedQuestions,
+      currentQuestionNumber,
+      suggestedQuestion
+    )
 
     const userPrompt = suggestedQuestion 
       ? `Use the recommended question "${suggestedQuestion}" unless it's clearly redundant. Otherwise, ask your next strategic yes/no question.`
@@ -535,7 +303,9 @@ Ask your next strategic yes/no question. Output ONLY the question.`
         .trim()
         .replace(/[^\w\s]/g, '') // Remove punctuation
         .replace(/\s+/g, ' ') // Normalize whitespace
-        .replace(/\b(is|it|a|an|the|does|do|can|will|would|are|they|have|has|did|was|were)\b/g, '') // Remove common question words
+        .replace(/\b(is|it|a|an|the|does|do|can|will|would|are|they|have|has|did|was|were|this|that|these|those|he|she|him|her|his|hers|their|them)\b/g, '') // Remove common question words
+        .replace(/\b(currently|still|now|today|recently|often|usually|typically|generally|commonly|mostly|primarily|mainly)\b/g, '') // Remove temporal/frequency modifiers
+        .replace(/\b(very|really|quite|rather|pretty|fairly|extremely|incredibly|highly|slightly|somewhat)\b/g, '') // Remove intensity modifiers
         .replace(/\s+/g, ' ')
         .trim()
     }
@@ -554,18 +324,62 @@ Ask your next strategic yes/no question. Output ONLY the question.`
     // Semantic similarity check for questions that ask about the same concept
     function areQuestionsSemanticallySimilar(q1: string, q2: string): boolean {
       const semanticGroups = [
-        ['size', 'big', 'large', 'small', 'tiny', 'huge'],
-        ['alive', 'living', 'life', 'dead', 'deceased'],
-        ['male', 'female', 'man', 'woman', 'gender'],
-        ['country', 'nation', 'nationality', 'from'],
-        ['president', 'leader', 'prime minister', 'head'],
-        ['time', 'era', 'period', 'century', 'decade', 'when'],
-        ['color', 'coloured', 'colored'],
-        ['electronic', 'digital', 'technology', 'tech'],
-        ['mammal', 'animal', 'creature', 'species'],
-        ['food', 'eat', 'edible', 'consume'],
-        ['house', 'home', 'domestic', 'household'],
-        ['region', 'area', 'place', 'location', 'where']
+        // Size/Scale variations
+        ['size', 'big', 'large', 'small', 'tiny', 'huge', 'massive', 'enormous', 'gigantic', 'mini', 'microscopic', 'bigger', 'smaller', 'larger'],
+        
+        // Life/Death variations
+        ['alive', 'living', 'life', 'dead', 'deceased', 'extinct', 'exist', 'existence', 'mortality'],
+        
+        // Gender variations  
+        ['male', 'female', 'man', 'woman', 'gender', 'boy', 'girl', 'masculine', 'feminine'],
+        
+        // Geography/Location variations
+        ['country', 'nation', 'nationality', 'from', 'region', 'area', 'place', 'location', 'where', 'continent', 'geography', 'geographic'],
+        ['europe', 'european', 'asia', 'asian', 'africa', 'african', 'america', 'american', 'australia', 'australian'],
+        
+        // Leadership/Political roles
+        ['president', 'leader', 'prime minister', 'head', 'ruler', 'king', 'queen', 'monarch', 'dictator', 'emperor', 'political', 'government'],
+        
+        // Time/Era variations
+        ['time', 'era', 'period', 'century', 'decade', 'when', 'before', 'after', 'during', 'recent', 'historical', 'modern', 'ancient'],
+        
+        // Color/Appearance
+        ['color', 'coloured', 'colored', 'black', 'white', 'red', 'blue', 'green', 'yellow', 'appearance', 'looks', 'colored'],
+        
+        // Technology/Electronics
+        ['electronic', 'digital', 'technology', 'tech', 'computer', 'machine', 'device', 'gadget', 'electric', 'powered'],
+        
+        // Animal classification
+        ['mammal', 'animal', 'creature', 'species', 'bird', 'reptile', 'fish', 'insect', 'wildlife', 'fauna'],
+        
+        // Food/Diet
+        ['food', 'eat', 'edible', 'consume', 'diet', 'carnivore', 'herbivore', 'omnivore', 'nutrition'],
+        
+        // Home/Domestic
+        ['house', 'home', 'domestic', 'household', 'indoor', 'kitchen', 'bedroom', 'bathroom', 'living room'],
+        
+        // Material/Composition
+        ['material', 'made', 'metal', 'wood', 'plastic', 'glass', 'fabric', 'stone', 'composed', 'constructed'],
+        
+        // Function/Use/Purpose
+        ['use', 'function', 'purpose', 'tool', 'instrument', 'equipment', 'work', 'utility', 'designed'],
+        
+        // Activity status (for athletes/people)
+        ['active', 'current', 'retired', 'former', 'still', 'playing', 'serving', 'career'],
+        
+        // Achievement/Success
+        ['won', 'champion', 'award', 'prize', 'famous', 'successful', 'achievement', 'accomplished', 'victory'],
+        
+        // Animal-specific traits
+        ['wild', 'domestic', 'pet', 'tame', 'feral', 'captive'],
+        ['legs', 'limbs', 'appendages', 'body parts'],
+        ['fly', 'flight', 'flying', 'aerial', 'wings'],
+        ['swim', 'swimming', 'aquatic', 'water', 'marine'],
+        
+        // Sports-specific
+        ['team', 'club', 'franchise', 'organization'],
+        ['championship', 'title', 'trophy', 'cup', 'medal'],
+        ['position', 'role', 'plays', 'player']
       ]
       
       const q1Lower = q1.toLowerCase()
@@ -592,9 +406,9 @@ Ask your next strategic yes/no question. Output ONLY the question.`
         return true
       }
       
-      // High similarity match (lowered threshold to 75% for better detection)
+      // High similarity match (lowered threshold to 60% for better detection)
       const similarity = calculateSimilarity(normalizedExisting, normalizedNextQuestion)
-      if (similarity > 0.75) {
+      if (similarity > 0.60) {
         console.log(`[submit-user-answer] High similarity repetition detected (${Math.round(similarity * 100)}%): "${existingQ}" vs "${nextQuestion}"`)
         return true
       }
