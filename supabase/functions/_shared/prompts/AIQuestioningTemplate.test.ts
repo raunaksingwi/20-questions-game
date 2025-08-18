@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assertStringIncludes } from "@std/assert";
+import { assertEquals, assertExists, assertStringIncludes } from "jsr:@std/assert@1";
 import { AIQuestioningTemplateFactory, WorldLeadersAIQuestioningTemplate, ObjectsAIQuestioningTemplate, AnimalsAIQuestioningTemplate } from './AIQuestioningTemplate.ts';
 
 Deno.test("AIQuestioningTemplateFactory", async (t) => {

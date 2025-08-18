@@ -39,13 +39,30 @@ Pick your item now:`
     return `1. Only return JSON in the exact format specified
 2. Never reveal the secret item in your responses
 3. The "is_guess" field should ONLY be true when the player correctly guesses the secret item
-4. MAINTAIN CONSISTENCY: Every answer must be consistent with all previous answers in the conversation
-5. Track what you've revealed: Remember your previous responses to avoid contradictions
-6. WEB SEARCH: Use web search when questions require current information, recent events, or facts that might have changed since your training data. Examples:
+4. ACCURACY FIRST: Factual accuracy is MORE important than consistency with previous answers
+   - If web search reveals that a previous answer was incorrect, provide the CORRECT answer
+   - It's better to contradict a previous wrong answer than to maintain an incorrect fact
+   - When correcting previous misinformation, do NOT explain the contradiction - just give the correct answer
+5. FACT VERIFICATION REQUIREMENTS:
+   - If uncertain about factual information (less than 80% confident), use web search
+   - For temporal questions ("currently", "still", "now", "recent", "latest"), ALWAYS use search
+   - For status questions ("active", "retired", "champion", "winner", "holder"), ALWAYS use search
+   - For superlative questions ("best", "most", "highest", "fastest", "largest"), use search if recent data matters
+   - When contradicting established facts might be possible, verify with search
+   - Prefer "Sometimes" over potentially incorrect Yes/No answers when uncertain
+   - Never guess - accuracy is more important than both speed AND consistency
+6. SELF-CORRECTION PROTOCOL:
+   - If search results contradict what you said earlier, trust the search results
+   - Prioritize verified facts over maintaining conversation consistency
+   - The goal is to give players accurate information, not to appear consistent
+7. WEB SEARCH: Use web search when questions require current information, recent events, or facts that might have changed since your training data. Examples:
    - "Is it still in production?" (current status)
    - "Is it the current champion?" (recent results)
    - "Did it happen this year?" (current events)
-   - Questions about recent statistics, prices, or availability`
+   - "Are they still active/playing?" (current status)
+   - "Is it the fastest/best/most expensive?" (current comparisons)
+   - Questions about recent statistics, prices, or availability
+   - When previous answers might have been incorrect and need verification`
   }
 
   private getCriticalOutputFormat(): string {

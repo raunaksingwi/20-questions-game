@@ -73,50 +73,56 @@ const handler = async (req: Request) => {
       content: msg.content
     }))
     
-    // Enhanced consistency tracking with fact extraction
+    // Enhanced fact tracking with accuracy prioritization
     if (messages.length > 2) { // Only add if there's actual conversation history
       // Extract structured facts from conversation
       const facts = ConversationState.extractFacts(messages)
       
-      // Build comprehensive fact summary
-      let factSummary = '[ESTABLISHED FACTS - MAINTAIN CONSISTENCY]\n'
+      // Build comprehensive fact summary with accuracy warnings
+      let factSummary = '[PREVIOUS FACTS - ACCURACY FIRST, VERIFY IF UNCERTAIN]\n'
       
       if (facts.confirmed_yes.length > 0) {
-        factSummary += '\nCONFIRMED TRUE (Previous YES answers):\n'
+        factSummary += '\nPrevious YES answers (verify if uncertain):\n'
         facts.confirmed_yes.forEach(fact => {
-          factSummary += `  ✓ ${fact.question} (Confidence: ${Math.round(fact.confidence * 100)}%)\n`
+          const confidence = Math.round(fact.confidence * 100)
+          const warning = confidence < 80 ? ' ⚠️  LOW CONFIDENCE - VERIFY WITH SEARCH' : ''
+          factSummary += `  ✓ ${fact.question} (Confidence: ${confidence}%)${warning}\n`
         })
       }
       
       if (facts.confirmed_no.length > 0) {
-        factSummary += '\nCONFIRMED FALSE (Previous NO answers):\n'
+        factSummary += '\nPrevious NO answers (verify if uncertain):\n'
         facts.confirmed_no.forEach(fact => {
-          factSummary += `  ✗ ${fact.question} (Confidence: ${Math.round(fact.confidence * 100)}%)\n`
+          const confidence = Math.round(fact.confidence * 100)
+          const warning = confidence < 80 ? ' ⚠️  LOW CONFIDENCE - VERIFY WITH SEARCH' : ''
+          factSummary += `  ✗ ${fact.question} (Confidence: ${confidence}%)${warning}\n`
         })
       }
       
       if (facts.uncertain.length > 0) {
-        factSummary += '\nUNCERTAIN (Maybe/Sometimes answers):\n'
+        factSummary += '\nUNCERTAIN answers (consider verification):\n'
         facts.uncertain.forEach(fact => {
           factSummary += `  ? ${fact.question} → ${fact.answer}\n`
         })
       }
       
-      factSummary += '\n🚨 CRITICAL: Your answer to the current question MUST be logically consistent with ALL facts above.'
-      factSummary += '\n🧠 LOGICAL DEDUCTION: Use established facts to answer, don\'t contradict previous responses.'
+      factSummary += '\n🎯 ACCURACY PROTOCOL:\n'
+      factSummary += '- If web search reveals different information than above, TRUST THE SEARCH RESULTS\n'
+      factSummary += '- Correct answers are better than consistent wrong answers\n'
+      factSummary += '- When uncertain about previous facts, verify with search before answering'
       
-      // Add enhanced consistency reminder
+      // Add enhanced accuracy reminder
       chatMessages.push({
         role: 'system',
         content: factSummary
       })
       
-      // Add logical consistency check prompt
-      const logicalCheck = `[LOGICAL CONSISTENCY CHECK]\nBefore answering "${question}", verify:\n1. Does this answer contradict any established facts above?\n2. Can I deduce this answer from what's already confirmed?\n3. Am I being consistent with the secret item's established properties?\n\nIf you can deduce the answer from established facts, use that deduction.`
+      // Add fact verification check prompt
+      const verificationCheck = `[FACT VERIFICATION CHECK]\nBefore answering "${question}":\n1. Could this question reveal if any previous answers were incorrect?\n2. Do I need to search to verify facts about the secret item?\n3. Should I trust search results over previous conversation if they conflict?\n\nPRIORITY: Accuracy > Consistency. If search reveals better information, use it.`
       
       chatMessages.push({
         role: 'system',
-        content: logicalCheck
+        content: verificationCheck
       })
     }
     
@@ -188,13 +194,13 @@ const handler = async (req: Request) => {
     // Enhanced validation with fact checking
     ResponseParser.validateGameResponse(parsedResponse, rawResponse, question, game.secret_item)
     
-    // Additional consistency validation
+    // Enhanced accuracy validation (allows corrections)
     if (messages.length > 2) {
       const facts = ConversationState.extractFacts(messages)
-      const isConsistent = validateAnswerConsistency(question, answer, facts, game.secret_item)
+      const isAccurate = validateAnswerAccuracy(question, answer, facts, game.secret_item, rawResponse)
       
-      if (!isConsistent) {
-        console.warn(`[ask-question] Potential inconsistency detected for question: "${question}" answer: "${answer}"`)
+      if (!isAccurate) {
+        console.warn(`[ask-question] Accuracy validation failed for question: "${question}" answer: "${answer}"`)
         console.warn(`[ask-question] Secret item: "${game.secret_item}"`)
         console.warn(`[ask-question] Established facts:`, facts)
       }
@@ -271,35 +277,73 @@ const handler = async (req: Request) => {
 }
 
 /**
- * Validates if the current answer is consistent with previously established facts.
- * Checks for contradictions with earlier yes/no responses.
+ * Validates answer accuracy while allowing corrections of previous misinformation.
+ * Prioritizes factual accuracy over conversation consistency.
  */
-function validateAnswerConsistency(
+function validateAnswerAccuracy(
   question: string, 
   answer: string, 
   facts: any, 
-  secretItem: string
+  secretItem: string,
+  rawResponse: string
 ): boolean {
-  // Simple consistency checks - could be much more sophisticated
   const questionLower = question.toLowerCase()
   const answerLower = answer.toLowerCase()
   const isYesAnswer = answerLower.includes('yes')
   const isNoAnswer = answerLower.includes('no')
   
-  // Check if we're contradicting a previous answer
+  // Check if this might be a fact correction (search was used)
+  const usedSearch = rawResponse.includes('SEARCH FUNCTION CALLED')
+  const lowConfidenceFacts = [...facts.confirmed_yes, ...facts.confirmed_no].filter(
+    fact => fact.confidence < 0.8
+  )
+  
+  // Check for potential contradictions
   for (const fact of [...facts.confirmed_yes, ...facts.confirmed_no]) {
     const factQuestion = fact.question.toLowerCase()
     
-    // Simple similarity check
     if (questionsAreSimilar(questionLower, factQuestion)) {
       const factWasYes = facts.confirmed_yes.includes(fact)
-      if (factWasYes && isNoAnswer) {
-        console.warn(`[consistency] Contradiction detected: Previously answered YES to "${fact.question}", now answering NO to "${question}"`)
-        return false
-      }
-      if (!factWasYes && isYesAnswer) {
-        console.warn(`[consistency] Contradiction detected: Previously answered NO to "${fact.question}", now answering YES to "${question}"`)
-        return false
+      const isContradiction = (factWasYes && isNoAnswer) || (!factWasYes && isYesAnswer)
+      
+      if (isContradiction) {
+        // Allow contradiction if:
+        // 1. Search was used (likely fact correction)
+        // 2. Previous fact had low confidence
+        // 3. Current question is more specific/recent
+        if (usedSearch) {
+          console.info(`[accuracy] FACT CORRECTION: Search-based answer contradicts previous response. Trusting search results.`, {
+            previous_question: fact.question,
+            previous_answer: factWasYes ? 'YES' : 'NO',
+            current_question: question,
+            current_answer: answer,
+            secret_item: secretItem
+          })
+          return true // Allow the correction
+        }
+        
+        if (fact.confidence < 0.8) {
+          console.info(`[accuracy] LOW CONFIDENCE OVERRIDE: Overriding low-confidence previous answer.`, {
+            previous_question: fact.question,
+            previous_confidence: fact.confidence,
+            current_question: question,
+            current_answer: answer
+          })
+          return true // Allow override of low-confidence facts
+        }
+        
+        // Traditional consistency warning (but don't block)
+        console.warn(`[accuracy] POTENTIAL CONTRADICTION: Current answer conflicts with previous response. Consider verification.`, {
+          previous_question: fact.question,
+          previous_answer: factWasYes ? 'YES' : 'NO',
+          current_question: question,
+          current_answer: answer,
+          used_search: usedSearch,
+          previous_confidence: fact.confidence
+        })
+        
+        // Return true (allow) but log for monitoring
+        return true
       }
     }
   }
@@ -308,17 +352,45 @@ function validateAnswerConsistency(
 }
 
 /**
- * Determines if two questions are semantically similar by comparing normalized word overlap.
+ * Determines if two questions are semantically similar using enhanced comparison.
  * Used to detect potential contradictions in responses.
  */
 function questionsAreSimilar(q1: string, q2: string): boolean {
   // Remove common question words and punctuation
-  const normalize = (s: string) => s.replace(/[^a-z0-9\s]/g, '').replace(/\b(is|it|a|an|the|does|do|can|will|would)\b/g, '').replace(/\s+/g, ' ').trim()
+  const normalize = (s: string) => s.replace(/[^a-z0-9\s]/g, '').replace(/\b(is|it|a|an|the|does|do|can|will|would|they|he|she)\b/g, '').replace(/\s+/g, ' ').trim()
   
   const n1 = normalize(q1)
   const n2 = normalize(q2)
   
-  // Check for substantial word overlap
+  // Enhanced semantic similarity checks
+  
+  // 1. Exact substring match (one question contains the other)
+  if (n1.includes(n2) || n2.includes(n1)) {
+    return true
+  }
+  
+  // 2. Common semantic patterns
+  const semanticPatterns = [
+    // Status patterns
+    [/\b(active|playing|current)\b/, /\b(retired|former|ex)\b/],
+    [/\b(alive|living)\b/, /\b(dead|deceased)\b/],
+    [/\b(married|spouse|wife|husband)\b/, /\b(single|divorced|unmarried)\b/],
+    // Temporal patterns  
+    [/\b(current|now|present)\b/, /\b(past|former|previous|old)\b/],
+    [/\b(still|continues|ongoing)\b/, /\b(no longer|stopped|ended)\b/],
+    // Physical characteristics
+    [/\b(large|big|huge)\b/, /\b(small|tiny|little)\b/],
+    [/\b(fast|quick|rapid)\b/, /\b(slow|sluggish)\b/],
+    [/\b(hot|warm)\b/, /\b(cold|cool|freezing)\b/]
+  ]
+  
+  for (const [pattern1, pattern2] of semanticPatterns) {
+    if ((pattern1.test(n1) && pattern2.test(n2)) || (pattern2.test(n1) && pattern1.test(n2))) {
+      return true // Potentially contradictory semantic concepts
+    }
+  }
+  
+  // 3. Word overlap analysis (improved)
   const words1 = n1.split(' ').filter(w => w.length > 2)
   const words2 = n2.split(' ').filter(w => w.length > 2)
   
@@ -327,7 +399,21 @@ function questionsAreSimilar(q1: string, q2: string): boolean {
   const overlap = words1.filter(w => words2.includes(w))
   const overlapRatio = overlap.length / Math.min(words1.length, words2.length)
   
-  return overlapRatio > 0.6 // 60% word overlap threshold
+  // Lower threshold but require meaningful words
+  if (overlapRatio > 0.5 && overlap.length >= 2) {
+    return true
+  }
+  
+  // 4. Key concept similarity (for important topics)
+  const keyConceptWords = ['captain', 'leader', 'best', 'champion', 'winner', 'record', 'nationality', 'country', 'team', 'club']
+  const hasKeyWords1 = words1.some(w => keyConceptWords.includes(w))
+  const hasKeyWords2 = words2.some(w => keyConceptWords.includes(w))
+  
+  if (hasKeyWords1 && hasKeyWords2 && overlapRatio > 0.4) {
+    return true
+  }
+  
+  return false
 }
 
 // Export handler for tests

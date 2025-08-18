@@ -1,4 +1,4 @@
-import { assertEquals, assertExists } from "@std/assert";
+import { assertEquals, assertExists } from "jsr:@std/assert@1";
 
 // Create a test handler that bypasses the EdgeFunctionBase initialization
 const createTestHandler = (mockSupabase: any) => {

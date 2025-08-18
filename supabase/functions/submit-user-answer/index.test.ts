@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assertStringIncludes } from "@std/assert";
+import { assertEquals, assertExists, assertStringIncludes } from "jsr:@std/assert@1";
 
 // Create a test handler that bypasses the EdgeFunctionBase initialization
 const createTestHandler = (mockSupabase: any) => {
@@ -142,54 +142,65 @@ const createMockSupabase = () => {
       id: 'test-session-1',
       category: 'world leaders',
       questions_asked: 2,
-      status: 'active'
+      status: 'active',
+      mode: 'ai_guessing'
     }
   ];
 
   return {
     from: (table: string) => ({
       select: (columns: string) => ({
-        eq: (column: string, value: string) => ({
-          single: async () => {
-            if (table === 'games') {
-              const game = games.find(g => g.id === value);
-              return game ? { data: game, error: null } : { data: null, error: new Error('Not found') };
-            }
-            return { data: null, error: new Error('Not found') };
-          },
-          order: (column: string, options: any) => ({
-            then: async () => {
-              if (table === 'game_messages') {
-                return { data: gameMessages.filter((m: any) => m.game_id === value), error: null };
+        eq: (column: string, value: string) => {
+          const filters = { [column]: value };
+          
+          return {
+            eq: (column2: string, value2: string) => ({
+              single: async () => {
+                if (table === 'games') {
+                  const game = games.find(g => 
+                    g[column] === value && g[column2] === value2
+                  );
+                  return game ? { data: game, error: null } : { data: null, error: new Error('AI Guessing mode session not found') };
+                }
+                return { data: null, error: new Error('AI Guessing mode session not found') };
               }
-              return { data: [], error: null };
+            }),
+            single: async () => {
+              if (table === 'games') {
+                const game = games.find(g => g[column] === value);
+                return game ? { data: game, error: null } : { data: null, error: new Error('Not found') };
+              }
+              return { data: null, error: new Error('Not found') };
+            },
+            order: (orderColumn: string, options: any) => {
+              if (table === 'game_messages') {
+                return Promise.resolve({ data: gameMessages.filter((m: any) => m.game_id === value), error: null });
+              }
+              return Promise.resolve({ data: [], error: null });
             }
-          })
-        })
-      }),
-      insert: (data: any) => ({
-        select: (columns: string) => ({
-          single: async () => ({ data, error: null })
-        }),
-        then: async () => {
-          if (table === 'game_messages') {
-            gameMessages.push(data);
-          }
-          return { data, error: null };
+          };
         }
       }),
+      insert: (data: any) => {
+        if (table === 'game_messages') {
+          gameMessages.push(data);
+        }
+        return {
+          select: (columns: string) => ({
+            single: async () => ({ data, error: null })
+          })
+        };
+      },
       update: (data: any) => ({
-        eq: (column: string, value: string) => ({
-          then: async () => {
-            if (table === 'games') {
-              const gameIndex = games.findIndex(g => g.id === value);
-              if (gameIndex >= 0) {
-                games[gameIndex] = { ...games[gameIndex], ...data };
-              }
+        eq: (column: string, value: string) => {
+          if (table === 'games') {
+            const gameIndex = games.findIndex(g => g.id === value);
+            if (gameIndex >= 0) {
+              games[gameIndex] = { ...games[gameIndex], ...data };
             }
-            return { data, error: null };
           }
-        })
+          return Promise.resolve({ data, error: null });
+        }
       })
     })
   };
@@ -250,54 +261,63 @@ Deno.test("submit-user-answer - basic functionality", async (t) => {
         id: 'test-session-1',
         category: 'world leaders',
         questions_asked: 19,
-        status: 'active'
+        status: 'active',
+        mode: 'ai_guessing'
       }
     ];
 
     const mockSupabase = {
       from: (table: string) => ({
         select: (columns: string) => ({
-          eq: (column: string, value: string) => ({
-            single: async () => {
-              if (table === 'games') {
-                const game = games.find(g => g.id === value);
-                return game ? { data: game, error: null } : { data: null, error: new Error('Not found') };
-              }
-              return { data: null, error: new Error('Not found') };
-            },
-            order: (column: string, options: any) => ({
-              then: async () => {
-                if (table === 'game_messages') {
-                  return { data: gameMessages.filter((m: any) => m.game_id === value), error: null };
+          eq: (column: string, value: string) => {
+            return {
+              eq: (column2: string, value2: string) => ({
+                single: async () => {
+                  if (table === 'games') {
+                    const game = games.find(g => 
+                      g[column] === value && g[column2] === value2
+                    );
+                    return game ? { data: game, error: null } : { data: null, error: new Error('AI Guessing mode session not found') };
+                  }
+                  return { data: null, error: new Error('AI Guessing mode session not found') };
                 }
-                return { data: [], error: null };
+              }),
+              single: async () => {
+                if (table === 'games') {
+                  const game = games.find(g => g[column] === value);
+                  return game ? { data: game, error: null } : { data: null, error: new Error('Not found') };
+                }
+                return { data: null, error: new Error('Not found') };
+              },
+              order: (orderColumn: string, options: any) => {
+                if (table === 'game_messages') {
+                  return Promise.resolve({ data: gameMessages.filter((m: any) => m.game_id === value), error: null });
+                }
+                return Promise.resolve({ data: [], error: null });
               }
-            })
-          })
-        }),
-        insert: (data: any) => ({
-          select: (columns: string) => ({
-            single: async () => ({ data, error: null })
-          }),
-          then: async () => {
-            if (table === 'game_messages') {
-              gameMessages.push(data);
-            }
-            return { data, error: null };
+            };
           }
         }),
+        insert: (data: any) => {
+          if (table === 'game_messages') {
+            gameMessages.push(data);
+          }
+          return {
+            select: (columns: string) => ({
+              single: async () => ({ data, error: null })
+            })
+          };
+        },
         update: (data: any) => ({
-          eq: (column: string, value: string) => ({
-            then: async () => {
-              if (table === 'games') {
-                const gameIndex = games.findIndex(g => g.id === value);
-                if (gameIndex >= 0) {
-                  games[gameIndex] = { ...games[gameIndex], ...data };
-                }
+          eq: (column: string, value: string) => {
+            if (table === 'games') {
+              const gameIndex = games.findIndex(g => g.id === value);
+              if (gameIndex >= 0) {
+                games[gameIndex] = { ...games[gameIndex], ...data };
               }
-              return { data, error: null };
             }
-          })
+            return Promise.resolve({ data, error: null });
+          }
         })
       })
     };

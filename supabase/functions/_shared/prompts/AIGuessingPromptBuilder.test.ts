@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assertStringIncludes } from "@std/assert";
+import { assertEquals, assertExists, assertStringIncludes } from "jsr:@std/assert@1";
 import { AIGuessingPromptBuilder } from './AIGuessingPromptBuilder.ts';
 
 Deno.test("AIGuessingPromptBuilder - categorizeFacts", async (t) => {

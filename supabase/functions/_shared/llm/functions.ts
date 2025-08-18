@@ -42,11 +42,20 @@ export const SEARCH_FUNCTION: LLMFunction = {
   - Modern objects, technology specs, current usage patterns
   - When unsure about specific properties or recent changes
   
+  MANDATORY SEARCH TRIGGERS - Always search for questions containing:
+  - Temporal words: "currently", "still", "now", "recent", "lately", "nowadays", "today"
+  - Status words: "active", "retired", "playing", "current", "present", "ongoing"
+  - Championship/ranking: "champion", "winner", "best", "top", "leading", "record holder"
+  - Superlatives: "fastest", "largest", "most", "highest", "strongest", "biggest"
+  - Possession: "has", "owns", "holds" (current records/titles)
+  - Recent time references: "this year", "2024", "recently", "latest"
+  
   WHEN TO USE:
   - Question asks about recent/current information ("Is he still active?", "Is it endangered?")
   - Question requires specific factual verification ("Does it live in X?", "Is it made of Y?")
   - You're uncertain about properties that could have changed recently
   - Question involves statistics, numbers, or measurable properties
+  - ANY question with temporal/status/superlative indicators above
   
   SEARCH EXAMPLES:
   - "Virat Kohli current team 2024" - for cricket player questions

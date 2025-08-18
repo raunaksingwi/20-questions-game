@@ -126,5 +126,80 @@ export class ResponseParser {
         secret_item: secretItem
       })
     }
+
+    // Enhanced accuracy validation with contradiction detection
+    const questionLower = question.toLowerCase()
+    const hasTemporalWords = ['currently', 'still', 'now', 'recent', 'lately', 'nowadays', 'today'].some(word => 
+      questionLower.includes(word)
+    )
+    const hasStatusWords = ['active', 'retired', 'playing', 'current', 'present', 'ongoing'].some(word => 
+      questionLower.includes(word)
+    )
+    const hasSuperlatives = ['champion', 'winner', 'best', 'top', 'leading', 'fastest', 'largest', 'most', 'highest'].some(word => 
+      questionLower.includes(word)
+    )
+
+    // Log if potentially fact-sensitive questions weren't searched
+    if ((hasTemporalWords || hasStatusWords || hasSuperlatives) && !rawResponse.includes('SEARCH FUNCTION CALLED')) {
+      console.warn('ACCURACY WARNING: Fact-sensitive question may need verification:', {
+        question: question,
+        answer: response.answer,
+        temporal_words: hasTemporalWords,
+        status_words: hasStatusWords,
+        superlatives: hasSuperlatives,
+        secret_item: secretItem
+      })
+    }
+
+    // Detect potential accuracy corrections (when LLM might be correcting previous wrong info)
+    const correctionIndicators = [
+      'search function called',
+      'verification',
+      'current information',
+      'updated',
+      'latest',
+      'recent data'
+    ];
+    
+    const mightBeCorrection = correctionIndicators.some(indicator => 
+      rawResponse.toLowerCase().includes(indicator)
+    );
+    
+    if (mightBeCorrection) {
+      console.info('ACCURACY INFO: Response may contain fact correction based on search:', {
+        question: question,
+        answer: response.answer,
+        secret_item: secretItem,
+        raw_response: rawResponse.substring(0, 200) + '...'
+      })
+    }
+
+    // Validate answer format
+    const validAnswers = ['Yes', 'No', 'Sometimes', 'Not sure']
+    if (!validAnswers.includes(response.answer)) {
+      console.warn('FORMAT WARNING: Non-standard answer format:', {
+        answer: response.answer,
+        question: question,
+        raw_response: rawResponse
+      })
+    }
+
+    // Flag questions that might reveal previous inaccuracies
+    const factCheckTriggers = [
+      'verify', 'confirm', 'check', 'sure', 'certain', 'correct',
+      'real', 'actual', 'true', 'false', 'wrong', 'right'
+    ];
+    
+    const mightRevealInaccuracy = factCheckTriggers.some(trigger => 
+      questionLower.includes(trigger)
+    );
+    
+    if (mightRevealInaccuracy) {
+      console.info('FACT-CHECK OPPORTUNITY: Question might reveal accuracy of previous answers:', {
+        question: question,
+        answer: response.answer,
+        secret_item: secretItem
+      })
+    }
   }
 }
