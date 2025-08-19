@@ -102,4 +102,14 @@ See [docs/BUILD_GUIDE.md](./docs/BUILD_GUIDE.md) for detailed build and distribu
 
 ## License
 
-[Add license information]
+This project is licensed under the [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License](https://creativecommons.org/licenses/by-nc-nd/4.0/).
+
+You are free to:
+- **Share** — copy and redistribute the material in any medium or format
+
+Under the following terms:
+- **Attribution** — You must give appropriate credit, provide a link to the license, and indicate if changes were made
+- **NonCommercial** — You may not use the material for commercial purposes
+- **NoDerivatives** — If you remix, transform, or build upon the material, you may not distribute the modified material
+
+See the [LICENSE](./LICENSE) file for the full license text.
