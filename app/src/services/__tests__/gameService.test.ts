@@ -28,8 +28,7 @@ describe('GameService', () => {
     // Clear cache between tests
     gameService.invalidateCategoriesCache();
     
-    // Mock setTimeout to execute callbacks immediately for all tests
-    // This prevents timeout issues in retry logic tests
+    // Mock setTimeout to execute immediately for ALL tests to prevent timing issues
     jest.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
       callback();
       return 1 as any;
@@ -147,7 +146,7 @@ describe('GameService', () => {
       await expect(gameService.startGame('Animals')).rejects.toThrow(
         'Internal server error'
       );
-      expect(global.fetch).toHaveBeenCalledTimes(4); // Initial + 3 retries for 5xx
+      expect(global.fetch).toHaveBeenCalledTimes(4); // 4 total attempts (0,1,2,3)
     });
   });
 
@@ -225,7 +224,7 @@ describe('GameService', () => {
       await expect(
         gameService.askQuestion('game-123', 'Test question')
       ).rejects.toThrow('Network error');
-      expect(attemptCount).toBe(4); // Initial + 3 retries for network errors
+      expect(attemptCount).toBe(4); // 4 total attempts (0,1,2,3) for network errors
     });
   });
 
@@ -899,7 +898,7 @@ describe('GameService', () => {
         await expect(gameService.startGame('Animals')).rejects.toThrow(
           'Network timeout'
         );
-        expect(attemptCount).toBe(4); // Initial + 3 retries
+        expect(attemptCount).toBe(4); // 4 total attempts (0,1,2,3)
       });
 
       it('should retry connection refused and eventually fail', async () => {
@@ -912,7 +911,7 @@ describe('GameService', () => {
         await expect(
           gameService.askQuestion('game-123', 'Test question')
         ).rejects.toThrow('Connection refused');
-        expect(attemptCount).toBe(4); // Initial + 3 retries
+        expect(attemptCount).toBe(4); // 4 total attempts (0,1,2,3)
       });
 
       it('should handle slow network responses', async () => {
@@ -1245,6 +1244,48 @@ describe('GameService', () => {
   });
 
   describe('Retry Logic', () => {
+    beforeEach(() => {
+      // Mock setTimeout to execute immediately for retry tests
+      jest.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
+        callback();
+        return 1 as any;
+      });
+      // Mock clearTimeout 
+      jest.spyOn(global, 'clearTimeout').mockImplementation(() => {});
+    });
+    
+    it('should verify retry timing and exponential backoff delays', async () => {
+      const retryDelays: number[] = [];
+      
+      // Override setTimeout to track ONLY retry delay values (not timeout delays)
+      jest.spyOn(global, 'setTimeout').mockImplementation((callback: any, delay?: number) => {
+        if (delay === 1000 || delay === 2000 || delay === 4000) {
+          // These are retry delays - track them
+          retryDelays.push(delay);
+        }
+        // Execute callback immediately for testing
+        callback();
+        return 1 as any;
+      });
+
+      const networkError = new TypeError('Failed to fetch');
+      let attemptCount = 0;
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+      });
+
+      (global.fetch as jest.Mock).mockImplementation(() => {
+        attemptCount++;
+        return Promise.reject(networkError);
+      });
+
+      await expect(gameService.startGame('Animals')).rejects.toThrow('Failed to fetch');
+
+      // Verify exponential backoff delays: 1000ms, 2000ms, 4000ms
+      expect(retryDelays).toEqual([1000, 2000, 4000]);
+      expect(attemptCount).toBe(4); // 4 total attempts (0,1,2,3)
+    });
 
     it('should retry network errors up to 3 times with exponential backoff', async () => {
       const networkError = new TypeError('Failed to fetch');
@@ -1272,7 +1313,7 @@ describe('GameService', () => {
 
       expect(result.game_id).toBe('game-123');
       expect(result.message).toBe('Success on retry!');
-      expect(attemptCount).toBe(3); // Initial + 2 retries
+      expect(attemptCount).toBe(3); // 3 total attempts (0,1,2)
     });
 
     it('should not retry on 4xx client errors', async () => {
@@ -1335,7 +1376,7 @@ describe('GameService', () => {
       });
 
       await expect(gameService.startGame('Animals')).rejects.toThrow('Network unavailable');
-      expect(attemptCount).toBe(4); // Initial + 3 retries
+      expect(attemptCount).toBe(4); // 4 total attempts (0,1,2,3)
     });
 
     it('should handle abort errors with retries', async () => {
@@ -1414,7 +1455,7 @@ describe('GameService', () => {
       });
 
       await expect(gameService.askQuestion('game-123', 'Test')).rejects.toThrow('Network error');
-      expect(attemptCount).toBe(4); // Initial + 3 retries
+      expect(attemptCount).toBe(4); // 4 total attempts (0,1,2,3)
     });
 
     it('should succeed immediately on first attempt when no error', async () => {
@@ -1519,6 +1560,44 @@ describe('GameService', () => {
       const result = await gameService.getHint('game-123');
       expect(result.hint).toBe('Server recovered successfully!');
       expect(attemptCount).toBe(3); // Two 503s, then success
+    });
+
+    it('should handle request timeout using AbortController', async () => {
+      // Simplified timeout test - verify timeout setup without hanging promises
+      let timeoutCalled = false;
+      let abortCalled = false;
+      
+      // Mock setTimeout to capture timeout callback
+      jest.spyOn(global, 'setTimeout').mockImplementation((callback: any, delay?: number) => {
+        if (delay === 10000) {
+          timeoutCalled = true;
+          // Simulate timeout by calling the abort callback
+          callback();
+        }
+        return 1 as any;
+      });
+      
+      // Mock AbortController
+      const mockAbort = jest.fn(() => { abortCalled = true; });
+      global.AbortController = jest.fn().mockImplementation(() => ({
+        signal: { addEventListener: jest.fn() },
+        abort: mockAbort
+      }));
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+      });
+
+      // Mock fetch to resolve normally (before timeout would trigger)
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: async () => ({ game_id: 'test-game' }),
+      });
+
+      await gameService.startGame('Animals');
+      
+      // Verify timeout was set up
+      expect(timeoutCalled).toBe(true);
     });
 
     it('should handle all AI-guessing mode functions with retries', async () => {

@@ -140,14 +140,20 @@ describe('AudioManager', () => {
     });
 
     it('should calculate recording duration correctly', async () => {
+      // Mock Date.now to simulate time passage for duration calculation
+      const mockDateNow = jest.spyOn(Date, 'now');
+      const startTime = 1000000;
+      const endTime = 1000010; // 10ms later
+      
+      mockDateNow.mockReturnValueOnce(startTime); // For recording start
       await audioManager.setRecordingMode(true);
       
-      // Wait a bit
-      await new Promise(resolve => setTimeout(resolve, 10));
-      
+      mockDateNow.mockReturnValueOnce(endTime); // For status check
       const status = audioManager.getRecordingStatus();
 
-      expect(status.recordingDuration).toBeGreaterThan(0);
+      expect(status.recordingDuration).toBe(10);
+      
+      mockDateNow.mockRestore();
     });
   });
 
