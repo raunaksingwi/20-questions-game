@@ -6,7 +6,7 @@ plugins:
   - jekyll-feed
 
 # GitHub Pages settings
-baseurl: ""
+baseurl: "/20-questions-game"
 url: "https://raunaksingwi.github.io"
 
 # Navigation
