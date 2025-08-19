@@ -1,0 +1,17 @@
+title: 20 Questions
+description: A fun AI-powered guessing game
+theme: minima
+
+plugins:
+  - jekyll-feed
+
+# GitHub Pages settings
+baseurl: ""
+url: "https://raunaksingwi.github.io"
+
+# Navigation
+header_pages:
+  - privacy-policy.md
+
+# Social links
+github_username: raunaksingwi
