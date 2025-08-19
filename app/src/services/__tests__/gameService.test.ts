@@ -27,6 +27,19 @@ describe('GameService', () => {
     (global.fetch as jest.Mock).mockClear();
     // Clear cache between tests
     gameService.invalidateCategoriesCache();
+    
+    // Mock setTimeout to execute callbacks immediately for all tests
+    // This prevents timeout issues in retry logic tests
+    jest.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
+      callback();
+      return 1 as any;
+    });
+    // Mock clearTimeout 
+    jest.spyOn(global, 'clearTimeout').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('startGame', () => {
@@ -103,19 +116,38 @@ describe('GameService', () => {
       expect(result).toEqual(mockResponse);
     });
 
-    it('should handle API errors', async () => {
+    it('should handle 4xx client errors without retries', async () => {
       (supabase.auth.getUser as jest.Mock).mockResolvedValue({
         data: { user: null },
       });
 
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
+        status: 400,
+        json: async () => ({ error: 'Bad request' }),
+      });
+
+      await expect(gameService.startGame('Animals')).rejects.toThrow(
+        'Bad request'
+      );
+      expect(global.fetch).toHaveBeenCalledTimes(1); // No retries for 4xx
+    });
+
+    it('should eventually fail on persistent 5xx server errors after retries', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 500,
         json: async () => ({ error: 'Internal server error' }),
       });
 
       await expect(gameService.startGame('Animals')).rejects.toThrow(
         'Internal server error'
       );
+      expect(global.fetch).toHaveBeenCalledTimes(4); // Initial + 3 retries for 5xx
     });
   });
 
@@ -170,15 +202,30 @@ describe('GameService', () => {
       expect(result.game_status).toBe('won');
     });
 
-    it('should handle API errors', async () => {
+    it('should handle 4xx client errors without retries', async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
+        status: 404,
         json: async () => ({ error: 'Game not found' }),
       });
 
       await expect(
         gameService.askQuestion('invalid-game', 'Test question')
       ).rejects.toThrow('Game not found');
+      expect(global.fetch).toHaveBeenCalledTimes(1); // No retries for 4xx
+    });
+
+    it('should handle network errors with retries', async () => {
+      let attemptCount = 0;
+      (global.fetch as jest.Mock).mockImplementation(() => {
+        attemptCount++;
+        return Promise.reject(new TypeError('Network error'));
+      });
+
+      await expect(
+        gameService.askQuestion('game-123', 'Test question')
+      ).rejects.toThrow('Network error');
+      expect(attemptCount).toBe(4); // Initial + 3 retries for network errors
     });
   });
 
@@ -216,15 +263,17 @@ describe('GameService', () => {
       expect(result).toEqual(mockResponse);
     });
 
-    it('should handle no hints remaining error', async () => {
+    it('should handle 4xx client errors without retries', async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
+        status: 400,
         json: async () => ({ error: 'No hints remaining' }),
       });
 
       await expect(gameService.getHint('game-123')).rejects.toThrow(
         'No hints remaining'
       );
+      expect(global.fetch).toHaveBeenCalledTimes(1); // No retries for 4xx
     });
   });
 
@@ -260,15 +309,17 @@ describe('GameService', () => {
       expect(result).toEqual(mockResponse);
     });
 
-    it('should handle quit game API errors', async () => {
+    it('should handle 4xx client errors without retries', async () => {
       (global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
+        status: 404,
         json: async () => ({ error: 'Game not found' }),
       });
 
       await expect(gameService.quitGame('invalid-game')).rejects.toThrow(
         'Game not found'
       );
+      expect(global.fetch).toHaveBeenCalledTimes(1); // No retries for 4xx
     });
   });
 
@@ -834,29 +885,34 @@ describe('GameService', () => {
 
   describe('Edge Cases and Boundary Conditions', () => {
     describe('Network Timeouts and Connection Issues', () => {
-      it('should handle network timeout during startGame', async () => {
+      it('should retry network timeouts and eventually fail', async () => {
         (supabase.auth.getUser as jest.Mock).mockResolvedValue({
           data: { user: null },
         });
 
-        // Simulate network timeout
-        (global.fetch as jest.Mock).mockRejectedValue(
-          new Error('Network timeout')
-        );
+        let attemptCount = 0;
+        (global.fetch as jest.Mock).mockImplementation(() => {
+          attemptCount++;
+          return Promise.reject(new TypeError('Network timeout'));
+        });
 
         await expect(gameService.startGame('Animals')).rejects.toThrow(
           'Network timeout'
         );
+        expect(attemptCount).toBe(4); // Initial + 3 retries
       });
 
-      it('should handle connection refused during askQuestion', async () => {
-        (global.fetch as jest.Mock).mockRejectedValue(
-          new Error('Connection refused')
-        );
+      it('should retry connection refused and eventually fail', async () => {
+        let attemptCount = 0;
+        (global.fetch as jest.Mock).mockImplementation(() => {
+          attemptCount++;
+          return Promise.reject(new TypeError('Connection refused'));
+        });
 
         await expect(
           gameService.askQuestion('game-123', 'Test question')
         ).rejects.toThrow('Connection refused');
+        expect(attemptCount).toBe(4); // Initial + 3 retries
       });
 
       it('should handle slow network responses', async () => {
@@ -1185,6 +1241,335 @@ describe('GameService', () => {
         expect(result[0].name).toBe('Category 0');
         expect(result[999].name).toBe('Category 999');
       });
+    });
+  });
+
+  describe('Retry Logic', () => {
+
+    it('should retry network errors up to 3 times with exponential backoff', async () => {
+      const networkError = new TypeError('Failed to fetch');
+      let attemptCount = 0;
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+      });
+
+      (global.fetch as jest.Mock).mockImplementation(() => {
+        attemptCount++;
+        if (attemptCount < 3) {
+          return Promise.reject(networkError);
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            game_id: 'game-123',
+            message: 'Success on retry!',
+          }),
+        });
+      });
+
+      const result = await gameService.startGame('Animals');
+
+      expect(result.game_id).toBe('game-123');
+      expect(result.message).toBe('Success on retry!');
+      expect(attemptCount).toBe(3); // Initial + 2 retries
+    });
+
+    it('should not retry on 4xx client errors', async () => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+      });
+
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: async () => ({ error: 'Bad request' }),
+      });
+
+      await expect(gameService.startGame('Animals')).rejects.toThrow('Bad request');
+      expect(global.fetch).toHaveBeenCalledTimes(1); // No retries
+    });
+
+    it('should retry on 5xx server errors', async () => {
+      let attemptCount = 0;
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+      });
+
+      (global.fetch as jest.Mock).mockImplementation(() => {
+        attemptCount++;
+        if (attemptCount < 3) {
+          return Promise.resolve({
+            ok: false,
+            status: 500,
+            json: async () => ({ error: 'Internal server error' }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            game_id: 'game-123',
+            message: 'Success after server errors!',
+          }),
+        });
+      });
+
+      const result = await gameService.startGame('Animals');
+
+      expect(result.game_id).toBe('game-123');
+      expect(attemptCount).toBe(3);
+    });
+
+    it('should fail after exhausting all retries', async () => {
+      const networkError = new TypeError('Network unavailable');
+      let attemptCount = 0;
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: null },
+      });
+
+      (global.fetch as jest.Mock).mockImplementation(() => {
+        attemptCount++;
+        return Promise.reject(networkError);
+      });
+
+      await expect(gameService.startGame('Animals')).rejects.toThrow('Network unavailable');
+      expect(attemptCount).toBe(4); // Initial + 3 retries
+    });
+
+    it('should handle abort errors with retries', async () => {
+      let attemptCount = 0;
+      const abortError = new Error('AbortError');
+      abortError.name = 'AbortError';
+
+      (global.fetch as jest.Mock).mockImplementation(() => {
+        attemptCount++;
+        if (attemptCount < 3) {
+          return Promise.reject(abortError);
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            answer: 'Success after timeouts!',
+            questions_remaining: 19,
+            game_status: 'active',
+          }),
+        });
+      });
+
+      const result = await gameService.askQuestion('game-123', 'Test question');
+
+      expect(result.answer).toBe('Success after timeouts!');
+      expect(attemptCount).toBe(3);
+    });
+
+    it('should handle NETWORK_REQUEST_FAILED errors', async () => {
+      let attemptCount = 0;
+      const networkError = new Error('Request failed');
+      (networkError as any).code = 'NETWORK_REQUEST_FAILED';
+
+      (global.fetch as jest.Mock).mockImplementation(() => {
+        attemptCount++;
+        if (attemptCount < 3) {
+          return Promise.reject(networkError);
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            hint: 'Success after network errors!',
+            hints_remaining: 2,
+            questions_remaining: 18,
+            game_status: 'active',
+          }),
+        });
+      });
+
+      const result = await gameService.getHint('game-123');
+
+      expect(result.hint).toBe('Success after network errors!');
+      expect(attemptCount).toBe(3);
+    });
+
+    it('should not retry non-network errors', async () => {
+      const nonNetworkError = new Error('Non-network error');
+      let attemptCount = 0;
+
+      (global.fetch as jest.Mock).mockImplementation(() => {
+        attemptCount++;
+        return Promise.reject(nonNetworkError);
+      });
+
+      await expect(gameService.quitGame('game-123')).rejects.toThrow('Non-network error');
+      expect(attemptCount).toBe(1); // No retries for non-network errors
+    });
+
+    it('should verify retry attempts are made correctly', async () => {
+      const networkError = new TypeError('Network error');
+      let attemptCount = 0;
+
+      (global.fetch as jest.Mock).mockImplementation(() => {
+        attemptCount++;
+        return Promise.reject(networkError);
+      });
+
+      await expect(gameService.askQuestion('game-123', 'Test')).rejects.toThrow('Network error');
+      expect(attemptCount).toBe(4); // Initial + 3 retries
+    });
+
+    it('should succeed immediately on first attempt when no error', async () => {
+      let attemptCount = 0;
+
+      (global.fetch as jest.Mock).mockImplementation(() => {
+        attemptCount++;
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            answer: 'Success immediately!',
+            questions_remaining: 19,
+            game_status: 'active',
+          }),
+        });
+      });
+
+      const result = await gameService.askQuestion('game-123', 'Test');
+
+      expect(result.answer).toBe('Success immediately!');
+      expect(attemptCount).toBe(1); // No retries needed
+    });
+
+    it('should handle mixed error types correctly', async () => {
+      let attemptCount = 0;
+      
+      (global.fetch as jest.Mock).mockImplementation(() => {
+        attemptCount++;
+        switch (attemptCount) {
+          case 1:
+            return Promise.reject(new TypeError('Network error')); // Retry
+          case 2:
+            return Promise.resolve({
+              ok: false,
+              status: 500,
+              json: async () => ({ error: 'Server error' }),
+            }); // Retry
+          case 3:
+            return Promise.resolve({
+              ok: false,
+              status: 400,
+              json: async () => ({ error: 'Client error' }),
+            }); // No retry - fail immediately
+          default:
+            return Promise.resolve({
+              ok: true,
+              json: async () => ({ answer: 'Success' }),
+            });
+        }
+      });
+
+      await expect(gameService.askQuestion('game-123', 'Test')).rejects.toThrow('Client error');
+      expect(attemptCount).toBe(3); // Network error -> Server error -> Client error (stop)
+    });
+
+    it('should handle intermittent network issues successfully', async () => {
+      let attemptCount = 0;
+      
+      (global.fetch as jest.Mock).mockImplementation(() => {
+        attemptCount++;
+        if (attemptCount === 1 || attemptCount === 2) {
+          return Promise.reject(new TypeError('Temporary network issue'));
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            answer: 'Success after intermittent failures!',
+            questions_remaining: 18,
+            game_status: 'active',
+          }),
+        });
+      });
+
+      const result = await gameService.askQuestion('game-123', 'Test');
+      expect(result.answer).toBe('Success after intermittent failures!');
+      expect(attemptCount).toBe(3); // Failed twice, succeeded on third attempt
+    });
+
+    it('should handle server recovery scenarios', async () => {
+      let attemptCount = 0;
+      
+      (global.fetch as jest.Mock).mockImplementation(() => {
+        attemptCount++;
+        if (attemptCount <= 2) {
+          return Promise.resolve({
+            ok: false,
+            status: 503, // Service unavailable
+            json: async () => ({ error: 'Service temporarily unavailable' }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            hint: 'Server recovered successfully!',
+            hints_remaining: 2,
+            questions_remaining: 17,
+            game_status: 'active',
+          }),
+        });
+      });
+
+      const result = await gameService.getHint('game-123');
+      expect(result.hint).toBe('Server recovered successfully!');
+      expect(attemptCount).toBe(3); // Two 503s, then success
+    });
+
+    it('should handle all AI-guessing mode functions with retries', async () => {
+      const testCases = [
+        {
+          method: 'startThinkRound',
+          args: ['Animals'],
+          mockAuth: true,
+          expectedResult: { session_id: 'session-123', first_question: 'Is it alive?' }
+        },
+        {
+          method: 'submitUserAnswer', 
+          args: ['session-123', 'Yes', 'chip'],
+          mockAuth: false,
+          expectedResult: { next_question: 'Is it bigger than a cat?', questions_remaining: 19, game_status: 'active' }
+        },
+        {
+          method: 'finalizeThinkResult',
+          args: ['session-123', 'llm_win'],
+          mockAuth: false,
+          expectedResult: { message: 'I won!', questions_used: 8 }
+        }
+      ];
+
+      for (const testCase of testCases) {
+        let attemptCount = 0;
+        
+        if (testCase.mockAuth) {
+          (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+            data: { user: { id: 'user-123' } },
+          });
+        }
+
+        (global.fetch as jest.Mock).mockImplementation(() => {
+          attemptCount++;
+          if (attemptCount < 3) {
+            return Promise.reject(new TypeError('Network failure'));
+          }
+          return Promise.resolve({
+            ok: true,
+            json: async () => testCase.expectedResult,
+          });
+        });
+
+        const result = await (gameService as any)[testCase.method](...testCase.args);
+        expect(result).toEqual(testCase.expectedResult);
+        expect(attemptCount).toBe(3);
+        
+        // Reset mocks for next test case
+        jest.clearAllMocks();
+      }
     });
   });
 });

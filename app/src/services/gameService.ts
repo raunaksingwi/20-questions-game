@@ -34,46 +34,85 @@ class GameService {
   
   /**
    * Generic method to call Supabase edge functions with timeout and error handling.
-   * Provides consistent API call pattern across all game operations.
+   * Provides consistent API call pattern across all game operations with automatic retry logic.
    */
   private async callFunction<T, R>(functionName: string, data: T): Promise<R> {
-    const startTime = Date.now()
-    console.log(`[gameService] Calling ${functionName}...`)
+    const maxRetries = 3;
+    const baseDelay = 1000; // 1 second base delay
     
-    const controller = new AbortController()
-    const timeout = setTimeout(() => {
-      controller.abort()
-      console.error(`[gameService] ${functionName} request timed out after 10s`)
-    }, 10000) // 10s timeout
-    
-    try {
-      const response = await fetch(`${FUNCTIONS_URL}/${functionName}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify(data),
-        signal: controller.signal
-      })
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const startTime = Date.now()
+      const isRetry = attempt > 0;
       
-      clearTimeout(timeout)
-      const duration = Date.now() - startTime
-      console.log(`[gameService] ${functionName} completed in ${duration}ms`)
-
-      if (!response.ok) {
-        const error = await response.json()
-        console.error(`[gameService] ${functionName} failed:`, error)
-        throw new Error(error.error || 'Function call failed')
+      if (isRetry) {
+        const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff: 1s, 2s, 4s
+        console.log(`[gameService] Retrying ${functionName} (attempt ${attempt + 1}/${maxRetries + 1}) after ${delay}ms delay...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.log(`[gameService] Calling ${functionName}...`);
       }
+      
+      const controller = new AbortController()
+      const timeout = setTimeout(() => {
+        controller.abort()
+        console.error(`[gameService] ${functionName} request timed out after 10s (attempt ${attempt + 1})`)
+      }, 10000) // 10s timeout
+      
+      try {
+        const response = await fetch(`${FUNCTIONS_URL}/${functionName}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify(data),
+          signal: controller.signal
+        })
+        
+        clearTimeout(timeout)
+        const duration = Date.now() - startTime
+        
+        if (!response.ok) {
+          const error = await response.json()
+          console.error(`[gameService] ${functionName} failed (attempt ${attempt + 1}):`, error)
+          
+          // Don't retry on 4xx errors (client errors) - only network/server errors
+          if (response.status >= 400 && response.status < 500) {
+            throw new Error(error.error || 'Function call failed')
+          }
+          
+          // Retry on 5xx errors (server errors) or network issues
+          if (attempt === maxRetries) {
+            throw new Error(error.error || 'Function call failed after retries')
+          }
+          continue; // Retry
+        }
 
-      return response.json()
-    } catch (error) {
-      clearTimeout(timeout)
-      const duration = Date.now() - startTime
-      console.error(`[gameService] ${functionName} failed after ${duration}ms:`, error)
-      throw error
+        console.log(`[gameService] ${functionName} completed in ${duration}ms${isRetry ? ` (succeeded on attempt ${attempt + 1})` : ''}`);
+        return response.json()
+        
+      } catch (error) {
+        clearTimeout(timeout)
+        const duration = Date.now() - startTime
+        
+        // Check if it's a network error (AbortError, TypeError, etc.) that should be retried
+        const isNetworkError = error instanceof TypeError || 
+                              (error as any).name === 'AbortError' || 
+                              (error as any).code === 'NETWORK_REQUEST_FAILED';
+        
+        console.error(`[gameService] ${functionName} failed after ${duration}ms (attempt ${attempt + 1}):`, error)
+        
+        // Don't retry on non-network errors or if we've exhausted retries
+        if (!isNetworkError || attempt === maxRetries) {
+          throw error
+        }
+        
+        // Continue to next retry attempt
+      }
     }
+    
+    // This should never be reached, but TypeScript requires it
+    throw new Error(`Unexpected error in ${functionName} after all retries`);
   }
 
   /**

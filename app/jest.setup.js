@@ -119,10 +119,14 @@ jest.mock('@expo/vector-icons', () => ({
   Feather: 'Feather',
 }));
 
-// Mock Vercel Analytics
-jest.mock('@vercel/analytics/react', () => ({
-  Analytics: () => null,
-}));
+// Mock Vercel Analytics - only if the module exists
+try {
+  jest.mock('@vercel/analytics/react', () => ({
+    Analytics: () => null,
+  }));
+} catch (error) {
+  // Module not found, skip mocking
+}
 
 // Silence console warnings during tests (only Reanimated warnings)
 const originalConsoleWarn = console.warn;
