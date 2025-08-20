@@ -14,15 +14,6 @@ jest.mock('expo-haptics', () => ({
   },
 }));
 
-jest.mock('expo-audio', () => ({
-  createAudioPlayer: jest.fn(() => Promise.resolve({
-    volume: 0.5,
-    seekTo: jest.fn(),
-    play: jest.fn(),
-    release: jest.fn(),
-    setOnPlaybackStatusUpdate: jest.fn(),
-  })),
-}));
 
 jest.mock('expo-speech-recognition', () => ({
   ExpoSpeechRecognitionModule: {
