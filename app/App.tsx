@@ -4,7 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Platform } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
-import { Analytics } from '@vercel/analytics/react';
+// import { Analytics } from '@vercel/analytics/react'; // Disabled for React Native builds
 import { gameService } from './src/services/gameService';
 import { performanceOptimizer } from './src/utils/performanceOptimizer';
 
@@ -36,7 +36,7 @@ export default function App() {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <StatusBar style="light" />
         <AppNavigator />
-        {Platform.OS === 'web' && <Analytics />}
+        {/* Platform.OS === 'web' && <Analytics /> */}
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );

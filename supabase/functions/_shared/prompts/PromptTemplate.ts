@@ -36,46 +36,27 @@ Pick your item now:`
   }
 
   private getCriticalRules(): string {
-    return `1. Only return JSON in the exact format specified
-2. Never reveal the secret item in your responses
-3. The "is_guess" field should ONLY be true when the player correctly guesses the secret item
-4. ACCURACY FIRST: Factual accuracy is MORE important than consistency with previous answers
-   - If web search reveals that a previous answer was incorrect, provide the CORRECT answer
-   - It's better to contradict a previous wrong answer than to maintain an incorrect fact
-   - When correcting previous misinformation, do NOT explain the contradiction - just give the correct answer
-5. FACT VERIFICATION REQUIREMENTS:
-   - If uncertain about factual information (less than 80% confident), use web search
-   - For temporal questions ("currently", "still", "now", "recent", "latest"), ALWAYS use search
-   - For status questions ("active", "retired", "champion", "winner", "holder"), ALWAYS use search
-   - For superlative questions ("best", "most", "highest", "fastest", "largest"), use search if recent data matters
-   - When contradicting established facts might be possible, verify with search
-   - Prefer "Sometimes" over potentially incorrect Yes/No answers when uncertain
-   - Never guess - accuracy is more important than both speed AND consistency
-6. SELF-CORRECTION PROTOCOL:
-   - If search results contradict what you said earlier, trust the search results
-   - Prioritize verified facts over maintaining conversation consistency
-   - The goal is to give players accurate information, not to appear consistent
-7. WEB SEARCH: Use web search when questions require current information, recent events, or facts that might have changed since your training data. Examples:
-   - "Is it still in production?" (current status)
-   - "Is it the current champion?" (recent results)
-   - "Did it happen this year?" (current events)
-   - "Are they still active/playing?" (current status)
-   - "Is it the fastest/best/most expensive?" (current comparisons)
-   - Questions about recent statistics, prices, or availability
-   - When previous answers might have been incorrect and need verification`
+    return `CORE RULES:
+1. Return ONLY JSON: {"answer": "Yes/No/Sometimes", "is_guess": true/false}
+2. Never reveal the secret item
+3. Answer factual questions with definitive Yes or No based on your knowledge
+4. Only use "Sometimes" for genuinely variable properties (like color, size)
+5. When player guesses correctly: {"answer": "Yes", "is_guess": true}
+
+EXAMPLES:
+- "Is a penguin a bird?" → {"answer": "Yes"} (factual)
+- "Is Nelson Mandela alive?" → {"answer": "No"} (factual)
+- "Is a chair made of wood?" → {"answer": "Sometimes"} (variable)`
   }
 
   private getCriticalOutputFormat(): string {
-    return `CRITICAL OUTPUT FORMAT:
-- NEVER add explanations, extra text, or commentary
-- NEVER add "because...", "since...", or any reasoning
-- Return ONLY the JSON object specified above
-- NO additional words before or after the JSON
+    return `OUTPUT FORMAT:
+Return ONLY JSON: {"answer": "Yes/No/Sometimes", "is_guess": true/false}
 
-CRITICAL: When the player correctly guesses the secret item, you MUST include both "answer": "Yes" AND "is_guess": true in the same JSON response.
-
-WRONG: {"answer": "Yes"} - Missing is_guess field
-CORRECT: {"answer": "Yes", "is_guess": true"} - Has both fields`
+Examples:
+- Property question: {"answer": "Yes"}
+- Correct guess: {"answer": "Yes", "is_guess": true}
+- Wrong guess: {"answer": "No"}`
   }
 }
 
@@ -105,11 +86,34 @@ Accept common variations of ${secretItem} as correct guesses:
 
   protected getExamples(secretItem: string): string {
     const exampleQuestions = this.getExampleQuestions();
-    return `Examples for ${secretItem}:
+    const personType = this.getPersonType();
+    return `FACTUAL ACCURACY EXAMPLES for ${secretItem}:
+
+GUESSING EXAMPLES:
 - "Is it ${secretItem}?" → {"answer": "Yes", "is_guess": true}
 - Common variations of ${secretItem} → {"answer": "Yes", "is_guess": true}
 - "Is it [wrong name]?" → {"answer": "No"}
-${exampleQuestions.map(q => `- "${q}" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}`).join('\n')}`
+
+PROPERTY EXAMPLES (must be factually correct):
+${exampleQuestions.map(q => `- "${q}" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"} based on ACTUAL facts`).join('\n')}
+
+BIOGRAPHICAL EXAMPLES (must be factually correct):
+- "Are they alive?" → {"answer": "Yes"} (if living) or {"answer": "No"} (if deceased)
+- "Are they male?" → {"answer": "Yes"} or {"answer": "No"} based on actual gender
+- "Are they over 30?" → Based on actual age/birth year
+- "Are they retired?" → {"answer": "Yes"}, {"answer": "No"}, or {"answer": "Sometimes"}
+
+GEOGRAPHIC EXAMPLES (must be factually correct):
+- "Are they from [country]?" → Based on actual nationality/birth country
+- "Do they play/work in [location]?" → Based on current or recent location
+
+TEMPORAL EXAMPLES (use web search if uncertain):
+- "Are they currently active?" → Use search for current status
+- "Are they still playing?" → Use search for recent activity
+- "Are they the current [title]?" → Use search for up-to-date information
+
+CRITICAL: Every answer must be factually accurate for ${secretItem}!
+If uncertain about any fact, use web search to verify before answering.`
   }
 }
 
@@ -153,14 +157,32 @@ Accept common synonyms of ${secretItem} as correct guesses:
   }
 
   protected getExamples(secretItem: string): string {
-    return `Examples for ${secretItem}:
+    return `FACTUAL ACCURACY EXAMPLES for ${secretItem}:
+
+GUESSING EXAMPLES:
 - "Is it a ${secretItem}?" → {"answer": "Yes", "is_guess": true}
 - "Is it ${secretItem}?" → {"answer": "Yes", "is_guess": true}
 - Common synonyms of ${secretItem} → {"answer": "Yes", "is_guess": true}
 - "Is it a cat?" (when secret is not cat) → {"answer": "No"}
-- "Is it a mammal?" → {"answer": "Yes"} or {"answer": "No"}
-- "Does it have fur?" → {"answer": "Yes"} or {"answer": "No"}
-- "Can it fly?" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}`
+
+CLASSIFICATION EXAMPLES (must be factually correct):
+- "Is it a mammal?" → {"answer": "Yes"} (if secretItem is mammal) or {"answer": "No"} (if not)
+- "Is it a bird?" → {"answer": "Yes"} (if secretItem is bird) or {"answer": "No"} (if not)
+- "Is it a carnivore?" → {"answer": "Yes"} (if meat-eater) or {"answer": "No"} (if not)
+- "Is it extinct?" → {"answer": "Yes"} (if extinct) or {"answer": "No"} (if still exists)
+
+PHYSICAL PROPERTY EXAMPLES (must be factually correct):
+- "Does it have fur?" → {"answer": "Yes"} or {"answer": "No"} based on actual biology
+- "Can it fly?" → {"answer": "Yes"} (if can fly) or {"answer": "No"} (if cannot fly)
+- "Does it have legs?" → {"answer": "Yes"} or {"answer": "No"} based on anatomy
+- "Is it large?" → {"answer": "Sometimes"} (when size varies or is subjective)
+
+HABITAT EXAMPLES (must be factually correct):
+- "Does it live in water?" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
+- "Does it live in Africa?" → Based on actual geographic distribution
+- "Is it found in the wild?" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}
+
+CRITICAL: Every answer must be factually accurate for the specific animal!`
   }
 }
 
@@ -240,14 +262,34 @@ Accept common synonyms of ${secretItem} as correct guesses:
   }
 
   protected getExamples(secretItem: string): string {
-    return `Examples for ${secretItem}:
+    return `FACTUAL ACCURACY EXAMPLES for ${secretItem}:
+
+GUESSING EXAMPLES:
 - "Is it a ${secretItem}?" → {"answer": "Yes", "is_guess": true}
 - "Is it ${secretItem}?" → {"answer": "Yes", "is_guess": true}
 - Common synonyms of ${secretItem} → {"answer": "Yes", "is_guess": true}
 - "Is it a table?" (when secret is not table) → {"answer": "No"}
-- "Is it furniture?" → {"answer": "Yes"} or {"answer": "No"}
-- "Is it electronic?" → {"answer": "Yes"} or {"answer": "No"}
-- "Can you hold it in your hand?" → {"answer": "Yes"} or {"answer": "No"} or {"answer": "Sometimes"}`
+
+CLASSIFICATION EXAMPLES (must be factually correct):
+- "Is it furniture?" → {"answer": "Yes"} (if actually furniture) or {"answer": "No"} (if not)
+- "Is it electronic?" → {"answer": "Yes"} (if has electronics) or {"answer": "No"} (if not)
+- "Is it a tool?" → {"answer": "Yes"} or {"answer": "No"} based on actual function
+- "Is it alive?" → {"answer": "No"} (objects are not living organisms)
+
+PHYSICAL PROPERTY EXAMPLES (must be factually correct):
+- "Can you hold it in your hand?" → Based on actual size and weight
+- "Is it made of wood?" → {"answer": "Yes"}, {"answer": "No"}, or {"answer": "Sometimes"}
+- "Is it made of metal?" → Based on actual material composition
+- "Does it have legs?" → {"answer": "Yes"} or {"answer": "No"} based on design
+- "Is it red?" → {"answer": "Sometimes"} (varies by model/type) or specific color
+
+FUNCTIONAL EXAMPLES (must be factually correct):
+- "Is it used for sitting?" → {"answer": "Yes"} (chairs) or {"answer": "No"} (non-seating)
+- "Does it need electricity?" → Based on actual power requirements
+- "Can it break?" → {"answer": "Yes"} (most objects) or {"answer": "Sometimes"}
+- "Is it waterproof?" → Based on actual design specifications
+
+CRITICAL: Every answer must be factually accurate for the specific object!`
   }
 }
 

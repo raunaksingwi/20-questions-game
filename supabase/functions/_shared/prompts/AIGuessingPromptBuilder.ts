@@ -273,9 +273,40 @@ export class AIGuessingPromptBuilder {
       })
     }
     
-    section += '\nCRITICAL: You must ask a NEW question that is completely different from all questions above!\n'
-    section += 'Do NOT ask variations of the same question (e.g., "Is it big?" vs "Is it large?").\n'
-    section += 'Do NOT ask about the same topic using different words.\n'
+    section += '\n🚫 COMPREHENSIVE SEMANTIC SIMILARITY PREVENTION:\n'
+    section += 'CRITICAL: You must ask a NEW question that is completely different from all questions above!\n'
+    
+    section += '\n📋 SEMANTIC SIMILARITY CHECKLIST - Your question MUST pass ALL checks:\n'
+    section += '1. ✅ WORD VARIATION CHECK: Am I using different words for the same concept?\n'
+    section += '   ❌ "big" vs "large" vs "huge" vs "enormous" vs "massive" (ALL same concept)\n'
+    section += '   ❌ "famous" vs "well-known" vs "popular" vs "renowned" (ALL same concept)\n'
+    section += '   ❌ "European" vs "from Europe" vs "in Europe" (ALL same concept)\n'
+    
+    section += '2. ✅ TOPIC SIMILARITY CHECK: Am I asking about the same topic area?\n'
+    section += '   ❌ If asked "Are they alive?" don\'t ask "Are they dead?" (same topic)\n'
+    section += '   ❌ If asked "Are they male?" don\'t ask "Are they female?" (same topic)\n'
+    section += '   ❌ If asked "Is it electronic?" don\'t ask "Is it digital?" (same topic)\n'
+    
+    section += '3. ✅ LOGICAL CONSEQUENCE CHECK: Can I deduce this answer from confirmed facts?\n'
+    section += '   ❌ If "mammal"=YES, don\'t ask "Is it a bird?" (logically impossible)\n'
+    section += '   ❌ If "European"=YES, don\'t ask "Are they Asian?" (mutually exclusive)\n'
+    section += '   ❌ If "electronic"=YES, don\'t ask "Is it alive?" (category violation)\n'
+    
+    section += '4. ✅ CATEGORY CONSISTENCY CHECK: Does this fit the established category?\n'
+    section += '   ❌ If category=PEOPLE, don\'t ask "Is it made of metal?" (wrong category)\n'
+    section += '   ❌ If category=OBJECTS, don\'t ask "Are they male?" (wrong category)\n'
+    section += '   ❌ If category=ANIMALS, don\'t ask "Were they elected?" (wrong category)\n'
+    
+    section += '5. ✅ INFORMATION NOVELTY CHECK: Will this provide genuinely NEW information?\n'
+    section += '   ❌ Don\'t ask about properties you can already infer\n'
+    section += '   ❌ Don\'t ask about combinations of confirmed facts\n'
+    section += '   ✅ Ask about unexplored dimensions that narrow possibilities\n'
+    
+    section += '\n🎯 SEMANTIC DISTANCE REQUIREMENT:\n'
+    section += 'Your next question must be semantically DISTANT from all previous questions.\n'
+    section += 'If you\'ve asked about SIZE, switch to FUNCTION. If you\'ve asked about LOCATION, switch to TIME PERIOD.\n'
+    section += 'If you\'ve asked about ROLE, switch to GEOGRAPHY. If you\'ve asked about ERA, switch to ACHIEVEMENTS.\n'
+    section += 'GOAL: Maximum semantic distance = Maximum new information gained!\n'
 
     return section
   }
@@ -318,13 +349,53 @@ export class AIGuessingPromptBuilder {
   }
 
   /**
-   * Builds redundancy check section
+   * Builds comprehensive redundancy check section
    */
   static buildRedundancyCheck(facts: FactsByAnswer): string {
-    if (facts.yesFacts.length < 2) return ''
+    if (facts.yesFacts.length === 0 && facts.noFacts.length === 0 && facts.maybeFacts.length === 0) return ''
     
-    return '\n⚠️  REDUNDANCY CHECK: The item already has ALL of these properties confirmed as TRUE.\n' +
-           'Do NOT ask about combinations of these confirmed properties.\n'
+    let section = '\n🚫 COMPREHENSIVE REDUNDANCY AVOIDANCE - CRITICAL ANALYSIS:\n'
+    
+    // Redundancy from confirmed facts
+    if (facts.yesFacts.length > 0) {
+      section += '\n⚠️  CONFIRMED TRUE PROPERTIES - DO NOT ASK ABOUT THESE AGAIN:\n'
+      facts.yesFacts.forEach(fact => {
+        section += `  → Already confirmed: ${fact.q}\n`
+      })
+      section += '  🚨 DO NOT ask variations, synonyms, or logical consequences of these confirmed facts!\n'
+    }
+    
+    if (facts.noFacts.length > 0) {
+      section += '\n⚠️  CONFIRMED FALSE PROPERTIES - DO NOT ASK ABOUT THESE AGAIN:\n'
+      facts.noFacts.forEach(fact => {
+        section += `  → Already eliminated: ${fact.q}\n`
+      })
+      section += '  🚨 DO NOT ask about mutually exclusive opposites of these eliminated facts!\n'
+    }
+    
+    // Logical redundancy prevention
+    section += '\n🧠 LOGICAL REDUNDANCY PREVENTION:\n'
+    section += 'Before asking ANY question, check these redundancy patterns:\n'
+    section += '1. ✅ SYNONYM CHECK: Am I asking the same concept with different words?\n'
+    section += '   Example: "big" vs "large" vs "huge" vs "enormous" (ALL the same concept)\n'
+    section += '2. ✅ LOGICAL CONSEQUENCE CHECK: Can I deduce this from confirmed facts?\n'
+    section += '   Example: If "mammal"=YES confirmed, don\'t ask "Is it a bird?" (impossible)\n'
+    section += '3. ✅ MUTUAL EXCLUSION CHECK: Am I asking about something already eliminated?\n'
+    section += '   Example: If "European"=YES confirmed, don\'t ask "Are they from Asia?" (impossible)\n'
+    section += '4. ✅ COMBINATION CHECK: Am I asking about confirmed fact combinations?\n'
+    section += '   Example: If "electronic"=YES + "handheld"=YES, don\'t ask "Is it a portable device?"\n'
+    section += '5. ✅ CATEGORY VIOLATION CHECK: Does this question fit the established category?\n'
+    section += '   Example: If confirmed "human leader", don\'t ask "Is it made of metal?"\n'
+    
+    section += '\n🔄 SPECIFIC REDUNDANCY PATTERNS TO AVOID:\n'
+    section += '• Rephrasing confirmed facts: "alive"=NO → don\'t ask "Are they dead?"\n'
+    section += '• Size synonyms: "big", "large", "huge", "enormous", "massive" (pick ONE)\n'
+    section += '• Location synonyms: "European", "from Europe", "in Europe" (pick ONE)\n'
+    section += '• Status synonyms: "famous", "well-known", "popular", "renowned" (pick ONE)\n'
+    section += '• Asking opposites of confirmed facts: "male"=YES → don\'t ask "female"\n'
+    section += '• Asking logical impossibilities: "mammal"=YES → don\'t ask "bird", "fish", "reptile"\n'
+    
+    return section
   }
 
   /**
@@ -370,25 +441,40 @@ export class AIGuessingPromptBuilder {
   }
 
   /**
-   * Builds domain narrowing analysis section
+   * Builds comprehensive domain narrowing analysis section
    */
   static buildDomainNarrowingAnalysis(facts: FactsByAnswer): string {
     if (facts.yesFacts.length === 0 && facts.noFacts.length === 0 && facts.maybeFacts.length === 0) {
       return ''
     }
     
-    return '\n🎯 DOMAIN NARROWING ANALYSIS:\n' +
-           'Before asking your next question, analyze what domain space remains possible based on ALL the confirmed facts above.\n' +
-           'Ask yourself: "Given these confirmed facts (including partial YES answers), what specific sub-domain am I now working within?"\n' +
-           'Your next question MUST further narrow within that established domain - do NOT jump to unrelated properties!\n' +
-           '\nExamples of proper domain narrowing:\n' +
-           '- If confirmed: "mammal + wild animal" → ask about size, habitat, diet within wild mammals\n' +
-           '- If confirmed: "cricket player + from Australia" → ask about batting/bowling, era, specific team\n' +
-           '- If confirmed: "electronic + found in home" → ask about size, room, specific function\n' +
-           '- If partial: "sometimes in bedroom" → ask about primary location or specific room\n' +
-           '\n❌ DOMAIN VIOLATION EXAMPLES (DO NOT DO THIS):\n' +
-           '- If confirmed "mammal + wild" and you ask "Is it electronic?" (completely wrong domain)\n' +
-           '- If confirmed "Australian bowler" and you ask "Is it alive?" (already established as person)\n'
+    return '\n🎯 COMPREHENSIVE DOMAIN NARROWING ANALYSIS:\n' +
+           'Before asking your next question, perform this systematic domain analysis:\n' +
+           '\n📍 CURRENT DOMAIN IDENTIFICATION:\n' +
+           '1. List ALL confirmed facts (YES answers + strong MAYBE answers)\n' +
+           '2. List ALL eliminated possibilities (NO answers)\n' +
+           '3. Identify the intersection: "What specific sub-domain contains ALL confirmed facts?"\n' +
+           '4. Estimate domain size: How many items could still match this sub-domain?\n' +
+           '\n🔍 DOMAIN BOUNDARY ENFORCEMENT:\n' +
+           'Your next question MUST stay within the established domain boundaries.\n' +
+           'DO NOT jump to completely unrelated properties that violate confirmed facts.\n' +
+           'DO NOT ask about categories that contradict the established domain.\n' +
+           '\n✅ PROPER DOMAIN NARROWING EXAMPLES:\n' +
+           '- Domain: "wild mammal + carnivore + African" → ask "Is it larger than a lion?" (within domain)\n' +
+           '- Domain: "electronic + handheld + daily use" → ask "Does it have a touchscreen?" (within domain)\n' +
+           '- Domain: "historical leader + European + wartime" → ask "Did they lead Britain?" (within domain)\n' +
+           '- Domain: "retired athlete + quarterback + champion" → ask "Did they play for Patriots?" (within domain)\n' +
+           '\n❌ DOMAIN VIOLATION EXAMPLES (NEVER DO THIS):\n' +
+           '- Domain: "wild mammal + carnivore" → ask "Is it electronic?" (WRONG: objects vs animals)\n' +
+           '- Domain: "electronic device + handheld" → ask "Does it eat meat?" (WRONG: animals vs objects)\n' +
+           '- Domain: "human leader + historical" → ask "Is it made of plastic?" (WRONG: objects vs people)\n' +
+           '- Domain: "athlete + human" → ask "Is it a mammal?" (WRONG: animals vs people)\n' +
+           '\n🎯 DOMAIN PROGRESSION STRATEGY:\n' +
+           'Within your established domain, ask questions that:\n' +
+           '• Further subdivide the domain space (e.g., "African mammals" → "large African mammals")\n' +
+           '• Distinguish between similar items in the domain (e.g., "touchscreen phones" → "iPhones vs Androids")\n' +
+           '• Eliminate the largest remaining clusters (e.g., if 50% are "modern leaders", ask about era)\n' +
+           '• Prepare for final identification (e.g., after narrowing to 3-5 items, start specific guesses)\n'
   }
 
   /**
@@ -416,36 +502,21 @@ export class AIGuessingPromptBuilder {
 
     return `${baseSystemPrompt}
 
-${categorizedSummary}${logicalDeductions}${repetitionPrevention}${redundancyCheck}${specialResponseHandling}${domainNarrowingAnalysis}
-
-${categoryConstraints}
+${categorizedSummary}${logicalDeductions}
 
 ${suggestionSection}
 
-LOGICAL DEDUCTION - If you know:
-- "Is it a mammal?" = YES, then you know it's NOT a bird, reptile, or fish
-- "Is it living?" = YES, then you know it's NOT electronic, furniture, or objects
-- "Is it dead?" = YES, then you know it's NOT alive
+- If "mammal"=YES → NOT bird/reptile/fish/insect  
+- If "alive"=NO → NOT currently active/serving
+- If "electronic"=YES → NOT living/organic
 
-AVOID REDUNDANCY:
-- DON'T ask "Is it a bird?" if they already said YES to "Is it a mammal?"
-- DON'T ask "Is it alive?" if they already answered about being dead
-- DON'T ask compound questions like "Is it big or small?" - pick one
+Think step by step, then ask your next strategic yes/no question.
 
-🚫 NEVER ASK VAGUE QUESTIONS:
-- "Does it have unique characteristics?" → Ask "Are they male?" instead
-- "Is it from a specific region?" → Ask "Are they from Europe?" instead  
-- "Does it have multiple forms?" → Ask "Were they both military and political?" instead
-- "Is it from a time period?" → Ask "Did they serve before 1990?" instead
-- "Does it have notable aspects?" → Ask "Did they win a war?" instead
+<thinking>
+[Your analysis of remaining possibilities and optimal question]
+</thinking>
 
-✅ ALWAYS ASK CONCRETE, SPECIFIC QUESTIONS:
-- Geographic: "Are they from Asia?", "Did they lead Germany?"
-- Temporal: "Did they serve before 1990?", "Were they active in the 2000s?"
-- Demographic: "Are they male?", "Are they still alive?"
-- Functional: "Were they a president?", "Did they win a Nobel Prize?"
-
-Ask your next strategic yes/no question. Output ONLY the question.`
+<question>Your final yes/no question here?</question>`
   }
 
   /**
@@ -457,98 +528,199 @@ Ask your next strategic yes/no question. Output ONLY the question.`
     switch (category.toLowerCase()) {
       case 'world leaders':
         constraints += `
-WORLD LEADERS ONLY - The item is a HUMAN POLITICAL LEADER. You are guessing which specific world leader.
+🎯 WORLD LEADERS ONLY - The item is a HUMAN POLITICAL LEADER. You are guessing which specific world leader.
 
-❌ FORBIDDEN QUESTIONS (these don't apply to people):
-- "Is it black?" / "Is it a color?" → World leaders are PEOPLE, not objects with colors
-- "Is it plastic?" / "Is it made of metal?" → World leaders are PEOPLE, not materials
-- "Is it smaller than a book?" → World leaders are PEOPLE, not objects with sizes
-- "Is it electronic?" → World leaders are PEOPLE, not devices
-- "Can you hold it?" → World leaders are PEOPLE, not objects
-- "Is it furniture?" → World leaders are PEOPLE, not objects
+🚫 STRICTLY FORBIDDEN QUESTIONS (these don't apply to people):
+
+❌ OBJECT/MATERIAL QUESTIONS (humans are not objects):
+- "Is it black?" / "Is it white?" / "Is it red?" / "What color is it?" → World leaders are PEOPLE, not colored objects
+- "Is it plastic?" / "Is it made of metal?" / "Is it made of wood?" / "What is it made of?" → World leaders are PEOPLE, not manufactured materials
+- "Is it electronic?" / "Is it digital?" / "Does it need batteries?" / "Does it have circuits?" → World leaders are PEOPLE, not electronic devices
+- "Can you hold it?" / "Is it portable?" / "Can you carry it?" → World leaders are PEOPLE, not objects you pick up
+- "Is it furniture?" / "Is it a tool?" / "Is it a machine?" / "Is it equipment?" → World leaders are PEOPLE, not inanimate objects
+
+❌ SIZE/PHYSICAL OBJECT QUESTIONS (humans are not sized objects):
+- "Is it smaller than a book?" / "Is it bigger than a car?" / "How big is it?" → World leaders are PEOPLE with human proportions
+- "Can it fit in your pocket?" / "Is it handheld?" / "Is it tiny?" → World leaders are PEOPLE, not pocket-sized objects
+- "Does it weigh a lot?" / "Is it heavy?" / "Is it light?" → World leaders are PEOPLE, not objects with product weights
+
+❌ ANIMAL/BIOLOGICAL QUESTIONS (humans are not animals):
+- "Is it a mammal?" / "Is it a bird?" / "Is it a reptile?" → World leaders are PEOPLE, not animals to classify
+- "Does it eat meat?" / "Is it carnivorous?" / "Is it herbivorous?" → World leaders are PEOPLE, not animals with diets
+- "Does it have fur?" / "Does it have feathers?" / "Does it have scales?" → World leaders are PEOPLE, not animals with coats
+- "Can it fly?" / "Does it swim?" / "Does it hibernate?" → World leaders are PEOPLE, not animals with special abilities
+
+❌ CONSUMPTION/USAGE QUESTIONS (humans are not products):
+- "Do you eat it?" / "Is it food?" / "Is it edible?" / "Can you drink it?" → World leaders are PEOPLE, not consumables
+- "Do you wear it?" / "Is it clothing?" / "Do you use it?" → World leaders are PEOPLE, not products you use
 
 ✅ APPROPRIATE QUESTIONS FOR WORLD LEADERS:
 - "Are they male?" / "Are they female?"
 - "Are they still alive?" / "Are they dead?"
-- "Are they from Europe?" / "Are they from Asia?"
-- "Were they a president?" / "Were they a prime minister?"
-- "Did they serve before 1990?" / "Were they active in the 21st century?"
-- "Did they win a Nobel Prize?" / "Did they lead during a war?"
+- "Are they from Europe?" / "Are they from Asia?" / "Are they from Africa?" / "Are they from the Americas?"
+- "Were they a president?" / "Were they a prime minister?" / "Were they a monarch?"
+- "Did they serve before 1990?" / "Were they active in the 21st century?" / "Did they serve in the 20th century?"
+- "Did they win a Nobel Prize?" / "Did they lead during a war?" / "Were they democratically elected?"
+- "Are they considered controversial?" / "Were they a military leader?"
 
 CRITICAL: ONLY ask questions that apply to HUMAN POLITICAL LEADERS!`
         break
         
       case 'animals':
         constraints += `
-ANIMALS ONLY - The item is a LIVING CREATURE (or recently living animal). You are guessing which specific animal.
+🎯 ANIMALS ONLY - The item is a LIVING CREATURE (or recently living animal). You are guessing which specific animal.
 
-❌ FORBIDDEN QUESTIONS (these don't apply to animals):
-- "Are they a president?" → Animals are not political leaders
-- "Did they serve before 1990?" → Animals don't have political careers
-- "Are they from Europe?" → Use habitat questions instead: "Do they live in Africa?"
-- "Is it electronic?" → Animals are biological, not electronic
-- "Is it furniture?" → Animals are living beings, not objects
+🚫 STRICTLY FORBIDDEN QUESTIONS (these don't apply to animals):
+
+❌ HUMAN/POLITICAL QUESTIONS (animals are not people):
+- "Are they a president?" / "Were they a leader?" / "Were they a politician?" → Animals are not political figures
+- "Did they serve before 1990?" / "Were they elected?" / "Did they hold office?" → Animals don't have political careers
+- "Are they male?" / "Are they female?" → Use "Is it male?" for animals (not "they")
+- "Are they from Europe?" / "Are they European?" → Use habitat: "Do they live in Europe?" instead
+- "Did they win awards?" / "Are they famous?" → Animals don't win human awards
+
+❌ OBJECT/TECHNOLOGY QUESTIONS (animals are not objects):
+- "Is it electronic?" / "Is it digital?" / "Does it need batteries?" → Animals are biological, not electronic devices
+- "Is it furniture?" / "Is it a tool?" / "Is it equipment?" → Animals are living beings, not manufactured objects
+- "Is it made of plastic?" / "Is it made of metal?" / "What material is it?" → Animals are not manufactured from materials
+- "Can you hold it in your hand?" / "Is it portable?" → Ask about size relative to animals: "Is it smaller than a cat?"
+- "Does it have buttons?" / "Does it have a screen?" → Animals don't have electronic interfaces
+
+❌ COMMERCIAL/USAGE QUESTIONS (animals are not products):
+- "Is it expensive?" / "Can you buy it?" / "How much does it cost?" → Focus on biological properties instead
+- "Do you use it for work?" / "Is it a product?" → Animals are not commercial products
+- "Can you wear it?" / "Do you eat it?" → While some animals are food, focus on the living animal's properties
+
+❌ ABSTRACT/MANUFACTURED CONCEPTS (animals are biological entities):
+- "Is it a concept?" / "Is it abstract?" / "Is it an idea?" → Animals are concrete living beings
+- "Was it invented?" / "Was it designed?" / "Who created it?" → Animals evolved naturally
 
 ✅ APPROPRIATE QUESTIONS FOR ANIMALS:
-- "Is it a mammal?" / "Is it a bird?" / "Is it a reptile?"
-- "Is it a wild animal?" / "Is it a domestic pet?"
-- "Is it larger than a dog?" / "Is it smaller than a cat?"
-- "Does it live in Africa?" / "Does it live in water?"
-- "Does it eat meat?" / "Is it a carnivore?"
-- "Does it have four legs?" / "Can it fly?"
+- "Is it a mammal?" / "Is it a bird?" / "Is it a reptile?" / "Is it a fish?" / "Is it an insect?"
+- "Is it a wild animal?" / "Is it a domestic pet?" / "Is it found on farms?"
+- "Is it larger than a dog?" / "Is it smaller than a cat?" / "Is it bigger than a human?"
+- "Does it live in Africa?" / "Does it live in water?" / "Does it live in forests?"
+- "Does it eat meat?" / "Is it a carnivore?" / "Is it herbivorous?" / "Is it omnivorous?"
+- "Does it have four legs?" / "Can it fly?" / "Does it have fur?" / "Does it lay eggs?"
 
 CRITICAL: ONLY ask questions that apply to LIVING ANIMALS!`
         break
         
       case 'objects':
         constraints += `
-OBJECTS ONLY - The item is an INANIMATE OBJECT/THING. You are guessing which specific object.
+🎯 OBJECTS ONLY - The item is an INANIMATE OBJECT/THING. You are guessing which specific object.
 
-❌ FORBIDDEN QUESTIONS (these don't apply to objects):
-- "Are they male?" → Objects don't have gender
-- "Are they alive?" → Objects are not living
-- "Are they a president?" → Objects are not people
-- "Did they serve before 1990?" → Objects don't have careers
-- "Do they eat meat?" → Objects don't eat
+🚫 STRICTLY FORBIDDEN QUESTIONS (these don't apply to objects):
+
+❌ HUMAN/POLITICAL QUESTIONS (objects are not people):
+- "Are they male?" / "Are they female?" / "What gender are they?" → Objects don't have gender
+- "Are they alive?" / "Do they breathe?" / "Are they dead?" → Objects are not living beings
+- "Are they a president?" / "Did they serve?" / "Were they elected?" → Objects are not people with careers
+- "Did they serve before 1990?" / "Were they born?" / "How old are they?" → Objects don't have political careers or ages
+- "Are they from Europe?" / "What nationality are they?" → Objects aren't from countries (use "made in" instead)
+- "Do they have feelings?" / "Are they happy?" / "Are they smart?" → Objects don't have emotions or intelligence
+
+❌ BIOLOGICAL/ANIMAL QUESTIONS (objects are not living):
+- "Do they eat meat?" / "Are they carnivorous?" / "What do they eat?" → Objects don't eat or have diets
+- "Is it a mammal?" / "Is it a bird?" / "Is it a reptile?" → Objects are not biological classifications
+- "Does it have fur?" / "Does it have feathers?" / "Does it have skin?" → Objects don't have biological features
+- "Can it fly naturally?" / "Does it hibernate?" / "Does it migrate?" → Objects don't have natural biological behaviors
+- "Is it wild?" / "Is it domesticated?" / "Is it a pet?" → Objects are not animals with habitats
+
+❌ ABSTRACT/CONCEPTUAL QUESTIONS (objects are physical):
+- "Is it a concept?" / "Is it an idea?" / "Is it abstract?" → Objects are physical, tangible things
+- "Is it a feeling?" / "Is it an emotion?" / "Is it a thought?" → Objects are not mental concepts
+- "Is it a service?" / "Is it software?" → Focus on physical objects, not services
+
+❌ IMPOSSIBLE PHYSICAL PROPERTIES (objects follow physics):
+- "Is it alive?" / "Does it grow?" / "Can it reproduce?" → Objects are not living organisms
+- "Does it have consciousness?" / "Can it think?" / "Does it make decisions?" → Objects are not sentient
 
 ✅ APPROPRIATE QUESTIONS FOR OBJECTS:
-- "Is it electronic?" / "Does it need electricity?"
-- "Can you hold it in one hand?" / "Is it portable?"
-- "Is it made of metal?" / "Is it made of plastic?"
-- "Is it found in a kitchen?" / "Is it found in a bedroom?"
-- "Is it larger than a book?" / "Is it smaller than a car?"
-- "Do most people use it daily?" / "Is it a tool?"
+- "Is it electronic?" / "Does it need electricity?" / "Does it have a screen?"
+- "Can you hold it in one hand?" / "Is it portable?" / "Is it handheld?"
+- "Is it made of metal?" / "Is it made of plastic?" / "Is it made of wood?"
+- "Is it found in a kitchen?" / "Is it found in a bedroom?" / "Is it found outdoors?"
+- "Is it larger than a book?" / "Is it smaller than a car?" / "Can it fit in a pocket?"
+- "Do most people use it daily?" / "Is it a tool?" / "Is it furniture?" / "Is it decorative?"
 
 CRITICAL: ONLY ask questions that apply to INANIMATE OBJECTS!`
         break
         
       case 'cricket players':
-      case 'football players':
-      case 'nba players':
         constraints += `
-SPORTS PLAYERS ONLY - The item is a HUMAN ATHLETE. You are guessing which specific ${category.toLowerCase()}.
+CRICKET PLAYERS ONLY - The item is a HUMAN CRICKET ATHLETE. You are guessing which specific cricket player.
 
 ❌ FORBIDDEN QUESTIONS (these don't apply to people):
-- "Is it black?" / "Is it a color?" → Athletes are PEOPLE, not objects with colors
-- "Is it plastic?" / "Is it electronic?" → Athletes are PEOPLE, not objects
-- "Is it smaller than a book?" → Athletes are PEOPLE, not objects
-- "Can you hold it?" → Athletes are PEOPLE, not objects
+- "Is it black?" / "Is it a color?" / "What color is it?" → Cricket players are PEOPLE, not objects with colors
+- "Is it plastic?" / "Is it electronic?" / "What is it made of?" → Cricket players are PEOPLE, not objects
+- "Is it smaller than a book?" / "Can you hold it?" → Cricket players are PEOPLE, not objects
+- "Is it furniture?" / "Is it a tool?" → Cricket players are PEOPLE, not objects
+- "Does it need batteries?" / "Is it portable?" → Cricket players are PEOPLE, not devices
 
-✅ APPROPRIATE QUESTIONS FOR ${category.toUpperCase()}:
-- "Are they currently active?" / "Are they retired?"
+✅ APPROPRIATE QUESTIONS FOR CRICKET PLAYERS:
+- "Are they currently active?" / "Are they retired?" / "Do they still play?"
 - "Are they male?" / "Are they female?"
-- "Are they from [specific country]?"
-- "Have they won a championship?" / "Are they a Hall of Famer?"
-- "Did they play before 2000?" / "Are they from the modern era?"
-- Position/role specific questions for the sport
+- "Are they from India?" / "Are they from Australia?" / "Are they from England?"
+- "Are they a batsman?" / "Are they a bowler?" / "Are they a wicket-keeper?" / "Are they an all-rounder?"
+- "Have they captained their country?" / "Are they a top-tier player?" / "Have they won major tournaments?"
+- "Did they play before 2010?" / "Are they from the 1990s-2000s era?" / "Are they modern players?"
 
-CRITICAL: ONLY ask questions that apply to HUMAN ATHLETES!`
+CRITICAL: ONLY ask questions that apply to HUMAN CRICKET PLAYERS!`
+        break
+
+      case 'football players':
+        constraints += `
+FOOTBALL PLAYERS ONLY - The item is a HUMAN FOOTBALL ATHLETE. You are guessing which specific football player.
+
+❌ FORBIDDEN QUESTIONS (these don't apply to people):
+- "Is it black?" / "Is it a color?" / "What color is it?" → Football players are PEOPLE, not objects with colors
+- "Is it plastic?" / "Is it electronic?" / "What is it made of?" → Football players are PEOPLE, not objects
+- "Is it smaller than a book?" / "Can you hold it?" → Football players are PEOPLE, not objects
+- "Is it furniture?" / "Is it a tool?" → Football players are PEOPLE, not objects
+- "Does it need batteries?" / "Is it portable?" → Football players are PEOPLE, not devices
+
+✅ APPROPRIATE QUESTIONS FOR FOOTBALL PLAYERS:
+- "Are they currently active?" / "Are they retired?" / "Do they still play?"
+- "Are they male?" / "Are they female?"
+- "Are they a quarterback?" / "Are they on offense?" / "Are they on defense?"
+- "Have they won a Super Bowl?" / "Are they a Hall of Famer?" / "Have they won MVP?"
+- "Have they played for the Patriots?" / "Are they AFC?" / "Are they NFC?"
+- "Did they play before 2010?" / "Are they from the 2000s era?" / "Are they modern players?"
+
+CRITICAL: ONLY ask questions that apply to HUMAN FOOTBALL PLAYERS!`
+        break
+
+      case 'nba players':
+        constraints += `
+NBA PLAYERS ONLY - The item is a HUMAN BASKETBALL ATHLETE. You are guessing which specific NBA player.
+
+❌ FORBIDDEN QUESTIONS (these don't apply to people):
+- "Is it black?" / "Is it a color?" / "What color is it?" → NBA players are PEOPLE, not objects with colors
+- "Is it plastic?" / "Is it electronic?" / "What is it made of?" → NBA players are PEOPLE, not objects
+- "Is it smaller than a book?" / "Can you hold it?" → NBA players are PEOPLE, not objects
+- "Is it furniture?" / "Is it a tool?" → NBA players are PEOPLE, not objects
+- "Does it need batteries?" / "Is it portable?" → NBA players are PEOPLE, not devices
+
+✅ APPROPRIATE QUESTIONS FOR NBA PLAYERS:
+- "Are they currently active?" / "Are they retired?" / "Do they still play?"
+- "Are they male?" / "Are they female?"
+- "Are they a guard?" / "Are they a center?" / "Are they a forward?"
+- "Have they won an NBA championship?" / "Are they a MVP winner?" / "Are they a Hall of Famer?"
+- "Have they played for the Lakers?" / "Are they Western Conference?" / "Are they Eastern Conference?"
+- "Did they play before 2000?" / "Are they from the 1990s-2000s era?" / "Are they modern players?"
+
+CRITICAL: ONLY ask questions that apply to HUMAN NBA PLAYERS!`
         break
         
       default:
         constraints += `
-Stay within the category "${category}". Do not ask questions that don't apply to this category.
-Ask only relevant, category-appropriate questions.`
+🎯 CATEGORY: ${category.toUpperCase()} - Stay within this category strictly.
+
+❌ FORBIDDEN: Do not ask questions that don't apply to this category.
+✅ APPROPRIATE: Ask only relevant, category-appropriate questions.
+
+CRITICAL: Ensure all questions are appropriate for the "${category}" category!`
     }
     
     return constraints
