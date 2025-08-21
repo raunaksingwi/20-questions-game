@@ -502,13 +502,13 @@ export class AIGuessingPromptBuilder {
 
     return `${baseSystemPrompt}
 
-${categorizedSummary}${logicalDeductions}
+${categorizedSummary}${logicalDeductions}${repetitionPrevention}${redundancyCheck}${specialResponseHandling}${domainNarrowingAnalysis}${categoryConstraints}
 
 ${suggestionSection}
 
-- If "mammal"=YES → NOT bird/reptile/fish/insect  
-- If "alive"=NO → NOT currently active/serving
-- If "electronic"=YES → NOT living/organic
+NEVER ASK VAGUE QUESTIONS like "Is it special?" or "Does it have unique features?"
+
+ALWAYS ASK CONCRETE, SPECIFIC QUESTIONS like "Is it made of metal?" or "Is it larger than a car?"
 
 Think step by step, then ask your next strategic yes/no question.
 

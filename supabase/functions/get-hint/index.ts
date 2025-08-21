@@ -60,13 +60,14 @@ const handler = async (req: Request) => {
     const previousHints = messages.filter((m: any) => m.role === 'assistant' && m.message_type === 'hint')
     const facts = ConversationState.extractFacts(messages as any)
     
-    // Build comprehensive summary of known information
+    // Build comprehensive summary of known information  
     let conversationSummary = `[HINT GENERATION CONTEXT:
-- Total questions asked: ${game.questions_asked}
-- Previous hints given: ${previousHints.length}
-- Current progress: Question #${game.questions_asked + 1} of 20
+- Game Progress: ${game.questions_asked}/20 questions, ${game.hints_used}/3 hints used
+- Current Stage: Question #${game.questions_asked + 1}
+- Category: ${game.category || 'General'}
+- Secret Item: ${game.secret_item}
 
-ESTABLISHED FACTS - DO NOT REPEAT THIS INFORMATION IN HINT:`
+ESTABLISHED FACTS - COMPLETELY AVOID REPEATING THIS KNOWN INFORMATION:`
 
     // List all confirmed YES facts (what the item IS)
     if (facts.confirmed_yes.length > 0) {
@@ -100,7 +101,12 @@ ESTABLISHED FACTS - DO NOT REPEAT THIS INFORMATION IN HINT:`
       })
     }
 
-    conversationSummary += `\n\n🚨 CRITICAL INSTRUCTION: Your hint MUST provide NEW information that the player doesn't already know from the established facts above.]`
+    conversationSummary += `\n\n🚨 CRITICAL INSTRUCTION: 
+- MUST provide completely NEW information not in established facts above
+- MUST avoid repeating any previous hints or known facts
+- MUST focus on unexplored aspects of the secret item
+- MUST guide player toward better strategic questions
+- MUST maintain consistency with all confirmed facts]`
 
     // Add conversation summary
     chatMessages.push({
@@ -109,34 +115,32 @@ ESTABLISHED FACTS - DO NOT REPEAT THIS INFORMATION IN HINT:`
     })
 
     // Generate a hint that focuses on unexplored information
-    const hintPrompt = `You are providing hint #${game.hints_used + 1} about the secret item: "${game.secret_item}"
+    const gameStage = game.questions_asked < 5 ? 'early' : game.questions_asked < 10 ? 'mid' : game.questions_asked < 15 ? 'late' : 'very_late'
+    const stageGuidance = {
+      early: 'Give a distinctive characteristic or property hint',
+      mid: 'Give context, environment, or usage hint', 
+      late: 'Give specific functional or role-based hint',
+      very_late: 'Give narrowing hint focusing on most distinctive feature'
+    }[gameStage]
+    
+    const hintPrompt = `Generate hint #${game.hints_used + 1} for secret item: "${game.secret_item}"
+
+STAGE STRATEGY (${gameStage} game): ${stageGuidance}
 
 CRITICAL REQUIREMENTS:
-1. MUST be consistent with ALL previous answers in the conversation
-2. MUST provide completely NEW information - do NOT repeat anything from the established facts listed above
-3. Focus on aspects of the item that have NOT been explored through questions yet
-4. Don't reveal the answer directly, but provide genuinely helpful new information
-5. Consider what types of questions the player HASN'T asked yet about this item
+1. NEW INFORMATION: Must provide completely new information not in established facts
+2. CONSISTENCY: Stay consistent with all confirmed facts and previous answers
+3. SUBTLETY: Don't reveal answer directly - use indirect descriptive language
+4. ACTIONABILITY: Guide player toward better questions for unexplored aspects
+5. STAGE-APPROPRIATE: ${gameStage === 'early' ? 'Broad distinctive features' : gameStage === 'mid' ? 'Contextual associations' : gameStage === 'late' ? 'Specific characteristics' : 'Focused narrowing clues'}
 
-HINT STRATEGY - FOCUS ON UNEXPLORED AREAS:
-${facts.confirmed_yes.length === 0 && facts.confirmed_no.length === 0 ? 
-  '- No facts established yet. Give a hint about a key characteristic or property.' : 
-  `- Player has established ${facts.confirmed_yes.length + facts.confirmed_no.length} facts. Focus on a different aspect they haven\'t explored.`
-}
+QUALITY CHECKLIST:
+✓ Addresses unexplored aspect (novelty)
+✓ Helps guide next questions (actionability)  
+✓ Matches confirmed facts (consistency)
+✓ Appropriate disclosure level (${Math.round(((game.questions_asked / 20) + (game.hints_used / 3)) * 100)}% game progress)
 
-GAME PROGRESSION GUIDELINES:
-${game.questions_asked < 5 ? '- Early game: Hint about a distinctive property or feature (but avoid what they already know)' : ''}
-${game.questions_asked >= 5 && game.questions_asked < 10 ? '- Mid game: Hint about specific uses, characteristics, or context (that they haven\'t discovered)' : ''}
-${game.questions_asked >= 10 && game.questions_asked < 15 ? '- Late game: More specific hint about origin, preparation, behavior, or distinctive features' : ''}
-${game.questions_asked >= 15 ? '- Very late game: Strong hint that significantly narrows possibilities without giving the answer' : ''}
-
-ANALYSIS INSTRUCTION:
-1. Look at what the player already knows from the established facts above
-2. Identify what aspects of the item they haven't explored yet
-3. Provide a hint about one of those unexplored aspects
-4. Make it helpful but not too obvious
-
-Respond with ONLY the hint text - no JSON, no formatting, no explanations:`
+Respond with ONLY the hint text - no explanations:`
 
     chatMessages.push({
       role: 'user',
@@ -170,7 +174,7 @@ Respond with ONLY the hint text - no JSON, no formatting, no explanations:`
       
       chatMessages.push({
         role: 'user', 
-        content: `Search results: ${functionResult}\n\nBased on these search results and the established facts from our conversation, provide hint #${game.hints_used + 1} about the secret item (${game.secret_item}). Remember: provide completely NEW information that the player doesn't already know from the established facts. Focus on unexplored aspects of the item. Respond with ONLY the hint text - no JSON, no formatting, no explanations.`
+        content: `Search Results: ${functionResult}\n\nUsing these search results and respecting established facts, generate hint #${game.hints_used + 1} for "${game.secret_item}".\n\nREQUIREMENTS:\n- NEW INFO ONLY: Avoid all established facts and previous hints\n- ACTIONABLE: Guide toward strategic unexplored questions\n- CONSISTENT: Align with confirmed facts\n- STAGE-APPROPRIATE: ${gameStage} game hint strategy\n\nProvide ONLY the hint text:`
       })
       
       // Call LLM again with search results

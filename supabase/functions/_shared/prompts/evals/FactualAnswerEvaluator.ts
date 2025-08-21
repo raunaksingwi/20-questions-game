@@ -701,40 +701,40 @@ export class FactualAnswerEvaluator extends BaseEvaluator {
    * Gets category-specific test questions
    */
   private getCategorySpecificTests(category: string) {
-    const tests = {
+    const tests: Record<string, Array<{question: string; isApplicable: (item: string) => boolean; expectedAnswer: string}>> = {
       'animals': [
         {
           question: "Is it alive?",
-          isApplicable: () => true,
+          isApplicable: (_item: string) => true,
           expectedAnswer: "Yes"
         },
         {
           question: "Does it breathe?",
-          isApplicable: () => true,
+          isApplicable: (_item: string) => true,
           expectedAnswer: "Yes"
         }
       ],
       'objects': [
         {
           question: "Is it manufactured?",
-          isApplicable: () => true,
+          isApplicable: (_item: string) => true,
           expectedAnswer: "Sometimes"
         },
         {
           question: "Is it alive?",
-          isApplicable: () => true,
+          isApplicable: (_item: string) => true,
           expectedAnswer: "No"
         }
       ],
       'world leaders': [
         {
           question: "Is it a person?",
-          isApplicable: () => true,
+          isApplicable: (_item: string) => true,
           expectedAnswer: "Yes"
         },
         {
           question: "Is it human?",
-          isApplicable: () => true,
+          isApplicable: (_item: string) => true,
           expectedAnswer: "Yes"
         }
       ]

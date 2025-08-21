@@ -144,7 +144,7 @@ export class MetricsCollector {
 
   // ========== PRIVATE HELPER METHODS ==========
 
-  private static determineGameResult(sessionData: any, messages: any[]): string {
+  private static determineGameResult(sessionData: any, messages: any[]): 'ai_win' | 'user_win' | 'ongoing' | 'abandoned' {
     if (sessionData.status === 'completed') {
       if (sessionData.winner === 'ai') return 'ai_win'
       if (sessionData.winner === 'user') return 'user_win'
@@ -381,16 +381,6 @@ export class MetricsCollector {
     }
     
     return terms[category.toLowerCase()] || []
-  }
-
-  private static calculateStringSimilarity(str1: string, str2: string): number {
-    const words1 = new Set(str1.split(' ').filter(w => w.length > 2))
-    const words2 = new Set(str2.split(' ').filter(w => w.length > 2))
-    
-    const intersection = new Set([...words1].filter(w => words2.has(w)))
-    const union = new Set([...words1, ...words2])
-    
-    return union.size > 0 ? intersection.size / union.size : 0
   }
 }
 
