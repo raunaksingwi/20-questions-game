@@ -36,50 +36,89 @@ ${shouldGuess ? 'Based on the information gathered, make a specific guess about 
   }
 
   private shouldMakeSpecificGuess(questionsAsked: number, conversationHistory: string): boolean {
-    // Allow flexible guessing based on confidence, not strict question limits
     const history = conversationHistory.toLowerCase()
     
-    // Make guesses when you have enough information to be confident
+    // Count how many constraining facts we have
+    const constraintsCount = this.countConstrainingFacts(history)
+    
+    // Be more aggressive with guessing to improve user experience
     switch (this.getCategoryName().toLowerCase()) {
       case 'animals':
-        // For animals, start guessing around 12 questions if you have good constraints
-        if (questionsAsked >= 12) return true
-        // Or earlier if very specific constraints are met
-        if (questionsAsked >= 8 && (history.includes('africa') || history.includes('arctic') || history.includes('australia'))) return true
+        // Start guessing much earlier - animals can be identified with fewer questions
+        if (questionsAsked >= 8) return true
+        // Or earlier if we have strong constraints (3+ constraining facts)
+        if (questionsAsked >= 6 && constraintsCount >= 3) return true
+        // Or very early if highly specific location/type
+        if (questionsAsked >= 5 && (history.includes('africa') || history.includes('arctic') || history.includes('australia') || history.includes('marine') || history.includes('reptile'))) return true
         break
       case 'objects':
-        // For objects, be more aggressive with guessing since there are many possibilities
-        if (questionsAsked >= 10) return true
-        // Or earlier if in a very specific category
-        if (questionsAsked >= 7 && (history.includes('kitchen') || history.includes('electronic') || history.includes('tool'))) return true
+        // Start guessing earlier for objects too
+        if (questionsAsked >= 7) return true
+        // Or earlier if in a very specific category with good constraints
+        if (questionsAsked >= 5 && constraintsCount >= 3) return true
+        // Or early if highly specific context
+        if (questionsAsked >= 4 && (history.includes('kitchen') || history.includes('electronic') || history.includes('tool') || history.includes('furniture'))) return true
         break
       case 'world leaders':
       case 'cricket players':
       case 'football players':
       case 'nba players':
-        // For people categories, start guessing earlier since there are fewer total possibilities
-        if (questionsAsked >= 8) return true
-        // Or much earlier if very constrained
-        if (questionsAsked >= 5 && (history.includes('alive: no') || history.includes('retired') || history.includes('president'))) return true
+        // People categories - start guessing much earlier since there are fewer possibilities
+        if (questionsAsked >= 6) return true
+        // Or very early if we have good constraints
+        if (questionsAsked >= 4 && constraintsCount >= 3) return true
+        // Or immediately if highly specific
+        if (questionsAsked >= 3 && (history.includes('alive: no') || history.includes('retired') || history.includes('president') || history.includes('quarterback') || history.includes('captain'))) return true
         break
     }
     
+    // Force guessing if we're getting close to the limit (leave room for multiple guesses)
+    if (questionsAsked >= 15) return true
+    
     return false
+  }
+
+  private countConstrainingFacts(history: string): number {
+    // Count how many strong constraints we have identified
+    let count = 0
+    
+    // Geographic constraints
+    if (history.includes('africa') || history.includes('europe') || history.includes('asia') || history.includes('america')) count++
+    
+    // Type/classification constraints
+    if (history.includes('mammal') || history.includes('bird') || history.includes('reptile') || history.includes('electronic') || history.includes('president') || history.includes('quarterback')) count++
+    
+    // Size constraints
+    if (history.includes('large') || history.includes('small') || history.includes('huge') || history.includes('tiny')) count++
+    
+    // Temporal constraints
+    if (history.includes('alive: no') || history.includes('retired') || history.includes('before 1990') || history.includes('modern')) count++
+    
+    // Specific domain constraints
+    if (history.includes('wild') || history.includes('domestic') || history.includes('kitchen') || history.includes('tool') || history.includes('furniture')) count++
+    
+    return count
   }
 
   private getGuessingGuidance(questionsAsked: number): string {
     return `🎯 SPECIFIC GUESSING MODE (Question ${questionsAsked + 1}/20):
 
-Based on all the information you've gathered, it's time to make specific guesses!
+You have enough information to start making educated guesses! Time to be decisive and identify the specific item.
 
-GUESSING STRATEGY:
-• Analyze all confirmed YES/NO answers to identify the most likely specific items
-• Choose the single most probable item that matches ALL confirmed characteristics
-• Ask "Is it [SPECIFIC ITEM]?" questions
-• Choose the most probable items based on all confirmed characteristics
-• Don't ask more general property questions - focus on specific identifications
+DECISIVE GUESSING STRATEGY:
+• Review ALL confirmed YES/NO answers from the conversation
+• Identify the 2-3 most likely specific items that match ALL confirmed facts
+• Choose the MOST PROBABLE item from your analysis
+• Make your guess confidently - users prefer decisive attempts over endless questions
+• If your first guess is wrong, adjust and try the next most likely item
 
-IMPORTANT: Frame your guess as a yes/no question: "Is it [specific item name]?"`;
+🎯 CONFIDENCE GUIDANCE:
+• ${questionsAsked >= 10 ? 'You have substantial information - be confident in your guessing!' : 'You have enough constraints to make educated guesses!'}
+• It's better to guess and be wrong than to frustrate users with too many questions
+• Leave room for 2-3 guess attempts before reaching question 20
+
+CRITICAL: Frame your guess as: "Is it [SPECIFIC ITEM NAME]?"
+NO MORE general property questions - only specific item identification guesses!`;
   }
 
   private getCoreRules(): string {
