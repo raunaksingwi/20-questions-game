@@ -223,17 +223,18 @@ const handler = async (req: Request) => {
     
     const categoryItems = getCategoryItems(session.category)
     
-    let suggestedQuestion: string
+    // Get analytical insights from DecisionTree - no question generation
+    let decisionAnalysis
     try {
-      // Use decision tree logic to get optimal question
-      suggestedQuestion = DecisionTree.generateOptimalQuestion(
+      decisionAnalysis = DecisionTree.analyzeConversationState(
         session.category,
         conversationHistory,
         categoryItems
       )
+      console.log(`[submit-user-answer] Analysis: ${decisionAnalysis.insights.remainingCount} candidates remaining, guessing phase: ${decisionAnalysis.shouldEnterGuessingPhase}`)
     } catch (error) {
-      console.warn('[submit-user-answer] Decision tree failed, using fallback:', error)
-      suggestedQuestion = '' // Will fall back to LLM generation
+      console.warn('[submit-user-answer] Decision tree analysis failed:', error)
+      decisionAnalysis = null
     }
     
     // Use the AI questioning template system
@@ -245,18 +246,27 @@ const handler = async (req: Request) => {
     )
     
     // Use the prompt builder to create enhanced system prompt
+    // Build enhanced system prompt with analytical insights (no hardcoded questions)
     const enhancedSystemPrompt = AIGuessingPromptBuilder.buildEnhancedSystemPrompt(
       baseSystemPrompt,
       session.category,
       facts,
       allAskedQuestions,
-      currentQuestionNumber,
-      suggestedQuestion
+      currentQuestionNumber
     )
 
-    const userPrompt = suggestedQuestion 
-      ? `Use the recommended question "${suggestedQuestion}" unless it's clearly redundant. Otherwise, ask your next strategic yes/no question.`
-      : `Ask your next strategic yes/no question that eliminates about half the remaining possibilities.`
+    // Create user prompt with analytical context
+    let userPrompt = `Ask your next strategic yes/no question that eliminates about half the remaining possibilities.`
+    
+    if (decisionAnalysis) {
+      const { shouldEnterGuessingPhase, insights } = decisionAnalysis
+      
+      if (shouldEnterGuessingPhase && insights.topCandidates.length > 0) {
+        userPrompt = `Based on analysis, you should now make specific guesses. Top candidates: ${insights.topCandidates.slice(0, 3).join(', ')}. Ask: "Is it [specific name]?"`
+      } else if (insights.suggestedFocus.length > 0) {
+        userPrompt = `${userPrompt} Focus analysis suggests exploring: ${insights.suggestedFocus.join(', ')}.`
+      }
+    }
 
     let llmResponse = await llmProvider.generateResponse({
       messages: [{ role: 'user', content: userPrompt }],

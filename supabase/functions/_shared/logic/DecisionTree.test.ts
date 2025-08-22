@@ -1,92 +1,78 @@
-import { assertEquals, assertExists, assertStringIncludes } from "jsr:@std/assert@1";
+import { assertEquals, assertExists, assert } from "jsr:@std/assert@1";
 import { DecisionTree } from './DecisionTree.ts';
 
-Deno.test("DecisionTree - generateOptimalQuestion", async (t) => {
-  await t.step("should generate question for world leaders category", () => {
+Deno.test("DecisionTree - analyzeConversationState", async (t) => {
+  await t.step("should analyze world leaders conversation state", () => {
     const conversationHistory = [
       { question: "Are they from Europe?", answer: "yes" }
     ];
     const remainingItems = ["Winston Churchill", "Angela Merkel", "Napoleon Bonaparte"];
     
-    const question = DecisionTree.generateOptimalQuestion(
+    const analysis = DecisionTree.analyzeConversationState(
       "world leaders", 
       conversationHistory, 
       remainingItems
     );
     
-    assertExists(question);
-    assertEquals(typeof question, "string");
-    assertStringIncludes(question.toLowerCase(), "?");
+    assertExists(analysis);
+    assertEquals(typeof analysis.shouldEnterGuessingPhase, "boolean");
+    assertExists(analysis.possibilitySpace);
+    assertExists(analysis.facts);
+    assertEquals(analysis.questionCount, 1);
+    assertEquals(analysis.possibilitySpace.category, "world leaders");
   });
 
-  await t.step("should generate question for animals category", () => {
+  await t.step("should analyze animals conversation state", () => {
     const conversationHistory = [
       { question: "Is it a mammal?", answer: "no" }
     ];
     const remainingItems = ["eagle", "shark", "snake", "goldfish"];
     
-    const question = DecisionTree.generateOptimalQuestion(
+    const analysis = DecisionTree.analyzeConversationState(
       "animals", 
       conversationHistory, 
       remainingItems
     );
     
-    assertExists(question);
-    assertEquals(typeof question, "string");
-    assertStringIncludes(question.toLowerCase(), "?");
+    assertExists(analysis);
+    assertEquals(typeof analysis.shouldEnterGuessingPhase, "boolean");
+    assertExists(analysis.possibilitySpace);
+    assertEquals(analysis.questionCount, 1);
   });
 
-  await t.step("should generate question for objects category", () => {
-    const conversationHistory = [
-      { question: "Is it electronic?", answer: "yes" }
-    ];
-    const remainingItems = ["smartphone", "laptop", "television", "radio"];
-    
-    const question = DecisionTree.generateOptimalQuestion(
-      "objects", 
-      conversationHistory, 
-      remainingItems
-    );
-    
-    assertExists(question);
-    assertEquals(typeof question, "string");
-    assertStringIncludes(question.toLowerCase(), "?");
-  });
-
-  await t.step("should make specific guess when few items remain", () => {
+  await t.step("should recommend guessing when only one item remains", () => {
     const conversationHistory = [
       { question: "Are they from Europe?", answer: "yes" },
       { question: "Are they British?", answer: "yes" }
     ];
     const remainingItems = ["Winston Churchill"];
     
-    const question = DecisionTree.generateOptimalQuestion(
+    const analysis = DecisionTree.analyzeConversationState(
       "world leaders", 
       conversationHistory, 
       remainingItems
     );
     
-    assertExists(question);
-    assertStringIncludes(question.toLowerCase(), "winston churchill");
+    assertEquals(analysis.shouldEnterGuessingPhase, true);
+    assertEquals(analysis.possibilitySpace.remaining.length, 1);
   });
 
-  await t.step("should avoid asking already asked questions", () => {
+  await t.step("should track confirmed facts properly", () => {
     const conversationHistory = [
       { question: "Are they from Europe?", answer: "yes" },
       { question: "Are they male?", answer: "yes" }
     ];
     const remainingItems = ["Winston Churchill", "Napoleon Bonaparte", "Julius Caesar"];
     
-    const question = DecisionTree.generateOptimalQuestion(
+    const analysis = DecisionTree.analyzeConversationState(
       "world leaders", 
       conversationHistory, 
       remainingItems
     );
     
-    assertExists(question);
-    // Should not repeat the exact same questions
-    assertEquals(question.toLowerCase().includes("are they from europe"), false);
-    assertEquals(question.toLowerCase().includes("are they male"), false);
+    assertExists(analysis.facts.confirmedYes);
+    assert(analysis.facts.confirmedYes.has("are they from europe?"));
+    assert(analysis.facts.confirmedYes.has("are they male?"));
   });
 
   await t.step("should handle don't know responses properly", () => {
@@ -96,100 +82,64 @@ Deno.test("DecisionTree - generateOptimalQuestion", async (t) => {
     ];
     const remainingItems = ["Winston Churchill", "George Washington", "Abraham Lincoln"];
     
-    const question = DecisionTree.generateOptimalQuestion(
+    const analysis = DecisionTree.analyzeConversationState(
       "world leaders", 
       conversationHistory, 
       remainingItems
     );
     
-    assertExists(question);
-    assertEquals(typeof question, "string");
-    // Should generate a different type of question since geography is unknown
-    assertStringIncludes(question.toLowerCase(), "?");
-  });
-
-  await t.step("should generate fallback question when no good options", () => {
-    const conversationHistory = [
-      { question: "Are they living?", answer: "yes" },
-      { question: "Are they male?", answer: "yes" },
-      { question: "Are they from Europe?", answer: "no" },
-      { question: "Are they from Asia?", answer: "no" }
-    ];
-    const remainingItems = ["John F. Kennedy"];
-    
-    const question = DecisionTree.generateOptimalQuestion(
-      "world leaders", 
-      conversationHistory, 
-      remainingItems
-    );
-    
-    assertExists(question);
-    assertEquals(typeof question, "string");
+    assertExists(analysis.facts.uncertainQuestions);
+    assert(analysis.facts.uncertainQuestions.has("are they from europe?"));
+    assert(analysis.facts.confirmedYes.has("are they male?"));
   });
 
   await t.step("should handle empty conversation history", () => {
     const conversationHistory: Array<{question: string, answer: string}> = [];
     const remainingItems = ["Winston Churchill", "Napoleon Bonaparte", "Gandhi"];
     
-    const question = DecisionTree.generateOptimalQuestion(
+    const analysis = DecisionTree.analyzeConversationState(
       "world leaders", 
       conversationHistory, 
       remainingItems
     );
     
-    assertExists(question);
-    assertEquals(typeof question, "string");
-    assertStringIncludes(question.toLowerCase(), "?");
+    assertExists(analysis);
+    assertEquals(analysis.questionCount, 0);
+    assertEquals(analysis.shouldEnterGuessingPhase, false); // Should not guess immediately with no questions
   });
 
-  await t.step("should handle unknown category with generic questions", () => {
+  await t.step("should provide analytical insights", () => {
     const conversationHistory = [
-      { question: "Is it living?", answer: "no" }
+      { question: "Are they from Europe?", answer: "yes" }
     ];
-    const remainingItems = ["car", "book", "chair"];
+    const remainingItems = ["Winston Churchill", "Angela Merkel", "Napoleon Bonaparte"];
     
-    const question = DecisionTree.generateOptimalQuestion(
-      "unknown category", 
+    const analysis = DecisionTree.analyzeConversationState(
+      "world leaders", 
       conversationHistory, 
       remainingItems
     );
     
-    assertExists(question);
-    assertEquals(typeof question, "string");
-    assertStringIncludes(question.toLowerCase(), "?");
+    assertExists(analysis.insights);
+    assertEquals(typeof analysis.insights.remainingCount, "number");
+    assertEquals(Array.isArray(analysis.insights.topCandidates), true);
+    assertEquals(Array.isArray(analysis.insights.suggestedFocus), true);
   });
 
-  await t.step("should handle cricketers category", () => {
+  await t.step("should recommend guessing phase when appropriate", () => {
     const conversationHistory = [
-      { question: "Is he from India?", answer: "yes" }
+      { question: "Are they from Europe?", answer: "yes" },
+      { question: "Are they British?", answer: "yes" }
     ];
-    const remainingItems = ["Virat Kohli", "MS Dhoni", "Sachin Tendulkar"];
+    const remainingItems = ["Winston Churchill"];
     
-    const question = DecisionTree.generateOptimalQuestion(
-      "cricketers", 
+    const analysis = DecisionTree.analyzeConversationState(
+      "world leaders", 
       conversationHistory, 
       remainingItems
     );
     
-    assertExists(question);
-    assertEquals(typeof question, "string");
-    assertStringIncludes(question.toLowerCase(), "?");
-  });
-
-  await t.step("should handle food category", () => {
-    const conversationHistory = [
-      { question: "Is it a fruit?", answer: "no" }
-    ];
-    const remainingItems = ["pizza", "bread", "cheese", "chicken"];
-    
-    const question = DecisionTree.generateOptimalQuestion(
-      "food", 
-      conversationHistory, 
-      remainingItems
-    );
-    
-    assertExists(question);
-    assertEquals(typeof question, "string");
-    assertStringIncludes(question.toLowerCase(), "?");
+    assertEquals(analysis.shouldEnterGuessingPhase, true);
+    assertEquals(analysis.insights.topCandidates.length > 0, true);
   });
 });
