@@ -277,6 +277,20 @@ export class AIGuessingPromptBuilder {
     
     section += '\n🚫 COMPREHENSIVE SEMANTIC SIMILARITY PREVENTION:\n'
     section += 'CRITICAL: You must ask a NEW question that is completely different from all questions above!\n'
+    section += '\n❌ FORBIDDEN SEMANTIC DUPLICATES - These are the SAME question:\n'
+    section += '• "Are they from Europe?" = "Are they European?" = "Do they come from Europe?"\n'
+    section += '• "Is it big?" = "Is it large?" = "Is it huge?" = "Is it massive?"\n'
+    section += '• "Is it electronic?" = "Is it digital?" = "Does it use electricity?"\n'
+    section += '• "Are they currently active?" = "Are they still playing?" = "Do they play now?"\n'
+    section += '• "Were they president?" = "Did they serve as president?" = "Did they hold the presidency?"\n'
+    section += '• "Does it eat meat?" = "Is it carnivorous?" = "Is it a predator?"\n'
+    section += '• "Can you hold it?" = "Is it handheld?" = "Is it portable?"\n'
+    section += '• "Are they male?" = "Are they a man?" = "Are they masculine?"\n'
+    section += '\n🔍 BEFORE ASKING YOUR QUESTION:\n'
+    section += '1. Check if it uses SYNONYMS of words already asked\n'
+    section += '2. Check if it asks the SAME CONCEPT with different grammar\n'
+    section += '3. Check if it can be DEDUCED from existing answers\n'
+    section += '4. Ensure it provides genuinely NEW information\n'
     
     section += '\n📋 SEMANTIC SIMILARITY CHECKLIST - Your question MUST pass ALL checks:\n'
     section += '1. ✅ WORD VARIATION CHECK: Am I using different words for the same concept?\n'
@@ -766,10 +780,26 @@ CRITICAL: ONLY ask questions that apply to HUMAN NBA PLAYERS!`
         constraints += `
 🎯 CATEGORY: ${category.toUpperCase()} - Stay within this category strictly.
 
-❌ FORBIDDEN: Do not ask questions that don't apply to this category.
-✅ APPROPRIATE: Ask only relevant, category-appropriate questions.
+🚫 SEMANTIC SIMILARITY PREVENTION:
+- Do NOT ask questions that are synonyms or rephrasings of previous questions
+- EXAMPLES of DUPLICATE questions to avoid:
+  ❌ "Are they from Europe?" = "Are they European?" = "Do they come from Europe?"
+  ❌ "Is it big?" = "Is it large?" = "Is it huge?" = "Is it massive?"
+  ❌ "Is it electronic?" = "Is it digital?" = "Does it use electricity?"
+  ❌ "Were they president?" = "Did they serve as president?" = "Are they a former president?"
 
-CRITICAL: Ensure all questions are appropriate for the "${category}" category!`
+🚨 CATEGORY CONTAMINATION PREVENTION:
+- NEVER ask biological questions (alive, breathe, eat) for OBJECTS
+- NEVER ask object questions (made of metal, electronic) for LIVING BEINGS
+- NEVER ask animal questions (domesticated, wild) for PEOPLE
+- NEVER ask human social questions (job, married) for ANIMALS
+
+✅ APPROPRIATE QUESTIONS FOR ${category.toUpperCase()}:
+- Ask specific, strategic questions relevant to this category
+- Focus on distinguishing features within this category
+- Use previous answers to narrow down possibilities logically
+
+CRITICAL: Every question must be appropriate for "${category}" and not duplicate previous questions!`
     }
     
     return constraints

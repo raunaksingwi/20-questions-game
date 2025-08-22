@@ -181,6 +181,8 @@ ${alreadyAskedQuestions.map((q, i) => `  ${i + 1}. ${q}`).join('\n')}
 - NEW questions must provide genuinely different information
 - Check that your new question explores a truly different aspect
 
+${this.getCategorySpecificSemanticSimilarityExamples()}
+
 CRITICAL: You must ask a NEW question that has never been asked before and provides different information!`
   }
 
@@ -214,10 +216,24 @@ STEP 4: OPTIMAL ELIMINATION STRATEGY
 - What concrete, specific question would eliminate ~50% while being easily answerable?
 - Does this question lead toward a logical conclusion path?
 
-STEP 5: AVOID REPETITION AND REDUNDANCY
+STEP 5: RIGOROUS SEMANTIC DUPLICATION CHECK
 - Have I asked anything semantically similar using different words?
+- Would my proposed question be equivalent to any previous question if rephrased?
 - Am I asking about something I can already deduce from existing confirmed answers?
-- Is this question fundamentally different from all previous questions?
+- Is this question fundamentally different from all ${alreadyAskedQuestions.length} previous questions?
+
+🔍 SEMANTIC SIMILARITY SELF-CHECK:
+Before finalizing your question, ask yourself:
+1. ✅ SYNONYM CHECK: Am I using different words for the same concept?
+   - Example: "big" vs "large", "from Europe" vs "European"
+2. ✅ GRAMMAR CHECK: Am I rephrasing a previous question?
+   - Example: "Were they president?" vs "Did they serve as president?"
+3. ✅ CONCEPT CHECK: Am I asking about the same underlying concept?
+   - Example: "electronic" vs "uses electricity", "carnivorous" vs "eats meat"
+4. ✅ CATEGORY CONSTRAINT CHECK: Does this violate any category boundaries?
+   - Stay within ${this.getCategoryName().toLowerCase()} category limits
+
+${this.getCategorySpecificContaminationPrevention()}
 
 DOMAIN NARROWING ANALYSIS & COHERENCE ENFORCEMENT:
 - Which sub-domain within ${this.getCategoryName().toLowerCase()} am I focusing on?
@@ -266,6 +282,13 @@ STEP 4: RIGOROUS REPETITION & REDUNDANCY CHECK
 - Is this question fundamentally different from all ${alreadyAskedQuestions.length} previous questions?
 - Does my question violate any of the forbidden patterns above?
 
+🚨 SEMANTIC DUPLICATION PREVENTION - TRIPLE CHECK:
+Compare your proposed question against these patterns:
+• SYNONYMS: "big/large/huge", "electronic/digital", "from X/X-nationality"
+• CONCEPTS: "eat meat/carnivorous/predator", "use electricity/battery-powered"
+• GRAMMAR: "Were they X?/Did they serve as X?", "Are they X?/Do they come from X?"
+• ACTIVE/PASSIVE: "served as president/was president", "elected by people/democratically elected"
+
 STEP 5: RIGOROUS QUESTION VALIDATION & CONTRADICTION PREVENTION
 - Is my question concrete and specific (not vague like "unique characteristics")?
 - Can most people answer this definitively with yes/no (no specialized knowledge required)?
@@ -284,6 +307,27 @@ CRITICAL CONTRADICTION CHECKS - MANDATORY BEFORE ASKING:
    - Avoid asking the same concept using different words
 
 4. ✅ CATEGORY BOUNDARY CHECK: Does this violate category constraints?
+
+🚨 CRITICAL CATEGORY ENFORCEMENT - THESE QUESTIONS ARE FORBIDDEN:
+${this.getCategoryName().toLowerCase() === 'animals' ? `
+ANIMALS ONLY - NO questions about:
+• Human attributes: "Are they famous?", "Do they have a job?", "Are they married?"
+• Object properties: "Are they electronic?", "Are they made of plastic?", "Do they need batteries?"
+• Impossible for animals: "Are they alive?" (redundant - all animals are alive)
+ANIMALS ONLY - ASK about: species, habitat, diet, size, behavior, domestication, classification
+` : ''}${this.getCategoryName().toLowerCase() === 'objects' ? `
+OBJECTS ONLY - NO questions about:
+• Biological attributes: "Are they alive?", "Do they breathe?", "Do they have babies?"
+• Human attributes: "Are they male?", "Do they have a job?", "Are they famous?"
+• Animal behaviors: "Do they hunt?", "Are they wild?", "Do they migrate?"
+OBJECTS ONLY - ASK about: material, size, function, technology, purpose, location, cost
+` : ''}${this.getCategoryName().toLowerCase().includes('leaders') || this.getCategoryName().toLowerCase().includes('players') ? `
+PEOPLE ONLY - NO questions about:
+• Animal biology: "Do they hibernate?", "Are they carnivorous?", "Do they have fur?"
+• Object properties: "Are they made of metal?", "Do they need batteries?", "Are they electronic?"
+• Basic biology: "Are they alive?" (redundant - all people are alive)
+PEOPLE ONLY - ASK about: demographics, geography, profession, achievements, time periods
+` : ''}
    - Stay strictly within ${this.getCategoryName().toLowerCase()} category boundaries
 
 STEP 6: FINAL QUESTION SELECTION
@@ -301,6 +345,155 @@ CRITICAL: Work through ALL these steps systematically before asking your questio
 - Do NOT include numbering, prefixes, explanations, qualifiers, or any other text
 - Your question must be concrete, specific, and appropriate for ${this.getCategoryName().toLowerCase()}
 - CRITICAL: Ensure your question passes all validation checks above before asking!`
+  }
+
+  /**
+   * Get category-specific contamination prevention - ONLY for the current category
+   */
+  protected getCategorySpecificContaminationPrevention(): string {
+    const categoryLower = this.getCategoryName().toLowerCase()
+    
+    if (categoryLower === 'animals') {
+      return this.getAnimalsContaminationPrevention()
+    } else if (categoryLower === 'objects') {
+      return this.getObjectsContaminationPrevention()
+    } else if (categoryLower.includes('leaders') || categoryLower.includes('players') || categoryLower.includes('people')) {
+      return this.getPeopleContaminationPrevention()
+    } else {
+      return this.getGenericContaminationPrevention()
+    }
+  }
+
+  protected getCategorySpecificSemanticSimilarityExamples(): string {
+    const categoryLower = this.getCategoryName().toLowerCase()
+    
+    if (categoryLower === 'animals') {
+      return this.getAnimalsSemanticSimilarityExamples()
+    } else if (categoryLower === 'objects') {
+      return this.getObjectsSemanticSimilarityExamples()
+    } else if (categoryLower.includes('leaders') || categoryLower.includes('players') || categoryLower.includes('people')) {
+      return this.getPeopleSemanticSimilarityExamples()
+    } else {
+      return this.getGenericSemanticSimilarityExamples()
+    }
+  }
+
+  /**
+   * Animals-specific contamination prevention - ONLY shown for animals category
+   */
+  protected getAnimalsContaminationPrevention(): string {
+    return `🚨 ANIMALS CATEGORY - FORBIDDEN QUESTIONS:
+❌ NEVER ask about HUMAN attributes: "Are they alive?" (redundant), "Are they human?" (wrong category), "Do they have a job?" (animals don't work)
+❌ NEVER ask about OBJECT properties: "Are they electronic?", "Are they made of metal?", "Do they need batteries?" (animals are biological)
+❌ NEVER ask about HUMAN activities: "Do they drive?", "Do they read?", "Do they cook?" (animals don't do human activities)
+❌ NEVER ask about HUMAN relationships: "Are they married?", "Are they famous?", "Are they politicians?" (animals don't have human social structures)
+
+✅ ANIMALS ONLY - ASK ABOUT: species, habitat, diet, size, behavior, domestication, physical features, classification`
+  }
+
+  /**
+   * Objects-specific contamination prevention - ONLY shown for objects category
+   */
+  protected getObjectsContaminationPrevention(): string {
+    return `🚨 OBJECTS CATEGORY - FORBIDDEN QUESTIONS:
+❌ NEVER ask about BIOLOGICAL functions: "Are they alive?", "Do they breathe?", "Do they eat?", "Do they reproduce?" (objects aren't living)
+❌ NEVER ask about HUMAN attributes: "Are they male/female?", "Are they married?", "Do they have jobs?" (objects don't have gender/relationships)
+❌ NEVER ask about ANIMAL behaviors: "Do they hunt?", "Are they wild?", "Do they hibernate?" (objects don't have animal behaviors)
+❌ NEVER ask about CONSCIOUSNESS: "Do they think?", "Do they feel pain?", "Do they have emotions?" (objects aren't conscious)
+
+✅ OBJECTS ONLY - ASK ABOUT: material, size, function, purpose, technology, location, cost, durability`
+  }
+
+  /**
+   * People-specific contamination prevention - ONLY shown for people categories
+   */
+  protected getPeopleContaminationPrevention(): string {
+    return `🚨 PEOPLE CATEGORY - FORBIDDEN QUESTIONS:
+❌ NEVER ask about ANIMAL behaviors: "Do they hibernate?", "Do they migrate?", "Do they have fur?" (people aren't animals)
+❌ NEVER ask about OBJECT properties: "Are they made of metal?", "Are they electronic?", "Do they need batteries?" (people aren't objects)
+❌ NEVER ask REDUNDANT biology: "Are they alive?", "Do they breathe?", "Are they human?" (all people are alive/breathe/human by definition)
+❌ NEVER ask about ANIMAL classification: "Are they mammals?", "Are they predators?", "Are they carnivorous?" (use appropriate human terms)
+
+✅ PEOPLE ONLY - ASK ABOUT: demographics, geography, profession, achievements, time periods, personal attributes, relationships`
+  }
+
+  /**
+   * Generic contamination prevention for unknown/mixed categories
+   */
+  protected getGenericContaminationPrevention(): string {
+    return `🚨 CATEGORY BOUNDARY ENFORCEMENT:
+⚠️  UNKNOWN/MIXED CATEGORY: "${this.getCategoryName()}" - Apply general contamination prevention
+
+🧠 LOGICAL CATEGORY CONSTRAINTS:
+• IF asking about LIVING THINGS → Ask biological questions (habitat, diet, behavior)
+• IF asking about NON-LIVING OBJECTS → Ask material/function questions (made of, used for, size)
+• IF asking about PEOPLE → Ask demographic/social questions (geography, career, age)
+
+❌ AVOID CROSS-CONTAMINATION:
+• Don't ask biological questions about non-living things
+• Don't ask object questions about living beings  
+• Don't ask animal questions about people
+• Don't ask redundant questions (e.g., "Are they alive?" for people/animals)
+
+✅ STAY WITHIN LOGICAL BOUNDARIES: Only ask questions that make sense for the type of entity in "${this.getCategoryName()}"`
+  }
+
+  /**
+   * Category-specific semantic similarity examples methods
+   */
+  protected getAnimalsSemanticSimilarityExamples(): string {
+    return `🚫 SEMANTIC SIMILARITY EXAMPLES - These are DUPLICATES to avoid:
+❌ "Is it a mammal?" = "Is it warm-blooded?" = "Does it have fur or hair?"
+❌ "Is it carnivorous?" = "Does it eat meat?" = "Is it a predator?" = "Does it hunt?"
+❌ "Is it wild?" = "Is it untamed?" = "Does it live in the wild?" = "Is it not domesticated?"
+❌ "Is it large?" = "Is it big?" = "Is it huge?" = "Is it massive?"
+❌ "Can it fly?" = "Is it airborne?" = "Does it have wings?"
+
+✅ DIFFERENT CONCEPTS - These are UNIQUE questions:
+✅ "Is it a mammal?" vs "Is it carnivorous?" (classification vs diet)
+✅ "Is it large?" vs "Is it wild?" (size vs domestication)
+✅ "Can it fly?" vs "Does it live in water?" (flight vs habitat)`
+  }
+
+  protected getObjectsSemanticSimilarityExamples(): string {
+    return `🚫 SEMANTIC SIMILARITY EXAMPLES - These are DUPLICATES to avoid:
+❌ "Is it electronic?" = "Is it digital?" = "Does it use electricity?" = "Is it battery-powered?"
+❌ "Is it large?" = "Is it big?" = "Is it huge?" = "Is it massive?"
+❌ "Can you hold it?" = "Is it handheld?" = "Is it portable?" = "Can you carry it?"
+❌ "Is it expensive?" = "Does it cost a lot?" = "Is it costly?" = "Is it pricey?"
+❌ "Is it made of metal?" = "Is it metallic?" = "Does it contain metal?"
+
+✅ DIFFERENT CONCEPTS - These are UNIQUE questions:
+✅ "Is it electronic?" vs "Is it fragile?" (technology vs durability)
+✅ "Is it large?" vs "Is it expensive?" (size vs cost)
+✅ "Can you hold it?" vs "Is it used daily?" (portability vs frequency)`
+  }
+
+  protected getPeopleSemanticSimilarityExamples(): string {
+    return `🚫 SEMANTIC SIMILARITY EXAMPLES - These are DUPLICATES to avoid:
+❌ "Are they from Europe?" = "Are they European?" = "Do they come from Europe?" = "Were they born in Europe?"
+❌ "Were they president?" = "Did they serve as president?" = "Did they hold the presidency?"
+❌ "Are they currently active?" = "Are they still playing?" = "Do they play now?" = "Are they playing today?"
+❌ "Are they male?" = "Are they a man?" = "Are they masculine?"
+❌ "Are they alive?" = "Are they still living?" = "Are they living today?"
+
+✅ DIFFERENT CONCEPTS - These are UNIQUE questions:
+✅ "Are they from Europe?" vs "Are they alive?" (geography vs life status)
+✅ "Were they president?" vs "Were they controversial?" (role vs opinion)
+✅ "Are they male?" vs "Are they over 50?" (gender vs age)`
+  }
+
+  protected getGenericSemanticSimilarityExamples(): string {
+    return `🚫 SEMANTIC SIMILARITY EXAMPLES - These are DUPLICATES to avoid:
+❌ "Is it large?" = "Is it big?" = "Is it huge?" = "Is it massive?"
+❌ "Is it important?" = "Is it significant?" = "Is it notable?" = "Is it special?"
+❌ "Is it old?" = "Is it ancient?" = "Is it from long ago?" = "Is it historical?"
+❌ "Is it popular?" = "Is it well-known?" = "Is it famous?" = "Is it common?"
+
+✅ DIFFERENT CONCEPTS - These are UNIQUE questions:
+✅ "Is it large?" vs "Is it important?" (physical size vs significance)
+✅ "Is it old?" vs "Is it popular?" (age vs reputation)
+✅ "Is it from Europe?" vs "Is it expensive?" (geography vs cost)`
   }
 }
 

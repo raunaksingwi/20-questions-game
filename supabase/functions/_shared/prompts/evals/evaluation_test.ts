@@ -6,6 +6,7 @@
 import { QuestioningEvaluator, CategoryQuestioningEvaluator } from './QuestioningEvaluator.ts'
 import { GuessingEvaluator } from './GuessingEvaluator.ts'
 import { HintEvaluator } from './HintEvaluator.ts'
+import { SemanticSimilarityEvaluator } from './SemanticSimilarityEvaluator.ts'
 import { GoldenTestSets } from './TestScenarios.ts'
 import { EvaluationRunner } from './EvaluationRunner.ts'
 
@@ -48,8 +49,27 @@ async function runSampleEvaluation(): Promise<void> {
     console.log(`   📊 Metrics: ${hintResult.metrics.length} collected`)
   }
 
-  // Test 4: Evaluation Runner
-  console.log('\n4️⃣ Testing Evaluation Runner...')
+  // Test 4: Semantic Similarity Evaluator  
+  console.log('\n4️⃣ Testing Semantic Similarity Evaluator...')
+  const semanticEvaluator = new SemanticSimilarityEvaluator()
+  const semanticScenarios = SemanticSimilarityEvaluator.createTestScenarios()
+  
+  if (semanticScenarios.length > 0) {
+    const semanticResult = await semanticEvaluator.evaluateScenario(semanticScenarios[0])
+    console.log(`   ✅ Semantic similarity evaluation: ${semanticResult.passed ? 'PASSED' : 'FAILED'} (Score: ${semanticResult.overallScore.toFixed(2)})`)
+    console.log(`   📊 Metrics: ${semanticResult.metrics.length} collected`)
+    
+    // Show detailed breakdown for semantic similarity
+    const failedMetrics = semanticResult.metrics.filter(m => m.threshold && m.value < m.threshold)
+    if (failedMetrics.length > 0) {
+      console.log(`   ⚠️  Failed metrics: ${failedMetrics.map(m => m.name).join(', ')}`)
+    } else {
+      console.log(`   🎯 All semantic similarity metrics passed!`)
+    }
+  }
+
+  // Test 5: Evaluation Runner
+  console.log('\n5️⃣ Testing Evaluation Runner...')
   const runner = new EvaluationRunner()
   const quickReport = await runner.runQuickEvaluation()
   

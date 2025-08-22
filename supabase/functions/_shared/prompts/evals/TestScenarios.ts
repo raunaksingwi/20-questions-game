@@ -685,6 +685,98 @@ export class GoldenTestSets {
           'Is it useful?', 'Is it helpful?'
         ],
         input: {}
+      },
+
+      // Semantic Similarity: Grammatical variations
+      {
+        name: 'questioning_semantic_grammar_variations',
+        description: 'Test detection of same questions with different grammar',
+        category: 'world leaders',
+        questionsAsked: 10,
+        conversationHistory: 'Q1: Are they from Europe?\nA1: Yes\nQ2: Are they male?\nA2: Yes\nQ3: Were they a president?\nA3: No\nQ4: Did they serve in wartime?\nA4: Yes',
+        alreadyAskedQuestions: [
+          'Are they from Europe?',
+          'Are they European?',  // Same as "from Europe"
+          'Do they come from Europe?',  // Same concept
+          'Were they born in Europe?',  // Similar concept
+          'Are they male?',
+          'Are they a man?',  // Same as "male"
+          'Were they president?',
+          'Did they serve as president?',  // Same as "were they president"
+          'Were they a president?',  // Exact same
+          'Did they hold the office of president?'  // Same concept
+        ],
+        shouldAvoidRepetition: true,
+        input: {}
+      },
+
+      // Semantic Similarity: Active/Passive voice variations
+      {
+        name: 'questioning_semantic_voice_variations',
+        description: 'Test detection of active vs passive voice variations',
+        category: 'cricket players',
+        questionsAsked: 8,
+        conversationHistory: 'Q1: Are they currently playing?\nA1: No\nQ2: Were they captain?\nA2: Yes',
+        alreadyAskedQuestions: [
+          'Are they currently active?',
+          'Are they still playing?',  // Same as "currently active"
+          'Do they still play cricket?',  // Same concept
+          'Have they retired?',  // Opposite of "currently active"
+          'Were they retired?',  // Past tense of retirement
+          'Did they retire from cricket?',  // Same as above
+          'Are they playing now?',  // Same as "currently active"
+          'Do they play professionally now?'  // Same concept
+        ],
+        shouldAvoidRepetition: true,
+        input: {}
+      },
+
+      // Semantic Similarity: Synonym variations
+      {
+        name: 'questioning_semantic_synonym_variations',
+        description: 'Test detection of synonyms and related terms',
+        category: 'animals',
+        questionsAsked: 12,
+        conversationHistory: 'Q1: Is it wild?\nA1: Yes\nQ2: Is it large?\nA2: Yes\nQ3: Is it a carnivore?\nA3: Yes',
+        alreadyAskedQuestions: [
+          'Is it wild?',
+          'Is it untamed?',  // Synonym of "wild"
+          'Is it feral?',  // Related to "wild"
+          'Is it domesticated?',  // Opposite of "wild"
+          'Is it a pet?',  // Related to domestication
+          'Is it large?',
+          'Is it big?',  // Synonym of "large"
+          'Is it huge?',  // Related to "large"
+          'Is it massive?',  // Related to "large"
+          'Is it small?',  // Opposite of "large"
+          'Does it eat meat?',
+          'Is it carnivorous?'  // Same as "eats meat"
+        ],
+        shouldAvoidRepetition: true,
+        input: {}
+      },
+
+      // Semantic Similarity: Concept variations
+      {
+        name: 'questioning_semantic_concept_variations',
+        description: 'Test detection of same concepts expressed differently',
+        category: 'objects',
+        questionsAsked: 10,
+        conversationHistory: 'Q1: Is it electronic?\nA1: Yes\nQ2: Can you hold it?\nA2: Yes',
+        alreadyAskedQuestions: [
+          'Is it electronic?',
+          'Does it use electricity?',  // Same concept
+          'Does it need power?',  // Related concept
+          'Is it battery-powered?',  // Subset of electronic
+          'Does it have circuits?',  // Related to electronic
+          'Can you hold it?',
+          'Is it handheld?',  // Same as "can hold"
+          'Is it portable?',  // Related to "can hold"
+          'Can you carry it?',  // Similar to "can hold"
+          'Does it fit in your hand?'  // Specific version of "can hold"
+        ],
+        shouldAvoidRepetition: true,
+        input: {}
       }
     ]
   }

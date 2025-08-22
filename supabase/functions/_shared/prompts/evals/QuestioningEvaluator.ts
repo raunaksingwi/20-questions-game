@@ -541,14 +541,31 @@ export class QuestioningEvaluator extends BaseEvaluator {
       'variations.*same',
       'different.*words.*same.*topic',
       'semantically.*similar',
-      'category.*explored'
+      'category.*explored',
+      'different.*grammar',
+      'paraphras',
+      'synonym',
+      'same.*concept',
+      'rephrasing'
     ]
 
+    // Enhanced checking for concrete examples of semantic variations
+    const hasConcreteExamples = /(".*"\s*=\s*".*"|same as|similar to|equivalent to)/i.test(prompt)
+    const hasGrammarVariationWarning = /(active.*passive|passive.*active|different.*tense|grammatical.*variation)/i.test(prompt)
+    const hasSynonymWarning = /(synonym|same.*meaning|identical.*concept)/i.test(prompt)
+    
     const matchedIndicators = semanticIndicators.filter(indicator => 
       new RegExp(indicator, 'i').test(prompt)
     )
+    
+    let score = matchedIndicators.length / semanticIndicators.length
+    
+    // Bonus points for concrete examples and specific warnings
+    if (hasConcreteExamples) score += 0.2
+    if (hasGrammarVariationWarning) score += 0.1
+    if (hasSynonymWarning) score += 0.1
 
-    return matchedIndicators.length / semanticIndicators.length
+    return Math.min(1, score)
   }
 
   private evaluateRedundancyGuidance(prompt: string): number {
@@ -651,6 +668,280 @@ export class QuestioningEvaluator extends BaseEvaluator {
     const violationScore = hasDomainViolationExamples ? 0.3 : 0
 
     return Math.min(1, guidanceScore * 0.7 + violationScore)
+  }
+}
+
+/**
+ * Enhanced semantic similarity detection for testing
+ */
+export class SemanticSimilarityDetector {
+  /**
+   * Checks if two questions are semantically similar
+   */
+  static areQuestionsSimilar(q1: string, q2: string): boolean {
+    const normalize = (s: string) => 
+      s.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\b(is|it|a|an|the|does|do|can|will|would|they|he|she|are|were|was|did|have|has|had)\b/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+    
+    const n1 = normalize(q1)
+    const n2 = normalize(q2)
+    
+    // Exact match after normalization
+    if (n1 === n2) return true
+    
+    // Substring match
+    if (n1.includes(n2) || n2.includes(n1)) return true
+    
+    // Enhanced concept mapping - check for conceptual equivalence
+    if (this.areConceptuallyEquivalent(q1, q2)) return true
+    
+    // Check for synonym patterns (enhanced)
+    const synonymGroups = [
+      ['big', 'large', 'huge', 'massive', 'enormous', 'giant'],
+      ['small', 'tiny', 'little', 'mini', 'compact', 'miniature'],
+      ['electronic', 'digital', 'computerized', 'electrical', 'tech', 'technological'],
+      ['hold', 'carry', 'portable', 'handheld', 'grip'],
+      ['expensive', 'costly', 'pricey', 'dear', 'valuable'],
+      ['useful', 'helpful', 'beneficial', 'handy'],
+      ['active', 'playing', 'current', 'ongoing', 'still', 'now', 'currently'],
+      ['retired', 'former', 'ex', 'past', 'previously'],
+      ['alive', 'living', 'life', 'live'],
+      ['dead', 'deceased', 'passed', 'died'],
+      ['male', 'man', 'masculine', 'boy', 'gentleman'],
+      ['female', 'woman', 'feminine', 'girl', 'lady'],
+      ['from', 'originate', 'born', 'native', 'come'],
+      ['europe', 'european'],
+      ['india', 'indian'],
+      ['america', 'american'],
+      ['president', 'presidency', 'presidential'],
+      ['captain', 'captaincy', 'captained', 'lead', 'led'],
+      ['wild', 'untamed', 'feral'],
+      ['domestic', 'pet', 'tame', 'domesticated'],
+      ['batsman', 'batter', 'bat'],
+      ['carnivore', 'carnivorous', 'predator', 'meat', 'hunt'],
+      ['electricity', 'power', 'energy', 'battery', 'electric'],
+      ['serve', 'served', 'serving', 'service'],
+      ['wartime', 'war', 'conflict', 'battle'],
+      ['democratic', 'democracy', 'elected', 'election', 'people', 'voters'],
+      ['controversial', 'controversy', 'disputed', 'debated'],
+      ['daily', 'everyday', 'day', 'regularly']
+    ]
+    
+    for (const group of synonymGroups) {
+      const hasQ1Match = group.some(word => n1.includes(word))
+      const hasQ2Match = group.some(word => n2.includes(word))
+      if (hasQ1Match && hasQ2Match) return true
+    }
+    
+    // Grammar variation detection
+    if (this.areGrammaticalVariations(n1, n2)) return true
+    
+    // Word overlap check (improved)
+    const words1 = n1.split(' ').filter(w => w.length > 2)
+    const words2 = n2.split(' ').filter(w => w.length > 2)
+    
+    if (words1.length > 0 && words2.length > 0) {
+      const overlap = words1.filter(w => words2.includes(w))
+      const overlapRatio = overlap.length / Math.min(words1.length, words2.length)
+      // More strict threshold - need significant overlap for word-based matching
+      if (overlapRatio > 0.7 && overlap.length >= 2) return true
+    }
+    
+    return false
+  }
+  
+  /**
+   * Checks for conceptual equivalence between questions
+   */
+  private static areConceptuallyEquivalent(q1: string, q2: string): boolean {
+    const conceptMappings = [
+      // Electronic/Electricity concepts
+      {
+        patterns: [/electronic/, /digital/, /computerized/],
+        related: [/electricity/, /power/, /energy/, /battery/]
+      },
+      // Meat eating concepts  
+      {
+        patterns: [/carnivore/, /carnivorous/, /predator/],
+        related: [/meat/, /hunt/, /prey/, /kill/]
+      },
+      // Geographic origin concepts
+      {
+        patterns: [/from\s+(\w+)/, /(\w+)$/],
+        related: [/born.*(\w+)/, /originate.*(\w+)/, /native.*(\w+)/, /represent.*(\w+)/]
+      },
+      // Presidential/Leadership concepts
+      {
+        patterns: [/president/, /presidency/],
+        related: [/serve.*president/, /hold.*presidency/, /office.*president/]
+      },
+      // Activity/Playing concepts
+      {
+        patterns: [/active/, /currently/, /still/],
+        related: [/play/, /playing/, /now/, /today/]
+      },
+      // Daily usage concepts
+      {
+        patterns: [/daily/, /every.*day/, /everyday/],
+        related: [/people.*use/, /use.*regularly/, /regular.*use/]
+      },
+      // Democratic election concepts
+      {
+        patterns: [/democratic/, /democracy/, /democratically.*elected/],
+        related: [/elected.*people/, /people.*elect/, /elected.*by.*people/]
+      },
+      // War/Conflict concepts
+      {
+        patterns: [/wartime/, /during.*war/, /serve.*war/],
+        related: [/presidency.*war/, /office.*war/, /wartime.*president/]
+      },
+      // Size concepts
+      {
+        patterns: [/big/, /large/, /huge/],
+        related: [/massive/, /enormous/, /giant/, /size/]
+      }
+    ]
+    
+    const q1Lower = q1.toLowerCase()
+    const q2Lower = q2.toLowerCase()
+    
+    // Check for exclusions first - concepts that shouldn't be considered similar
+    const exclusions = [
+      { pattern: /start.*war|begin.*war/, excludes: [/serve.*war/, /during.*war/, /wartime/] },
+      { pattern: /popular.*voter|popularity.*voter/, excludes: [/democratic/, /elected/] },
+      { pattern: /win.*war|victory.*war/, excludes: [/serve.*war/, /during.*war/] }
+    ]
+    
+    for (const exclusion of exclusions) {
+      if (exclusion.pattern.test(q1Lower) || exclusion.pattern.test(q2Lower)) {
+        const hasExcludedConcept = exclusion.excludes.some(exc => 
+          exc.test(q1Lower) || exc.test(q2Lower)
+        )
+        if (hasExcludedConcept) {
+          return false // Explicitly different concepts
+        }
+      }
+    }
+    
+    for (const mapping of conceptMappings) {
+      const q1HasPattern = mapping.patterns.some(p => p.test(q1Lower))
+      const q2HasRelated = mapping.related.some(p => p.test(q2Lower))
+      const q2HasPattern = mapping.patterns.some(p => p.test(q2Lower))
+      const q1HasRelated = mapping.related.some(p => p.test(q1Lower))
+      
+      if ((q1HasPattern && q2HasRelated) || (q2HasPattern && q1HasRelated)) {
+        return true
+      }
+    }
+    
+    return false
+  }
+  
+  /**
+   * Detects grammatical variations of the same question
+   */
+  private static areGrammaticalVariations(n1: string, n2: string): boolean {
+    // Remove tense markers and reorder words to detect grammatical variations
+    const simplify = (s: string) => {
+      return s
+        .replace(/\b(do|does|did|will|would|have|has|had|been|being)\b/g, '')
+        .replace(/\b(currently|now|still|today|every|most|all)\b/g, '')
+        .split(' ')
+        .filter(w => w.length > 2)
+        .sort()
+        .join(' ')
+        .trim()
+    }
+    
+    const s1 = simplify(n1)
+    const s2 = simplify(n2)
+    
+    // If simplified versions are very similar, likely grammatical variations
+    if (s1 && s2) {
+      const similarity = this.calculateWordSimilarity(s1, s2)
+      if (similarity > 0.7) return true
+    }
+    
+    // Check for specific grammatical patterns
+    const grammarPatterns = [
+      // Active vs passive voice
+      { active: /(\w+)\s+(serve|play|use|hold)/, passive: /(serve|play|use|hold).*by.*(\w+)/ },
+      // Present vs past tense
+      { present: /currently/, past: /previously|former|used/ },
+      // Different question structures for same concept
+      { pattern1: /from\s+(\w+)/, pattern2: /(\w+)$/ } // "from Europe" vs "European"
+    ]
+    
+    for (const pattern of grammarPatterns) {
+      if ('active' in pattern && 'passive' in pattern && pattern.active && pattern.passive) {
+        if ((pattern.active.test(n1) && pattern.passive.test(n2)) ||
+            (pattern.passive.test(n1) && pattern.active.test(n2))) {
+          return true
+        }
+      }
+    }
+    
+    return false
+  }
+  
+  /**
+   * Calculates word-level similarity between two strings
+   */
+  private static calculateWordSimilarity(s1: string, s2: string): number {
+    const words1 = s1.split(' ').filter(w => w.length > 0)
+    const words2 = s2.split(' ').filter(w => w.length > 0)
+    
+    if (words1.length === 0 || words2.length === 0) return 0
+    
+    const intersection = words1.filter(w => words2.includes(w))
+    const union = [...new Set([...words1, ...words2])]
+    
+    return intersection.length / union.length
+  }
+  
+  /**
+   * Evaluates how well a prompt prevents semantic duplicates
+   */
+  static evaluateSemanticDuplicationPrevention(
+    prompt: string, 
+    alreadyAskedQuestions: string[],
+    generatedQuestion?: string
+  ): number {
+    if (!generatedQuestion || alreadyAskedQuestions.length === 0) {
+      return 1 // No duplicates possible if no questions
+    }
+    
+    // Check if the generated question is semantically similar to any previous question
+    const isDuplicate = alreadyAskedQuestions.some(prevQ => 
+      this.areQuestionsSimilar(generatedQuestion, prevQ)
+    )
+    
+    if (isDuplicate) {
+      // Found a semantic duplicate - major failure
+      return 0
+    }
+    
+    // Check prompt quality for preventing duplicates
+    let score = 0.5 // Base score for not generating duplicate
+    
+    // Check if prompt explicitly lists the questions to avoid
+    const listedCount = alreadyAskedQuestions.filter(q => prompt.includes(q)).length
+    score += (listedCount / alreadyAskedQuestions.length) * 0.2
+    
+    // Check for semantic similarity warnings
+    if (/semantic.*similar|different.*grammar|paraphras|synonym/i.test(prompt)) {
+      score += 0.15
+    }
+    
+    // Check for concrete examples of what to avoid
+    if (/same as|similar to|equivalent to|".*"\s*=\s*".*"/i.test(prompt)) {
+      score += 0.15
+    }
+    
+    return Math.min(1, score)
   }
 }
 
