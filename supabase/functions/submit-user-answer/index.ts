@@ -151,11 +151,37 @@ const handler = async (req: Request) => {
 
     const totalQuestionsUsed = questionsCountedForLimit
     
-    // Use simplified decision tree approach
-    const conversationHistory = messages.map(m => ({
-      question: m.role === 'assistant' ? m.content : '',
-      answer: m.role === 'user' ? m.content : ''
-    })).filter(item => item.question && item.answer)
+    // Build proper conversation history by pairing questions with answers
+    const conversationHistory: Array<{question: string, answer: string}> = []
+    
+    // Group messages by question number to create proper Q&A pairs
+    const messagesByQuestionNumber: Record<number, {question?: string, answer?: string}> = {}
+    messages.forEach(msg => {
+      if (msg.question_number && msg.question_number > 0) {
+        if (!messagesByQuestionNumber[msg.question_number]) {
+          messagesByQuestionNumber[msg.question_number] = {}
+        }
+        if (msg.role === 'assistant') {
+          messagesByQuestionNumber[msg.question_number].question = msg.content
+        } else if (msg.role === 'user') {
+          messagesByQuestionNumber[msg.question_number].answer = msg.content
+        }
+      }
+    })
+    
+    // Convert to conversation history array, only including complete Q&A pairs
+    Object.keys(messagesByQuestionNumber)
+      .map(k => Number(k))
+      .sort((a, b) => a - b)
+      .forEach(questionNum => {
+        const pair = messagesByQuestionNumber[questionNum]
+        if (pair.question && pair.answer) {
+          conversationHistory.push({
+            question: pair.question,
+            answer: pair.answer
+          })
+        }
+      })
     
     // Add the current answer to history
     conversationHistory.push({

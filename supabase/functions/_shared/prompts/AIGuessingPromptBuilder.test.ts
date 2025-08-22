@@ -197,7 +197,7 @@ Deno.test("AIGuessingPromptBuilder - buildSpecialResponseHandling", async (t) =>
 
     const section = AIGuessingPromptBuilder.buildSpecialResponseHandling(facts, 5);
     
-    assertStringIncludes(section, "⚠️  UNKNOWN RESPONSE DETECTED");
+    assertStringIncludes(section, "⚠️ UNKNOWN RESPONSE DETECTED");
     assertStringIncludes(section, "Don't know");
     assertStringIncludes(section, "PIVOT TO DIFFERENT TOPICS");
   });

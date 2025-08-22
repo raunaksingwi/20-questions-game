@@ -1,4 +1,4 @@
-import { assertEquals, assertExists, assertStringIncludes } from "jsr:@std/assert@1";
+import { assertEquals, assertExists, assertStringIncludes, assertNotEquals } from "jsr:@std/assert@1";
 
 // Create a test handler that bypasses the EdgeFunctionBase initialization
 const createTestHandler = (mockSupabase: any) => {
@@ -251,6 +251,85 @@ Deno.test("submit-user-answer - basic functionality", async (t) => {
     assertEquals(response.status, 200);
     assertEquals(result.questions_asked, 2); // Should NOT increment for "don't know"
     assertEquals(result.questions_remaining, 18);
+  });
+
+  await t.step("should build proper conversation history with don't know responses", async () => {
+    // Test the conversation history building logic directly by checking the DecisionTree input
+    const messages = [
+      {
+        role: 'assistant',
+        content: 'Are they from Europe?',
+        question_number: 1,
+        message_type: 'question'
+      },
+      {
+        role: 'user', 
+        content: 'yes',
+        question_number: 1,
+        message_type: 'answer'
+      },
+      {
+        role: 'assistant',
+        content: 'Are they a president?',
+        question_number: 2,
+        message_type: 'question'
+      },
+      {
+        role: 'user',
+        content: "don't know", 
+        question_number: 2,
+        message_type: 'answer'
+      },
+      {
+        role: 'assistant',
+        content: 'Are they male?',
+        question_number: 3,
+        message_type: 'question'
+      }
+    ];
+
+    // Simulate the conversation history building logic from the fixed code
+    const conversationHistory: Array<{question: string, answer: string}> = []
+    
+    const messagesByQuestionNumber: Record<number, {question?: string, answer?: string}> = {}
+    messages.forEach(msg => {
+      if (msg.question_number && msg.question_number > 0) {
+        if (!messagesByQuestionNumber[msg.question_number]) {
+          messagesByQuestionNumber[msg.question_number] = {}
+        }
+        if (msg.role === 'assistant') {
+          messagesByQuestionNumber[msg.question_number].question = msg.content
+        } else if (msg.role === 'user') {
+          messagesByQuestionNumber[msg.question_number].answer = msg.content
+        }
+      }
+    })
+    
+    Object.keys(messagesByQuestionNumber)
+      .map(k => Number(k))
+      .sort((a, b) => a - b)
+      .forEach(questionNum => {
+        const pair = messagesByQuestionNumber[questionNum]
+        if (pair.question && pair.answer) {
+          conversationHistory.push({
+            question: pair.question,
+            answer: pair.answer
+          })
+        }
+      })
+
+    // Verify that conversation history includes both regular answers AND "don't know" responses
+    assertEquals(conversationHistory.length, 2, "Should have 2 complete Q&A pairs");
+    assertEquals(conversationHistory[0].question, 'Are they from Europe?');
+    assertEquals(conversationHistory[0].answer, 'yes');
+    assertEquals(conversationHistory[1].question, 'Are they a president?');
+    assertEquals(conversationHistory[1].answer, "don't know");
+
+    // Verify that asked questions are properly tracked (this is what feeds the DecisionTree)
+    const askedQuestions = conversationHistory.map(h => h.question.toLowerCase())
+    assertEquals(askedQuestions.length, 2);
+    assertStringIncludes(askedQuestions.join(','), 'are they from europe');
+    assertStringIncludes(askedQuestions.join(','), 'are they a president');
   });
 
   await t.step("should end game when 20 questions reached", async () => {

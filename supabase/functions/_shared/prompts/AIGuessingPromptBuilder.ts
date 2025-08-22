@@ -92,10 +92,12 @@ export class AIGuessingPromptBuilder {
     }
     
     if (facts.unknownFacts.length > 0) {
-      categorizedSummary += '\n? UNKNOWN (Don\'t know answers):\n'
+      categorizedSummary += '\n? UNKNOWN (Don\'t know answers - AVOID these topic areas):\n'
       facts.unknownFacts.forEach(item => { 
         categorizedSummary += `  → ${item.q}\n`
       })
+      categorizedSummary += '\n🚫 CRITICAL: Do NOT ask questions about these topic areas or similar concepts!\n'
+      categorizedSummary += 'The user lacks knowledge in these areas - pivot to completely different topics.\n'
     }
 
     return categorizedSummary
@@ -312,6 +314,38 @@ export class AIGuessingPromptBuilder {
   }
 
   /**
+   * Extracts topic areas that the user doesn't know about to avoid asking similar questions
+   */
+  private static extractUnknownTopicAreas(unknownFacts: Array<{ n: number, q: string }>): string[] {
+    const topicAreas: string[] = []
+    const unknownQuestions = unknownFacts.map(fact => fact.q.toLowerCase())
+    
+    const topicGroups = [
+      { area: 'Time Period/Era (century, decade, historical period, when they lived/served)', keywords: ['time', 'era', 'period', 'century', 'decade', 'when', 'before', 'after', 'during', 'recent', 'historical', 'modern', 'ancient', 'served', 'lived'] },
+      { area: 'Geography/Location (country, region, continent, nationality)', keywords: ['country', 'nation', 'nationality', 'from', 'region', 'area', 'place', 'location', 'where', 'continent', 'europe', 'asia', 'africa', 'america', 'european', 'asian', 'african', 'american'] },
+      { area: 'Leadership/Political Roles (president, minister, type of leader)', keywords: ['president', 'leader', 'prime minister', 'head', 'ruler', 'king', 'queen', 'monarch', 'dictator', 'emperor', 'political', 'government', 'role', 'position'] },
+      { area: 'Achievement/Success/Fame (awards, accomplishments, recognition)', keywords: ['won', 'champion', 'award', 'prize', 'famous', 'successful', 'achievement', 'accomplished', 'victory', 'recognition', 'notable', 'significant'] },
+      { area: 'Physical Characteristics/Appearance (size, color, material)', keywords: ['size', 'big', 'large', 'small', 'tiny', 'huge', 'color', 'appearance', 'looks', 'made', 'material', 'physical', 'characteristics'] },
+      { area: 'Function/Purpose/Use (what it does, how it works)', keywords: ['use', 'function', 'purpose', 'tool', 'instrument', 'equipment', 'work', 'designed', 'does', 'works', 'used'] },
+      { area: 'Technology/Electronics (digital, electronic, technical aspects)', keywords: ['electronic', 'digital', 'technology', 'tech', 'computer', 'machine', 'device', 'gadget', 'technical', 'digital'] },
+      { area: 'Personal Details (gender, age, personal life)', keywords: ['male', 'female', 'gender', 'age', 'personal', 'family', 'married', 'children', 'private', 'life'] },
+      { area: 'Activity Status (current, retired, active, former)', keywords: ['active', 'current', 'retired', 'former', 'still', 'playing', 'serving', 'working', 'status'] },
+      { area: 'Category/Classification (type, kind, classification)', keywords: ['type', 'kind', 'category', 'classification', 'species', 'genre', 'class', 'group'] }
+    ]
+    
+    for (const group of topicGroups) {
+      const hasUnknownInThisArea = group.keywords.some(keyword => 
+        unknownQuestions.some(q => q.includes(keyword))
+      )
+      if (hasUnknownInThisArea) {
+        topicAreas.push(group.area)
+      }
+    }
+    
+    return topicAreas
+  }
+
+  /**
    * Extracts semantic categories that have already been explored
    */
   private static extractSemanticCategories(questions: string[]): string[] {
@@ -412,8 +446,23 @@ export class AIGuessingPromptBuilder {
       fact.n === currentQuestionNumber || fact.n === currentQuestionNumber - 1
     )
     
+    // Add comprehensive unknown areas avoidance guidance
+    if (facts.unknownFacts.length > 0) {
+      section += '\n🚫 UNKNOWN AREAS AVOIDANCE - CRITICAL GUIDANCE:\n'
+      section += 'The user has indicated "Don\'t know" for these topic areas. You MUST avoid asking questions in these or semantically similar areas:\n'
+      
+      const unknownTopicAreas = this.extractUnknownTopicAreas(facts.unknownFacts)
+      if (unknownTopicAreas.length > 0) {
+        section += '\n⚠️  AVOID THESE TOPIC AREAS:\n'
+        unknownTopicAreas.forEach(area => {
+          section += `  → ${area}\n`
+        })
+        section += '\n🚫 Do NOT ask variations, synonyms, or related questions about these topics!\n'
+      }
+    }
+    
     if (hasRecentUncertain) {
-      section += '\n⚠️  UNKNOWN RESPONSE DETECTED:\n'
+      section += '\n⚠️ UNKNOWN RESPONSE DETECTED:\n'
       section += 'The user just gave a "Don\'t know" answer - they lack information about this topic.\n'
       section += 'STRATEGY: Ask a completely DIFFERENT type of concrete question about a topic they DO know.\n'
       section += 'Move to a different aspect entirely - don\'t ask similar questions.\n'
