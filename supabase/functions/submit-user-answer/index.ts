@@ -189,11 +189,6 @@ const handler = async (req: Request) => {
         }
       })
     
-    // Add the current answer to history
-    conversationHistory.push({
-      question: messages.filter(m => m.role === 'assistant').pop()?.content || '',
-      answer: answer
-    })
     
     // Build conversation context for the AI questioning template
     let conversationContext = `Previous conversation:\n`
