@@ -7,6 +7,10 @@
 ehthumbs.db
 Thumbs.db
 
+# Claude
+.claude/
+.mcp.json
+
 # Node.js
 node_modules/
 npm-debug.log*
