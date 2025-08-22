@@ -22,9 +22,12 @@ export class DecisionTree {
     // Build current state from conversation
     const facts = this.extractFactsFromHistory(conversationHistory)
     const possibilitySpace = this.buildPossibilitySpace(category, facts, remainingItems)
+    const questionCount = conversationHistory.length
     
-    // If only 1-2 items remain, make specific guesses
-    if (possibilitySpace.remaining.length <= 2) {
+    // Determine when to start guessing based on category complexity and question count
+    const shouldStartGuessing = this.shouldStartGuessing(possibilitySpace, questionCount, category)
+    
+    if (shouldStartGuessing) {
       return this.makeEducatedGuess(possibilitySpace)
     }
     
@@ -62,6 +65,85 @@ export class DecisionTree {
     return optimalNode.question
   }
   
+  /**
+   * Determines when the AI should start making educated guesses instead of asking questions
+   */
+  private static shouldStartGuessing(
+    space: PossibilitySpace,
+    questionCount: number,
+    category: string
+  ): boolean {
+    const remaining = space.remaining.length
+    
+    // Always guess if only one item remains - this is definitive
+    if (remaining === 1) {
+      return true
+    }
+    
+    // If we have no remaining items due to over-elimination, continue asking questions
+    if (remaining === 0) {
+      return false
+    }
+    
+    // Category-specific guessing thresholds
+    const getCategoryConfig = (cat: string) => {
+      switch (cat.toLowerCase()) {
+        case 'world leaders':
+          // Complex category with many leaders - be more conservative
+          return {
+            minQuestions: 8,        // Don't guess before 8 questions
+            maxRemaining: 3,        // Start guessing when 3 or fewer remain
+            lateGameThreshold: 15   // Force guessing after 15 questions if ≤5 remain
+          }
+        case 'animals':
+          return {
+            minQuestions: 6,
+            maxRemaining: 2,
+            lateGameThreshold: 12
+          }
+        case 'objects':
+          return {
+            minQuestions: 6,
+            maxRemaining: 2,
+            lateGameThreshold: 12
+          }
+        case 'cricket players':
+        case 'football players':
+        case 'nba players':
+          return {
+            minQuestions: 7,
+            maxRemaining: 3,
+            lateGameThreshold: 14
+          }
+        default:
+          return {
+            minQuestions: 6,
+            maxRemaining: 2,
+            lateGameThreshold: 12
+          }
+      }
+    }
+    
+    const config = getCategoryConfig(category)
+    
+    // Don't start guessing too early regardless of remaining items (except for single item)
+    if (questionCount < config.minQuestions && remaining > 1) {
+      return false
+    }
+    
+    // Start guessing if we've narrowed down sufficiently
+    if (remaining <= config.maxRemaining) {
+      return true
+    }
+    
+    // Force guessing in late game to avoid running out of questions
+    if (questionCount >= config.lateGameThreshold && remaining <= 5) {
+      return true
+    }
+    
+    return false
+  }
+
   private static generateCandidateQuestions(
     category: string, 
     facts: Record<string, any>, 
@@ -459,56 +541,77 @@ export class DecisionTree {
   }
 
   /**
-   * Returns category-appropriate fallback questions when no items remain
+   * Generates category-appropriate fallback question patterns when no items remain
+   * These are dynamic templates to avoid overtraining on hardcoded questions
    */
   private static getCategorySpecificFallbackQuestions(category: string): string[] {
+    const getRandomFromArray = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]
+    
     switch (category.toLowerCase()) {
       case 'world leaders':
+        // Generate dynamic questions using templates
+        const continents = ['Europe', 'Asia', 'Africa', 'the Americas', 'Oceania']
+        const decades = ['1950s', '1960s', '1970s', '1980s', '1990s', '2000s', '2010s']
+        const roles = ['president', 'prime minister', 'chancellor', 'monarch']
+        
         return [
-          "Are they from India?",
-          "Are they from China?", 
-          "Did they serve in the 1960s?",
-          "Were they a prime minister?",
-          "Did they lead during a war?",
-          "Did they serve under a constitution?"
+          `Are they from ${getRandomFromArray(continents)}?`,
+          `Did they serve in the ${getRandomFromArray(decades)}?`,
+          `Were they a ${getRandomFromArray(roles)}?`,
+          "Did they lead during a major conflict?",
+          "Did they win a Nobel Peace Prize?"
         ]
+        
       case 'animals':
+        const habitats = ['Africa', 'Asia', 'North America', 'South America', 'Europe', 'Australia']
+        const sizes = ['a cat', 'a dog', 'a horse', 'a mouse']
+        const behaviors = ['carnivore', 'herbivore', 'omnivore']
+        
         return [
-          "Is it a carnivore?",
-          "Does it live in Africa?",
-          "Is it larger than a cat?",
-          "Does it have four legs?",
-          "Is it a domesticated animal?",
-          "Can it swim?"
+          `Does it live in ${getRandomFromArray(habitats)}?`,
+          `Is it larger than ${getRandomFromArray(sizes)}?`,
+          `Is it a ${getRandomFromArray(behaviors)}?`,
+          "Does it live in groups?",
+          "Can it be domesticated?"
         ]
+        
       case 'objects':
+        const materials = ['plastic', 'metal', 'wood', 'glass', 'fabric']
+        const locations = ['kitchens', 'bedrooms', 'offices', 'garages', 'bathrooms']
+        const purposes = ['communication', 'entertainment', 'work', 'transportation', 'storage']
+        
         return [
-          "Is it made of plastic?",
-          "Is it used for communication?",
-          "Is it smaller than a book?",
-          "Is it found in kitchens?",
-          "Does it need electricity?",
-          "Can you hold it in one hand?"
+          `Is it made of ${getRandomFromArray(materials)}?`,
+          `Is it commonly found in ${getRandomFromArray(locations)}?`,
+          `Is it used for ${getRandomFromArray(purposes)}?`,
+          "Does it require maintenance?",
+          "Is it considered essential?"
         ]
+        
       case 'cricket players':
       case 'football players':
       case 'nba players':
+        const countries = ['India', 'Australia', 'England', 'South Africa', 'Pakistan']
+        const eras = ['1990s', '2000s', '2010s', '2020s']
+        
         return [
-          "Are they currently active?",
-          "Are they from India?",
-          "Have they won a World Cup?",
+          `Are they from ${getRandomFromArray(countries)}?`,
+          `Did they play in the ${getRandomFromArray(eras)}?`,
           "Have they been team captain?",
-          "Did they play before 2010?",
-          "Have they played over 100 matches?"
+          "Are they in the Hall of Fame?",
+          "Have they won major championships?"
         ]
+        
       default:
+        const timeFrames = ['1900', '1950', '1980', '2000']
+        const properties = ['electricity', 'internet connection', 'batteries', 'maintenance']
+        
         return [
-          "Was it invented before 1950?",
-          "Was it invented after 2000?",
-          "Does it use electricity?",
+          `Was it invented before ${getRandomFromArray(timeFrames)}?`,
+          `Does it use ${getRandomFromArray(properties)}?`,
           "Is it found in nature?",
-          "Does it cost over $100?",
-          "Is it sold in stores?"
+          "Do most people own one?",
+          "Is it considered luxury?"
         ]
     }
   }
@@ -521,16 +624,61 @@ export class DecisionTree {
       return fallbackQuestions[Math.floor(Math.random() * fallbackQuestions.length)]
     }
     
-    // Pick the item with highest confidence score
-    const bestItem = Object.entries(space.confidence_scores)
-      .filter(([item]) => space.remaining.includes(item))
-      .sort(([,a], [,b]) => b - a)[0]
-    
-    if (bestItem) {
-      return `Is it ${bestItem[0].toLowerCase()}?`
+    // If we have multiple items remaining, try a more strategic approach
+    if (space.remaining.length > 1) {
+      // For categories with people, try to distinguish between similar individuals
+      if (this.isPersonCategory(space.category)) {
+        return this.makePersonSpecificGuess(space)
+      }
+      
+      // For other categories, pick the most likely candidate
+      const sortedItems = Object.entries(space.confidence_scores)
+        .filter(([item]) => space.remaining.includes(item))
+        .sort(([,a], [,b]) => b - a)
+      
+      if (sortedItems.length > 0 && sortedItems[0][1] > 0.7) {
+        // High confidence guess
+        return `Is it ${this.formatItemName(sortedItems[0][0], space.category)}?`
+      }
+      
+      // Medium confidence - try the top candidate
+      if (sortedItems.length > 0) {
+        return `Is it ${this.formatItemName(sortedItems[0][0], space.category)}?`
+      }
     }
     
-    return `Is it ${space.remaining[0].toLowerCase()}?`
+    // Single item remaining or fallback
+    const targetItem = space.remaining[0]
+    return `Is it ${this.formatItemName(targetItem, space.category)}?`
+  }
+  
+  private static isPersonCategory(category: string): boolean {
+    const personCategories = ['world leaders', 'cricket players', 'football players', 'nba players']
+    return personCategories.includes(category.toLowerCase())
+  }
+  
+  private static makePersonSpecificGuess(space: PossibilitySpace): string {
+    // For people categories, format names properly and pick strategically
+    const sortedCandidates = Object.entries(space.confidence_scores)
+      .filter(([item]) => space.remaining.includes(item))
+      .sort(([,a], [,b]) => b - a)
+    
+    if (sortedCandidates.length > 0) {
+      const personName = sortedCandidates[0][0]
+      return `Is it ${personName}?`
+    }
+    
+    return `Is it ${space.remaining[0]}?`
+  }
+  
+  private static formatItemName(item: string, category: string): string {
+    // For people, use the name as-is
+    if (this.isPersonCategory(category)) {
+      return item
+    }
+    
+    // For objects and animals, use lowercase with article
+    return item.toLowerCase()
   }
   
   private static generateFallbackQuestion(
@@ -539,23 +687,38 @@ export class DecisionTree {
     askedQuestions: string[]
   ): string {
     
-    // Generic fallback questions that work across categories
-    const fallbacks = [
-      "Is it commonly found in homes?",
-      "Is it expensive?",
-      "Is it used daily by most people?",
-      "Is it larger than a book?",
-      "Is it considered modern?",
-      "Is it colorful?",
-      "Does it require maintenance?",
-      "Is it portable?"
+    // Generate dynamic fallback questions to avoid hardcoded patterns
+    const getRandomElement = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]
+    
+    // Dynamic question templates based on common properties
+    const commonProperties = ['expensive', 'modern', 'popular', 'useful', 'durable', 'complex']
+    const sizeComparisons = ['a book', 'a car', 'a smartphone', 'a television', 'a basketball']
+    const frequencies = ['daily', 'weekly', 'occasionally', 'regularly']
+    const locations = ['homes', 'offices', 'schools', 'public places', 'outdoors']
+    
+    const dynamicFallbacks = [
+      `Is it ${getRandomElement(commonProperties)}?`,
+      `Is it larger than ${getRandomElement(sizeComparisons)}?`,
+      `Do most people use it ${getRandomElement(frequencies)}?`,
+      `Is it commonly found in ${getRandomElement(locations)}?`,
+      `Is it considered a necessity?`,
+      `Does it require special knowledge to use?`,
+      `Is it something you would buy online?`,
+      `Has it become more popular in recent years?`
     ]
     
-    const unasked = fallbacks.filter(q => 
+    // Filter out semantically similar questions that have already been asked
+    const unasked = dynamicFallbacks.filter(q => 
       !askedQuestions.some(asked => this.questionsAreSimilar(asked, q.toLowerCase()))
     )
     
-    return unasked[0] || "Can you give me a hint about its most distinctive feature?"
+    if (unasked.length > 0) {
+      return getRandomElement(unasked)
+    }
+    
+    // Ultimate fallback - try a category-specific approach
+    return this.getCategorySpecificFallbackQuestions(category)[0] || 
+           "Can you give me a hint about its most distinctive feature?"
   }
   
   private static questionsAreSimilar(q1: string, q2: string): boolean {

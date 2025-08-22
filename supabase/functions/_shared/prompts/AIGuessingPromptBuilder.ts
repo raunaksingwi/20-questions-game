@@ -277,52 +277,81 @@ export class AIGuessingPromptBuilder {
     
     section += '\n🚫 COMPREHENSIVE SEMANTIC SIMILARITY PREVENTION:\n'
     section += 'CRITICAL: You must ask a NEW question that is completely different from all questions above!\n'
-    section += '\n❌ FORBIDDEN SEMANTIC DUPLICATES - These are the SAME question:\n'
-    section += '• "Are they from Europe?" = "Are they European?" = "Do they come from Europe?"\n'
-    section += '• "Is it big?" = "Is it large?" = "Is it huge?" = "Is it massive?"\n'
-    section += '• "Is it electronic?" = "Is it digital?" = "Does it use electricity?"\n'
-    section += '• "Are they currently active?" = "Are they still playing?" = "Do they play now?"\n'
-    section += '• "Were they president?" = "Did they serve as president?" = "Did they hold the presidency?"\n'
-    section += '• "Does it eat meat?" = "Is it carnivorous?" = "Is it a predator?"\n'
-    section += '• "Can you hold it?" = "Is it handheld?" = "Is it portable?"\n'
-    section += '• "Are they male?" = "Are they a man?" = "Are they masculine?"\n'
-    section += '\n🔍 BEFORE ASKING YOUR QUESTION:\n'
-    section += '1. Check if it uses SYNONYMS of words already asked\n'
-    section += '2. Check if it asks the SAME CONCEPT with different grammar\n'
-    section += '3. Check if it can be DEDUCED from existing answers\n'
-    section += '4. Ensure it provides genuinely NEW information\n'
     
-    section += '\n📋 SEMANTIC SIMILARITY CHECKLIST - Your question MUST pass ALL checks:\n'
-    section += '1. ✅ WORD VARIATION CHECK: Am I using different words for the same concept?\n'
-    section += '   ❌ "big" vs "large" vs "huge" vs "enormous" vs "massive" (ALL same concept)\n'
-    section += '   ❌ "famous" vs "well-known" vs "popular" vs "renowned" (ALL same concept)\n'
-    section += '   ❌ "European" vs "from Europe" vs "in Europe" (ALL same concept)\n'
+    section += '\n<semantic_duplicate_examples>\n'
+    section += '<!-- These are EXAMPLES of duplicate question patterns - DO NOT use these exact questions -->\n'
+    section += '<duplicate_pattern>\n'
+    section += '  <wrong_examples>"Are they from Europe?" = "Are they European?" = "Do they come from Europe?"</wrong_examples>\n'
+    section += '  <rule>All ask the same concept: European origin</rule>\n'
+    section += '</duplicate_pattern>\n'
+    section += '<duplicate_pattern>\n'
+    section += '  <wrong_examples>"Is it big?" = "Is it large?" = "Is it huge?" = "Is it massive?"</wrong_examples>\n'
+    section += '  <rule>All ask the same concept: size/scale</rule>\n'
+    section += '</duplicate_pattern>\n'
+    section += '<duplicate_pattern>\n'
+    section += '  <wrong_examples>"Is it electronic?" = "Is it digital?" = "Does it use electricity?"</wrong_examples>\n'
+    section += '  <rule>All ask the same concept: electronic/technological nature</rule>\n'
+    section += '</duplicate_pattern>\n'
+    section += '<duplicate_pattern>\n'
+    section += '  <wrong_examples>"Are they currently active?" = "Are they still playing?" = "Do they play now?"</wrong_examples>\n'
+    section += '  <rule>All ask the same concept: current activity status</rule>\n'
+    section += '</duplicate_pattern>\n'
+    section += '</semantic_duplicate_examples>\n'
     
-    section += '2. ✅ TOPIC SIMILARITY CHECK: Am I asking about the same topic area?\n'
-    section += '   ❌ If asked "Are they alive?" don\'t ask "Are they dead?" (same topic)\n'
-    section += '   ❌ If asked "Are they male?" don\'t ask "Are they female?" (same topic)\n'
-    section += '   ❌ If asked "Is it electronic?" don\'t ask "Is it digital?" (same topic)\n'
+    section += '\n<validation_checklist>\n'
+    section += 'BEFORE ASKING YOUR QUESTION, validate against these checks:\n'
+    section += '<check name="synonym_check">\n'
+    section += '  <question>Am I using different words for the same concept?</question>\n'
+    section += '  <examples>\n'
+    section += '    <!-- Examples of WRONG synonym usage - avoid these patterns -->\n'
+    section += '    <wrong>"big" vs "large" vs "huge" vs "enormous" vs "massive" (ALL same concept)</wrong>\n'
+    section += '    <wrong>"famous" vs "well-known" vs "popular" vs "renowned" (ALL same concept)</wrong>\n'
+    section += '    <wrong>"European" vs "from Europe" vs "in Europe" (ALL same concept)</wrong>\n'
+    section += '  </examples>\n'
+    section += '</check>\n'
     
-    section += '3. ✅ LOGICAL CONSEQUENCE CHECK: Can I deduce this answer from confirmed facts?\n'
-    section += '   ❌ If "mammal"=YES, don\'t ask "Is it a bird?" (logically impossible)\n'
-    section += '   ❌ If "European"=YES, don\'t ask "Are they Asian?" (mutually exclusive)\n'
-    section += '   ❌ If "electronic"=YES, don\'t ask "Is it alive?" (category violation)\n'
+    section += '<check name="topic_similarity_check">\n'
+    section += '  <question>Am I asking about the same topic area?</question>\n'
+    section += '  <examples>\n'
+    section += '    <!-- Examples of WRONG topic repetition - avoid these patterns -->\n'
+    section += '    <wrong>If asked "Are they alive?" don\'t ask "Are they dead?" (same topic)</wrong>\n'
+    section += '    <wrong>If asked "Are they male?" don\'t ask "Are they female?" (same topic)</wrong>\n'
+    section += '    <wrong>If asked "Is it electronic?" don\'t ask "Is it digital?" (same topic)</wrong>\n'
+    section += '  </examples>\n'
+    section += '</check>\n'
     
-    section += '4. ✅ CATEGORY CONSISTENCY CHECK: Does this fit the established category?\n'
-    section += '   ❌ If category=PEOPLE, don\'t ask "Is it made of metal?" (wrong category)\n'
-    section += '   ❌ If category=OBJECTS, don\'t ask "Are they male?" (wrong category)\n'
-    section += '   ❌ If category=ANIMALS, don\'t ask "Were they elected?" (wrong category)\n'
+    section += '<check name="logical_consequence_check">\n'
+    section += '  <question>Can I deduce this answer from confirmed facts?</question>\n'
+    section += '  <examples>\n'
+    section += '    <!-- Examples of WRONG logical redundancy - avoid these patterns -->\n'
+    section += '    <wrong>If "mammal"=YES, don\'t ask "Is it a bird?" (logically impossible)</wrong>\n'
+    section += '    <wrong>If "European"=YES, don\'t ask "Are they Asian?" (mutually exclusive)</wrong>\n'
+    section += '    <wrong>If "electronic"=YES, don\'t ask "Is it alive?" (category violation)</wrong>\n'
+    section += '  </examples>\n'
+    section += '</check>\n'
     
-    section += '5. ✅ INFORMATION NOVELTY CHECK: Will this provide genuinely NEW information?\n'
-    section += '   ❌ Don\'t ask about properties you can already infer\n'
-    section += '   ❌ Don\'t ask about combinations of confirmed facts\n'
-    section += '   ✅ Ask about unexplored dimensions that narrow possibilities\n'
+    section += '<check name="category_consistency_check">\n'
+    section += '  <question>Does this question fit the established category?</question>\n'
+    section += '  <examples>\n'
+    section += '    <!-- Examples of WRONG category mixing - avoid these patterns -->\n'
+    section += '    <wrong>If category=PEOPLE, don\'t ask "Is it made of metal?" (wrong category)</wrong>\n'
+    section += '    <wrong>If category=OBJECTS, don\'t ask "Are they male?" (wrong category)</wrong>\n'
+    section += '    <wrong>If category=ANIMALS, don\'t ask "Were they elected?" (wrong category)</wrong>\n'
+    section += '  </examples>\n'
+    section += '</check>\n'
+    section += '</validation_checklist>\n'
     
-    section += '\n🎯 SEMANTIC DISTANCE REQUIREMENT:\n'
+    section += '\n<semantic_distance_strategy>\n'
     section += 'Your next question must be semantically DISTANT from all previous questions.\n'
-    section += 'If you\'ve asked about SIZE, switch to FUNCTION. If you\'ve asked about LOCATION, switch to TIME PERIOD.\n'
-    section += 'If you\'ve asked about ROLE, switch to GEOGRAPHY. If you\'ve asked about ERA, switch to ACHIEVEMENTS.\n'
+    section += '<strategy_examples>\n'
+    section += '  <!-- These are strategic EXAMPLES - use similar logic but different questions -->\n'
+    section += '  <strategy>If you\'ve asked about SIZE, switch to FUNCTION</strategy>\n'
+    section += '  <strategy>If you\'ve asked about LOCATION, switch to TIME PERIOD</strategy>\n'
+    section += '  <strategy>If you\'ve asked about ROLE, switch to GEOGRAPHY</strategy>\n'
+    section += '  <strategy>If you\'ve asked about ERA, switch to ACHIEVEMENTS</strategy>\n'
+    section += '</strategy_examples>\n'
     section += 'GOAL: Maximum semantic distance = Maximum new information gained!\n'
+    section += '</semantic_distance_strategy>\n'
 
     return section
   }
@@ -599,187 +628,494 @@ Think step by step, then ask your next strategic yes/no question.
         constraints += `
 🎯 WORLD LEADERS ONLY - The item is a HUMAN POLITICAL LEADER. You are guessing which specific world leader.
 
-🚫 STRICTLY FORBIDDEN QUESTIONS (these don't apply to people):
+🚫 STRICTLY FORBIDDEN QUESTION PATTERNS (these don't apply to people):
 
-❌ OBJECT/MATERIAL QUESTIONS (humans are not objects):
-- "Is it black?" / "Is it white?" / "Is it red?" / "What color is it?" → World leaders are PEOPLE, not colored objects
-- "Is it plastic?" / "Is it made of metal?" / "Is it made of wood?" / "What is it made of?" → World leaders are PEOPLE, not manufactured materials
-- "Is it electronic?" / "Is it digital?" / "Does it need batteries?" / "Does it have circuits?" → World leaders are PEOPLE, not electronic devices
-- "Can you hold it?" / "Is it portable?" / "Can you carry it?" → World leaders are PEOPLE, not objects you pick up
-- "Is it furniture?" / "Is it a tool?" / "Is it a machine?" / "Is it equipment?" → World leaders are PEOPLE, not inanimate objects
+<forbidden_patterns>
+<category name="object_material_questions" reason="humans are not objects">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Is it black?" → World leaders are PEOPLE, not colored objects</wrong_example>
+    <wrong_example>"Is it made of metal?" → World leaders are PEOPLE, not manufactured materials</wrong_example>
+    <wrong_example>"Is it electronic?" → World leaders are PEOPLE, not electronic devices</wrong_example>
+    <wrong_example>"Can you hold it?" → World leaders are PEOPLE, not objects you pick up</wrong_example>
+  </examples>
+  <rule>NEVER ask about physical materials, colors, or object properties when dealing with people</rule>
+</category>
 
-❌ SIZE/PHYSICAL OBJECT QUESTIONS (humans are not sized objects):
-- "Is it smaller than a book?" / "Is it bigger than a car?" / "How big is it?" → World leaders are PEOPLE with human proportions
-- "Can it fit in your pocket?" / "Is it handheld?" / "Is it tiny?" → World leaders are PEOPLE, not pocket-sized objects
-- "Does it weigh a lot?" / "Is it heavy?" / "Is it light?" → World leaders are PEOPLE, not objects with product weights
+<category name="size_physical_questions" reason="humans are not sized objects">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Is it smaller than a book?" → World leaders are PEOPLE with human proportions</wrong_example>
+    <wrong_example>"Is it handheld?" → World leaders are PEOPLE, not pocket-sized objects</wrong_example>
+    <wrong_example>"Is it heavy?" → World leaders are PEOPLE, not objects with product weights</wrong_example>
+  </examples>
+  <rule>NEVER ask about size comparisons to objects or weight when dealing with people</rule>
+</category>
 
-❌ ANIMAL/BIOLOGICAL QUESTIONS (humans are not animals):
-- "Is it a mammal?" / "Is it a bird?" / "Is it a reptile?" → World leaders are PEOPLE, not animals to classify
-- "Does it eat meat?" / "Is it carnivorous?" / "Is it herbivorous?" → World leaders are PEOPLE, not animals with diets
-- "Does it have fur?" / "Does it have feathers?" / "Does it have scales?" → World leaders are PEOPLE, not animals with coats
-- "Can it fly?" / "Does it swim?" / "Does it hibernate?" → World leaders are PEOPLE, not animals with special abilities
+<category name="animal_biological_questions" reason="humans are not animals">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Is it a mammal?" → World leaders are PEOPLE, not animals to classify</wrong_example>
+    <wrong_example>"Does it eat meat?" → World leaders are PEOPLE, not animals with diets</wrong_example>
+    <!-- These are EXAMPLES of good question patterns -->ample>
+  </examples>
+  <rule>NEVER ask animal classification or biological trait questions when dealing with people</rule>
+</category>
 
-❌ CONSUMPTION/USAGE QUESTIONS (humans are not products):
-- "Do you eat it?" / "Is it food?" / "Is it edible?" / "Can you drink it?" → World leaders are PEOPLE, not consumables
-- "Do you wear it?" / "Is it clothing?" / "Do you use it?" → World leaders are PEOPLE, not products you use
+<category name="consumption_usage_questions" reason="humans are not products">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Is it edible?" → World leaders are PEOPLE, not consumables</wrong_example>
+    <!-- These are EXAMPLES of good question patterns -->>
+  </examples>
+  <rule>NEVER ask about consumption, usage, or commercial properties when dealing with people</rule>
+</category>
+</forbidden_patterns>
 
-✅ APPROPRIATE QUESTIONS FOR WORLD LEADERS:
-- "Are they male?" / "Are they female?"
-- "Are they still alive?" / "Are they dead?"
-- "Are they from Europe?" / "Are they from Asia?" / "Are they from Africa?" / "Are they from the Americas?"
-- "Were they a president?" / "Were they a prime minister?" / "Were they a monarch?"
-- "Did they serve before 1990?" / "Were they active in the 21st century?" / "Did they serve in the 20th century?"
-- "Did they win a Nobel Prize?" / "Did they lead during a war?" / "Were they democratically elected?"
-- "Did they face impeachment proceedings?" / "Were they a military leader before politics?"
+✅ APPROPRIATE QUESTION PATTERNS FOR WORLD LEADERS:
 
-CRITICAL: ONLY ask questions that apply to HUMAN POLITICAL LEADERS!`
+<appropriate_patterns>
+<category name
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Are they male?" / "Are they female?"</good_example>
+    <good_example>"Are they still alive?" / "Are they deceased?"</good_example>
+  </examples>
+  <rule>Ask about gender, life status, and personal characteristics</rule>
+</category>
+
+<category name
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Are they from Europe?" / "Are they from Asia?"</good_example>
+    <good_example>"Are they from Africa?" / "Are they from the Americas?"</good_example>
+  </examples>
+  <rule>Ask about continental or regional origin</rule>
+</category>
+
+<category name="political_roles">
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Were they a president?" / "Were they a prime minister?"</good_example>
+    <good_example>"Were they a monarch?" / "Were they a dictator?"</good_example>
+  </examples>
+  <rule>Ask about specific political positions and roles</rule>
+</category>
+
+<category name="time_periods">
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Did they serve before 1990?" / "Were they active in the 21st century?"</good_example>
+    <good_example>"Did they serve in the 20th century?" / "Are they from recent decades?"</good_example>
+  </examples>
+  <rule>Ask about time periods and eras of leadership</rule>
+</category>
+
+<category name="achievements_circumstances">
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Did they win a Nobel Prize?" / "Did they lead during a war?"</good_example>
+    <good_example>"Were they democratically elected?" / "Did they face impeachment?"</good_example>
+  </examples>
+  <rule>Ask about notable achievements, circumstances, or controversies</rule>
+</category>
+</appropriate_patterns>
+
+<instruction>
+CRITICAL: Use the patterns above as GUIDANCE to create your own similar questions. 
+DO NOT use the exact example questions shown - they are templates to show you the RIGHT TYPE of questions to ask.
+ONLY ask questions that apply to HUMAN POLITICAL LEADERS!
+</instruction>`
         break
         
       case 'animals':
         constraints += `
 🎯 ANIMALS ONLY - The item is a LIVING CREATURE (or recently living animal). You are guessing which specific animal.
 
-🚫 STRICTLY FORBIDDEN QUESTIONS (these don't apply to animals):
+🚫 STRICTLY FORBIDDEN QUESTION PATTERNS (these don't apply to animals):
 
-❌ HUMAN/POLITICAL QUESTIONS (animals are not people):
-- "Are they a president?" / "Were they a leader?" / "Were they a politician?" → Animals are not political figures
-- "Did they serve before 1990?" / "Were they elected?" / "Did they hold office?" → Animals don't have political careers
-- "Are they male?" / "Are they female?" → Use "Is it male?" for animals (not "they")
-- "Are they from Europe?" / "Are they European?" → Use habitat: "Do they live in Europe?" instead
-- "Did they win awards?" / "Are they famous?" → Animals don't win human awards
+<forbidden_patterns>
+<category name="human_political_questions" reason="animals are not people">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Are they a president?" → Animals are not political figures</wrong_example>
+    <wrong_example>"Did they serve before 1990?" → Animals don't have political careers</wrong_example>
+    <wrong_example>"Were they elected?" → Animals don't participate in politics</wrong_example>
+  </examples>
+  <rule>NEVER ask about political roles, elections, or human social positions when dealing with animals</rule>
+</category>
 
-❌ OBJECT/TECHNOLOGY QUESTIONS (animals are not objects):
-- "Is it electronic?" / "Is it digital?" / "Does it need batteries?" → Animals are biological, not electronic devices
-- "Is it furniture?" / "Is it a tool?" / "Is it equipment?" → Animals are living beings, not manufactured objects
-- "Is it made of plastic?" / "Is it made of metal?" / "What material is it?" → Animals are not manufactured from materials
-- "Can you hold it in your hand?" / "Is it portable?" → Ask about size relative to animals: "Is it smaller than a cat?"
-- "Does it have buttons?" / "Does it have a screen?" → Animals don't have electronic interfaces
+<category name="object_technology_questions" reason="animals are not objects">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Is it electronic?" → Animals are biological, not electronic devices</wrong_example>
+    <wrong_example>"Is it made of plastic?" → Animals are not manufactured from materials</wrong_example>
+    <wrong_example>"Is it a tool?" → Animals are living beings, not manufactured objects</wrong_example>
+  </examples>
+  <rule>NEVER ask aboutn dealing with animals</rule>
+</category>
 
-❌ COMMERCIAL/USAGE QUESTIONS (animals are not products):
-- "Is it expensive?" / "Can you buy it?" / "How much does it cost?" → Focus on biological properties instead
-- "Do you use it for work?" / "Is it a product?" → Animals are not commercial products
-- "Can you wear it?" / "Do you eat it?" → While some animals are food, focus on the living animal's properties
+<category name="commercial_usage_questions" reason="animals are not products">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Is it expensive?" → Focus on biological properties instead</wrong_example>
+    <wrong_example>"Do you use it for work?" → Animals are not commercial products</wrong_example>
+    <wrong_example>"Can you buy it?" → Animals are living beings, not products</wrong_example>
+  </examples>
+  <rule>NEVER ask about price, commercial use, or product properties when dealing with animals</rule>
+</category>
 
-❌ ABSTRACT/MANUFACTURED CONCEPTS (animals are biological entities):
-- "Is it a concept?" / "Is it abstract?" / "Is it an idea?" → Animals are concrete living beings
-- "Was it invented?" / "Was it designed?" / "Who created it?" → Animals evolved naturally
+<category name="abstract_concepts" reason="animals are biological entities">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Is it a concept?" → Animals are concrete living beings</wrong_example>
+    <wrong_example>"Was it invented?" → Animals evolved naturally</wrong_example>
+  </examples>
+  <rule>NEVER ask about abstract concepts or human inventions when dealing with animals</rule>
+</category>
+</forbidden_patterns>
 
-✅ APPROPRIATE QUESTIONS FOR ANIMALS:
-- "Is it a mammal?" / "Is it a bird?" / "Is it a reptile?" / "Is it a fish?" / "Is it an insect?"
-- "Is it a wild animal?" / "Is it a domestic pet?" / "Is it found on farms?"
-- "Is it larger than a dog?" / "Is it smaller than a cat?" / "Is it bigger than a human?"
-- "Does it live in Africa?" / "Does it live in water?" / "Does it live in forests?"
-- "Does it eat meat?" / "Is it a carnivore?" / "Is it herbivorous?" / "Is it omnivorous?"
-- "Does it have four legs?" / "Can it fly?" / "Does it have fur?" / "Does it lay eggs?"
+✅ APPROPRIATE QUESTION PATTERNS FOR ANIMALS:
 
-CRITICAL: ONLY ask questions that apply to LIVING ANIMALS!`
+<appropriate_patterns>
+<category name
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Is it a mammal?" / "Is it a bird?" / "Is it a reptile?"</good_example>
+    <good_example>"Is it a fish?" / "Is it an insect?" / "Is it an amphibian?"</good_example>
+  </examples>
+  <rule>Ask about taxonomic classification and biological categories</rule>
+</category>
+
+<category name="habitat_lifestyle">
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Is it a wild animal?" / "Is it domesticated?" / "Is it found on farms?"</good_example>
+    <good_example>"Does it live in water?" / "Does it live in forests?" / "Does it live in Africa?"</good_example>
+  </examples>
+  <rule>Ask about natural habitats, domestication status, and geographic distribution</rule>
+</category>
+
+<category name="physical_characteristics">
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Is it larger than a dog?" / "Is it smaller than a cat?"</good_example>
+    <good_example>"Does it have four legs?" / "Does it have fur?" / "Does it lay eggs?"</good_example>
+  </examples>
+  <rule>Ask about size relative to other animals and distinctive physical features</rule>
+</category>
+
+<category name="behavior_diet">
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Does it eat meat?" / "Is it a carnivore?" / "Is it herbivorous?"</good_example>
+    <good_example>"Can it fly?" / "Does it swim?" / "Is it nocturnal?"</good_example>
+  </examples>
+  <rule>Ask about dietary habits, movement capabilities, and behavioral patterns</rule>
+</category>
+</appropriate_patterns>
+
+<instruction>
+CRITICAL: Use the patterns above as GUIDANCE to create your own similar questions. 
+DO NOT use the exact example questions shown - they are templates to show you the RIGHT TYPE of questions to ask.
+ONLY ask questions that apply to LIVING ANIMALS!
+Use "Is it" (not "Are they") when referring to animals.
+</instruction>`
         break
         
       case 'objects':
         constraints += `
 🎯 OBJECTS ONLY - The item is an INANIMATE OBJECT/THING. You are guessing which specific object.
 
-🚫 STRICTLY FORBIDDEN QUESTIONS (these don't apply to objects):
+🚫 STRICTLY FORBIDDEN QUESTION PATTERNS (these don't apply to objects):
 
-❌ HUMAN/POLITICAL QUESTIONS (objects are not people):
-- "Are they male?" / "Are they female?" / "What gender are they?" → Objects don't have gender
-- "Are they alive?" / "Do they breathe?" / "Are they dead?" → Objects are not living beings
-- "Are they a president?" / "Did they serve?" / "Were they elected?" → Objects are not people with careers
-- "Did they serve before 1990?" / "Were they born?" / "How old are they?" → Objects don't have political careers or ages
-- "Are they from Europe?" / "What nationality are they?" → Objects aren't from countries (use "made in" instead)
-- "Do they have feelings?" / "Are they happy?" / "Are they smart?" → Objects don't have emotions or intelligence
+<forbidden_patterns>
+<category name="human_political_questions" reason="objects are not people">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Are they male?" → Objects don't have gender</wrong_example>
+    <wrong_example>"Are they alive?" → Objects are not living beings</wrong_example>
+    <wrong_example>"Are they a president?" → Objects are not people with careers</wrong_example>
+    <wrong_example>"Are they from Europe?" → Objects aren't from countries</wrong_example>
+  </examples>
+  <rule>NEVER ask about gender, life, political roles, or nationality when dealing with objects</rule>
+</category>
 
-❌ BIOLOGICAL/ANIMAL QUESTIONS (objects are not living):
-- "Do they eat meat?" / "Are they carnivorous?" / "What do they eat?" → Objects don't eat or have diets
-- "Is it a mammal?" / "Is it a bird?" / "Is it a reptile?" → Objects are not biological classifications
-- "Does it have fur?" / "Does it have feathers?" / "Does it have skin?" → Objects don't have biological features
-- "Can it fly naturally?" / "Does it hibernate?" / "Does it migrate?" → Objects don't have natural biological behaviors
-- "Is it wild?" / "Is it domesticated?" / "Is it a pet?" → Objects are not animals with habitats
+<category name="biological_animal_questions" reason="objects are not living">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Do they eat meat?" → Objects don't eat or have diets</wrong_example>
+    <wrong_example>"Is it a mammal?" → Objects are not biological classifications</wrong_example>
+    <wrong_example>"Does it have fur?" → Objects don't have biological features</wrong_example>
+    <wrong_example>"Does it migrate?" → Objects don't have natural behaviors</wrong_example>
+  </examples>
+  <rule>NEVER ask aboutling with objects</rule>
+</category>
 
-❌ ABSTRACT/CONCEPTUAL QUESTIONS (objects are physical):
-- "Is it a concept?" / "Is it an idea?" / "Is it abstract?" → Objects are physical, tangible things
-- "Is it a feeling?" / "Is it an emotion?" / "Is it a thought?" → Objects are not mental concepts
-- "Is it a service?" / "Is it software?" → Focus on physical objects, not services
+<category name="abstract_conceptual_questions" reason="objects are physical">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Is it a concept?" → Objects are physical, tangible things</wrong_example>
+    <wrong_example>"Is it an emotion?" → Objects are not mental concepts</wrong_example>
+    <wrong_example>"Is it software?" → Focus on physical objects, not digital services</wrong_example>
+  </examples>
+  <rule>NEVER ask about abstract concepts, emotions, or non-physical entities when dealing with objects</rule>
+</category>
 
-❌ IMPOSSIBLE PHYSICAL PROPERTIES (objects follow physics):
-- "Is it alive?" / "Does it grow?" / "Can it reproduce?" → Objects are not living organisms
-- "Does it have consciousness?" / "Can it think?" / "Does it make decisions?" → Objects are not sentient
+<category name="impossible_properties" reason="objects follow physics">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Can it reproduce?" → Objects are not living organisms</wrong_example>
+    <wrong_example>"Does it have consciousness?" → Objects are not sentient</wrong_example>
+  </examples>
+  <rule>NEVER ask about consciousness, reproduction, or autonomous decision-making when dealing with objects</rule>
+</category>
+</forbidden_patterns>
 
-✅ APPROPRIATE QUESTIONS FOR OBJECTS:
-- "Is it electronic?" / "Does it need electricity?" / "Does it have a screen?"
-- "Can you hold it in one hand?" / "Is it portable?" / "Is it handheld?"
-- "Is it made of metal?" / "Is it made of plastic?" / "Is it made of wood?"
-- "Is it found in a kitchen?" / "Is it found in a bedroom?" / "Is it found outdoors?"
-- "Is it larger than a book?" / "Is it smaller than a car?" / "Can it fit in a pocket?"
-- "Do most people use it daily?" / "Is it a tool?" / "Is it furniture?" / "Is it decorative?"
+✅ APPROPRIATE QUESTION PATTERNS FOR OBJECTS:
 
-CRITICAL: ONLY ask questions that apply to INANIMATE OBJECTS!`
+<appropriate_patterns>
+<category name
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Is it electronic?" / "Does it need electricity?" / "Does it have a screen?"</good_example>
+    <good_example>"Is it digital?" / "Does it connect to the internet?" / "Does it have buttons?"</good_example>
+  </examples>
+  <rule>Ask about electronic properties, power requirements, and technological features</rule>
+</category>
+
+<category name
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Can you hold it in one hand?" / "Is it portable?" / "Is it handheld?"</good_example>
+    <good_example>"Is it larger than a book?" / "Is it smaller than a car?" / "Can it fit in a pocket?"</good_example>
+  </examples>
+  <rule>Ask about size, portability, and physical handling characteristics</rule>
+</category>
+
+<category name="materials_construction">
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Is it made of metal?" / "Is it made of plastic?" / "Is it made of wood?"</good_example>
+    <good_example>"Is it made of glass?" / "Is it made of fabric?" / "Is it soft?"</good_example>
+  </examples>
+  <rule>Ask about construction materials and physical composition</rule>
+</category>
+
+<category name="location_usage">
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Is it found in a kitchen?" / "Is it found in a bedroom?" / "Is it found outdoors?"</good_example>
+    <good_example>"Do most people use it daily?" / "Is it used for work?" / "Is it decorative?"</good_example>
+  </examples>
+  <rule>Ask about typical locations, usage frequency, and functional purposes</rule>
+</category>
+
+<category name="category_classification">
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Is it a tool?" / "Is it furniture?" / "Is it a vehicle?"</good_example>
+    <good_example>"Is it clothing?" / "Is it an appliance?" / "Is it a toy?"</good_example>
+  </examples>
+  <rule>Ask about object categories and functional classifications</rule>
+</category>
+</appropriate_patterns>
+
+<instruction>
+CRITICAL: Use the patterns above as GUIDANCE to create your own similar questions. 
+DO NOT use the exact example questions shown - they are templates to show you the RIGHT TYPE of questions to ask.
+ONLY ask questions that apply to INANIMATE OBJECTS!
+Use "Is it" when referring to objects.
+</instruction>`
         break
         
       case 'cricket players':
         constraints += `
-CRICKET PLAYERS ONLY - The item is a HUMAN CRICKET ATHLETE. You are guessing which specific cricket player.
+🎯 CRICKET PLAYERS ONLY - The item is a HUMAN CRICKET ATHLETE. You are guessing which specific cricket player.
 
-❌ FORBIDDEN QUESTIONS (these don't apply to people):
-- "Is it black?" / "Is it a color?" / "What color is it?" → Cricket players are PEOPLE, not objects with colors
-- "Is it plastic?" / "Is it electronic?" / "What is it made of?" → Cricket players are PEOPLE, not objects
-- "Is it smaller than a book?" / "Can you hold it?" → Cricket players are PEOPLE, not objects
-- "Is it furniture?" / "Is it a tool?" → Cricket players are PEOPLE, not objects
-- "Does it need batteries?" / "Is it portable?" → Cricket players are PEOPLE, not devices
+🚫 STRICTLY FORBIDDEN QUESTION PATTERNS (these don't apply to people):
 
-✅ APPROPRIATE QUESTIONS FOR CRICKET PLAYERS:
-- "Are they currently active?" / "Are they retired?" / "Do they still play?"
-- "Are they male?" / "Are they female?"
-- "Are they from India?" / "Are they from Australia?" / "Are they from England?"
-- "Are they a batsman?" / "Are they a bowler?" / "Are they a wicket-keeper?" / "Are they an all-rounder?"
-- "Have they captained their country?" / "Are they a top-tier player?" / "Have they won major tournaments?"
-- "Did they play before 2010?" / "Are they from the 1990s-2000s era?" / "Are they modern players?"
+<forbidden_patterns>
+<category name="object_material_questions" reason="cricket players are people, not objects">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Is it black?" → Cricket players are PEOPLE, not objects with colors</wrong_example>
+    <wrong_example>"Is it made of plastic?" → Cricket players are PEOPLE, not manufactured objects</wrong_example>
+    <wrong_example>"Can you hold it?" → Cricket players are PEOPLE, not handheld objects</wrong_example>
+  </examples>
+  <rule>NEVER ask about colors, materials, electronic properties, or physical handling when dealing with people</rule>
+</category>
+</forbidden_patterns>
 
-CRITICAL: ONLY ask questions that apply to HUMAN CRICKET PLAYERS!`
+✅ APPROPRIATE QUESTION PATTERNS FOR CRICKET PLAYERS:
+
+<appropriate_patterns>
+<category name="career_status">
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Are they currently active?" / "Are they retired?" / "Do they still play?"</good_example>
+    <good_example>"Are they playing international cricket?" / "Have they stopped playing?"</good_example>
+  </examples>
+  <rule>Ask about current playing status and career stage</rule>
+</category>
+<!-- These are EXAMPLES of good question patterns -->
+<category name="personal_attributes">
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Are they male?" / "Are they female?"</good_example>
+  </examples>
+  <rule>Ask about basic personal characteristics</rule>
+</category>
+
+<category name
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Are they from India?" / "Are they from Australia?" / "Are they from England?"</good_example>
+    <good_example>"Do they represent Pakistan?" / "Are they from the West Indies?"</good_example>
+  </examples>
+  <rule>Ask about nationality and which country they represent</rule>
+</category>
+
+<category name="playing_role">
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Are they a batsman?" / "Are they a bowler?" / "Are they an all-rounder?"</good_example>
+    <good_example>"Are they a wicket-keeper?" / "Are they primarily a spinner?" / "Are they a fast bowler?"</good_example>
+  </examples>
+  <rule>Ask about their primary playing role and specialization</rule>
+</category>
+
+<category name="achievements_leadership">
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Have they captained their country?" / "Have they won major tournaments?"</good_example>
+    <good_example>"Are they in the Hall of Fame?" / "Have they won World Cups?"</good_example>
+  </examples>
+  <rule>Ask about leadership roles and major achievements</rule>
+</category>
+
+<category name="era_timeframe">
+  <examples>
+    <!-- These are EXAMPLES of good question patterns - use similar but not identical questions -->
+    <good_example>"Did they play before 2010?" / "Are they from the 1990s-2000s era?"</good_example>
+    <good_example>"Are they modern players?" / "Did they play in the 1980s?"</good_example>
+  </examples>
+  <rule>Ask about the era or time period when they played</rule>
+</category>
+</appropriate_patterns>
+
+<instruction>
+CRITICAL: Use the patterns above as GUIDANCE to create your own similar questions. 
+DO NOT use the exact example questions shown - they are templates to show you the RIGHT TYPE of questions to ask.
+ONLY ask questions that apply to HUMAN CRICKET PLAYERS!
+Use "Are they" when referring to people.
+</instruction>`
         break
 
       case 'football players':
         constraints += `
-FOOTBALL PLAYERS ONLY - The item is a HUMAN FOOTBALL ATHLETE. You are guessing which specific football player.
+🎯 FOOTBALL PLAYERS ONLY - The item is a HUMAN FOOTBALL ATHLETE. You are guessing which specific football player.
 
-❌ FORBIDDEN QUESTIONS (these don't apply to people):
-- "Is it black?" / "Is it a color?" / "What color is it?" → Football players are PEOPLE, not objects with colors
-- "Is it plastic?" / "Is it electronic?" / "What is it made of?" → Football players are PEOPLE, not objects
-- "Is it smaller than a book?" / "Can you hold it?" → Football players are PEOPLE, not objects
-- "Is it furniture?" / "Is it a tool?" → Football players are PEOPLE, not objects
-- "Does it need batteries?" / "Is it portable?" → Football players are PEOPLE, not devices
+<forbidden_patterns>
+<category name="object_questions" reason="football players are people, not objects">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Is it black?" → Football players are PEOPLE, not objects with colors</wrong_example>
+    <wrong_example>"Is it electronic?" → Football players are PEOPLE, not devices</wrong_example>
+  </examples>
+  <rule>NEVER ask about object properties when dealing with people</rule>
+</category>
+</forbidden_patterns>
 
-✅ APPROPRIATE QUESTIONS FOR FOOTBALL PLAYERS:
-- "Are they currently active?" / "Are they retired?" / "Do they still play?"
-- "Are they male?" / "Are they female?"
-- "Are they a quarterback?" / "Are they on offense?" / "Are they on defense?"
-- "Have they won a Super Bowl?" / "Are they a Hall of Famer?" / "Have they won MVP?"
-- "Have they played for the Patriots?" / "Are they AFC?" / "Are they NFC?"
-- "Did they play before 2010?" / "Are they from the 2000s era?" / "Are they modern players?"
+✅ APPROPRIATE QUESTION PATTERNS FOR FOOTBALL PLAYERS:
 
-CRITICAL: ONLY ask questions that apply to HUMAN FOOTBALL PLAYERS!`
+<appropriate_patterns>
+<category name="career_status">
+  <examples>
+    <good_example>"Are they currently active?" / "Are they retired?"</good_example>
+  </examples>
+  <rule>Ask about current playing status</rule>
+</category>
+
+<category name="position_role">
+  <examples>
+    <good_example>"Are they a quarterback?" / "Are they on offense?"</good_example>
+  </examples>
+  <rule>Ask about playing position and role</rule>
+</category>
+
+<category name="achievements">
+  <examples>
+    <good_example>"Have they won a Super Bowl?" / "Are they a Hall of Famer?"</good_example>
+  </examples>
+  <rule>Ask about major achievements and honors</rule>
+</category>
+
+<category name="team_conference">
+  <examples>
+    <good_example>"Have they played for the Patriots?" / "Are they AFC?"</good_example>
+  </examples>
+  <rule>Ask about teams and conference affiliations</rule>
+</category>
+</appropriate_patterns>
+
+<instruction>
+Use these patterns as GUIDANCE - create similar but NOT identical questions.
+ONLY ask questions that apply to HUMAN FOOTBALL PLAYERS!
+</instruction>`
         break
 
       case 'nba players':
         constraints += `
-NBA PLAYERS ONLY - The item is a HUMAN BASKETBALL ATHLETE. You are guessing which specific NBA player.
+🎯 NBA PLAYERS ONLY - The item is a HUMAN BASKETBALL ATHLETE. You are guessing which specific NBA player.
 
-❌ FORBIDDEN QUESTIONS (these don't apply to people):
-- "Is it black?" / "Is it a color?" / "What color is it?" → NBA players are PEOPLE, not objects with colors
-- "Is it plastic?" / "Is it electronic?" / "What is it made of?" → NBA players are PEOPLE, not objects
-- "Is it smaller than a book?" / "Can you hold it?" → NBA players are PEOPLE, not objects
-- "Is it furniture?" / "Is it a tool?" → NBA players are PEOPLE, not objects
-- "Does it need batteries?" / "Is it portable?" → NBA players are PEOPLE, not devices
+<forbidden_patterns>
+<category name="object_questions" reason="NBA players are people, not objects">
+  <examples>
+    <!-- These are EXAMPLES of wrong questions - DO NOT use these exact questions -->
+    <wrong_example>"Is it black?" → NBA players are PEOPLE, not objects with colors</wrong_example>
+    <wrong_example>"Is it electronic?" → NBA players are PEOPLE, not devices</wrong_example>
+  </examples>
+  <rule>NEVER ask about object properties when dealing with people</rule>
+</category>
+</forbidden_patterns>
 
-✅ APPROPRIATE QUESTIONS FOR NBA PLAYERS:
-- "Are they currently active?" / "Are they retired?" / "Do they still play?"
-- "Are they male?" / "Are they female?"
-- "Are they a guard?" / "Are they a center?" / "Are they a forward?"
-- "Have they won an NBA championship?" / "Are they a MVP winner?" / "Are they a Hall of Famer?"
-- "Have they played for the Lakers?" / "Are they Western Conference?" / "Are they Eastern Conference?"
-- "Did they play before 2000?" / "Are they from the 1990s-2000s era?" / "Are they modern players?"
+✅ APPROPRIATE QUESTION PATTERNS FOR NBA PLAYERS:
 
-CRITICAL: ONLY ask questions that apply to HUMAN NBA PLAYERS!`
+<appropriate_patterns>
+<category name="career_status">
+  <examples>
+    <good_example>"Are they currently active?" / "Are they retired?"</good_example>
+  </examples>
+  <rule>Ask about current playing status</rule>
+</category>
+
+<category name="position_role">
+  <examples>
+    <good_example>"Are they a guard?" / "Are they a center?"</good_example>
+  </examples>
+  <rule>Ask about playing position</rule>
+</category>
+
+<category name="achievements">
+  <examples>
+    <good_example>"Have they won an NBA championship?" / "Are they a MVP winner?"</good_example>
+  </examples>
+  <rule>Ask about major achievements</rule>
+</category>
+
+<category name="team_conference">
+  <examples>
+    <good_example>"Have they played for the Lakers?" / "Are they Western Conference?"</good_example>
+  </examples>
+  <rule>Ask about teams and conference</rule>
+</category>
+</appropriate_patterns>
+
+<instruction>
+Use these patterns as GUIDANCE - create similar but NOT identical questions.
+ONLY ask questions that apply to HUMAN NBA PLAYERS!
+</instruction>`
         break
         
       default:
