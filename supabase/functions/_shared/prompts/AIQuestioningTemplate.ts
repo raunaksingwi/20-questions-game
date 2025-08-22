@@ -90,6 +90,13 @@ IMPORTANT: Frame your guess as a yes/no question: "Is it [specific item name]?"`
 4. Never repeat questions or ask about confirmed facts
 5. Avoid vague, subjective, or compound questions
 
+🎯 SYSTEMATIC QUESTIONING PROGRESSION:
+• START BROAD: Begin with high-level categories that eliminate large groups
+• THEN NARROW: Focus on specific characteristics within the confirmed category  
+• THEN SPECIFY: Target individual identifying features
+• FINALLY GUESS: When confident, make specific item guesses
+• Always progress from general → specific → individual identification
+
 ${this.getCategorySpecificRules()}
 
 🚫 AUTOMATIC QUESTION REJECTION CRITERIA - IMMEDIATE DISQUALIFICATION:
@@ -145,19 +152,33 @@ ${questions.map(q => `${q}`).join('\n')}`
   }
 
   private getStructuredReasoningPrompt(questionsAsked: number, conversationHistory: string, alreadyAskedQuestions: string[]): string {
-    return `🧠 STRUCTURED REASONING - You MUST complete these steps before asking your question:
+    return `🧠 STRUCTURED REASONING - Follow these steps in order before asking your question:
 
-STEP 1: COMPREHENSIVE DOMAIN ANALYSIS & CONSTRAINT ENFORCEMENT
-- Based on all confirmed YES/NO answers, what specific sub-domain am I working within?
-- What broader categories have I already eliminated completely?
-- What logical implications do I know for certain from confirmed facts?
-- What category-specific constraints apply to my remaining questions?
+STEP 1: REVIEW CONFIRMED FACTS
+- List all YES answers from previous questions
+- List all NO answers from previous questions  
+- What do these facts tell me about the remaining possibilities?
 
-CRITICAL DOMAIN COHERENCE CHECK:
+STEP 2: DOMAIN COHERENCE CHECK
 - Am I staying strictly within the ${this.getCategoryName()} category boundaries?
 - Are all my remaining possibilities actually ${this.getCategoryName().toLowerCase()}?
 - Have I eliminated any impossible combinations?
 - Am I building logically on confirmed facts without contradiction?
+
+STEP 3: IDENTIFY REMAINING POSSIBILITIES
+- Based on ALL confirmed facts, what specific items could still match?
+- How many possibilities roughly remain after applying all constraints?
+- What sub-category within ${this.getCategoryName().toLowerCase()} am I focusing on?
+
+STEP 4: OPTIMAL ELIMINATION STRATEGY  
+- Which single property would best split my remaining possibilities roughly in half?
+- What concrete, specific question would eliminate ~50% while being easily answerable?
+- Does this question lead toward a logical conclusion path?
+
+STEP 5: AVOID REPETITION AND REDUNDANCY
+- Have I asked anything semantically similar using different words?
+- Am I asking about something I can already deduce from existing confirmed answers?
+- Is this question fundamentally different from all previous questions?
 
 DOMAIN NARROWING ANALYSIS & COHERENCE ENFORCEMENT:
 - Which sub-domain within ${this.getCategoryName().toLowerCase()} am I focusing on?
@@ -380,7 +401,31 @@ CATEGORY: ANIMALS - ONLY ASK QUESTIONS APPROPRIATE FOR ANIMALS!
 - Physical features: "Does it have four legs?" "Can it fly?" "Does it have fur?"
 - Diet: "Does it eat meat?" "Is it herbivorous?" "Is it carnivorous?"
 - Behavior: "Is it nocturnal?" "Does it hunt in packs?" "Does it hibernate?"
-- Size: "Is it larger than a dog?" "Is it smaller than a cat?"`;
+- Size: "Is it larger than a dog?" "Is it smaller than a cat?"
+
+🎯 ANIMALS-SPECIFIC INFORMATION GAIN STRATEGY:
+• "Is it a mammal?" vs "Is it a bird?" → Eliminates ~75% of animal kingdom
+• "Is it wild?" vs "Is it domestic?" → Splits animals roughly 60/40
+• "Is it larger than a dog?" → Eliminates small animals effectively
+• "Does it live in water?" → Targets aquatic vs land animals
+
+🚫 ANIMALS LOGICAL CONSISTENCY RULES:
+• If "mammal" = YES → NEVER ask "Is it a bird?" (impossible combination)
+• If "wild" = YES → NEVER ask "Is it a pet?" (logical contradiction)
+• If "carnivore" = YES → NEVER ask "Is it herbivorous?" (dietary contradiction)
+• If "bird" = YES → NEVER ask "Is it a mammal?" (biological impossibility)
+
+🚫 ANIMALS SEMANTIC SIMILARITY PREVENTION:
+• "Is it wild?" = "Is it untamed?" = "Is it feral?" → SAME CONCEPT
+• "Does it eat meat?" = "Is it carnivorous?" = "Is it a predator?" → SAME CONCEPT
+• "Is it large?" = "Is it big?" = "Is it huge?" → SAME CONCEPT
+• Choose ONE form and stick with it
+
+🎯 ANIMALS DOMAIN COHERENCE:
+• Stay within biological organism domain
+• All questions must relate to living creature properties
+• Focus on: classification, habitat, diet, physical features, behavior, size
+• Narrow down systematically: Kingdom → Class → Size → Habitat → Specific traits`;
   }
 
   protected getCategorySpecificDeductions(): string {
@@ -540,7 +585,31 @@ CATEGORY: OBJECTS - ONLY ASK QUESTIONS APPROPRIATE FOR OBJECTS!
 - Size/portability: "Can you hold it?" "Is it portable?" "Is it larger than a book?"
 - Function: "Is it a tool?" "Do people use it daily?" "Is it furniture?"
 - Location: "Is it found in a kitchen?" "Is it kept outdoors?" "Is it found in homes?"
-- Interface: "Does it have buttons?" "Does it have a handle?" "Does it have wheels?"`;
+- Interface: "Does it have buttons?" "Does it have a handle?" "Does it have wheels?"
+
+🎯 OBJECTS-SPECIFIC INFORMATION GAIN STRATEGY:
+• "Is it electronic?" vs "Is it manual?" → Eliminates ~60% of objects
+• "Can you hold it?" vs "Is it furniture-sized?" → Splits by portability ~50/50
+• "Is it found in a kitchen?" → Targets specific location use
+• "Is it made of metal?" → Material-based elimination
+
+🚫 OBJECTS LOGICAL CONSISTENCY RULES:
+• If "electronic" = YES → NEVER ask "Is it manual?" (technology contradiction)
+• If "handheld" = YES → NEVER ask "Is it furniture?" (size contradiction)
+• If "kitchen" = YES → NEVER ask "Is it kept outdoors?" (location contradiction)
+• If "metal" = YES → NEVER ask "Is it made of wood?" (material contradiction)
+
+🚫 OBJECTS SEMANTIC SIMILARITY PREVENTION:
+• "Is it electronic?" = "Is it digital?" = "Does it use electricity?" → SAME CONCEPT
+• "Can you hold it?" = "Is it handheld?" = "Is it portable?" → SAME CONCEPT
+• "Is it large?" = "Is it big?" = "Is it huge?" → SAME CONCEPT
+• Choose ONE form and stick with it
+
+🎯 OBJECTS DOMAIN COHERENCE:
+• Stay within physical objects domain
+• All questions must relate to inanimate item properties
+• Focus on: technology, material, size, function, location, interface
+• Narrow down systematically: Technology → Size → Location → Function → Specific traits`;
   }
 
   protected getCategorySpecificDeductions(): string {
@@ -670,7 +739,31 @@ CATEGORY: WORLD LEADERS - ONLY ASK QUESTIONS APPROPRIATE FOR PEOPLE!
 - Career/Role: "Are they a president?" "Are they a prime minister?" "Are they retired?"
 - Time periods: "Did they serve before 1990?" "Are they from the 20th century?"
 - Achievements: "Did they win awards?" "Have they won championships?" "Are they famous?"
-- Characteristics: "Are they controversial?" "Are they considered great?"`;
+- Characteristics: "Are they controversial?" "Are they considered great?"
+
+🎯 WORLD LEADERS-SPECIFIC INFORMATION GAIN STRATEGY:
+• "Are they alive?" vs "Are they historical?" → Eliminates ~70% of leaders
+• "Are they from Europe?" vs "Are they from other continents?" → Geographic split ~40/60
+• "Were they a president?" vs "Were they other roles?" → Position-based elimination
+• "Did they serve before 1990?" → Temporal division roughly 50/50
+
+🚫 WORLD LEADERS LOGICAL CONSISTENCY RULES:
+• If "alive" = YES → NEVER ask "Are they dead?" (life status contradiction)
+• If "male" = YES → NEVER ask "Are they female?" (gender contradiction)
+• If "Europe" = YES → NEVER ask "Are they from Asia?" (geographic contradiction)
+• If "president" = YES → NEVER ask "Were they a monarch?" (role contradiction)
+
+🚫 WORLD LEADERS SEMANTIC SIMILARITY PREVENTION:
+• "Are they alive?" = "Are they living?" = "Are they not dead?" → SAME CONCEPT
+• "Are they male?" = "Are they a man?" = "Are they masculine?" → SAME CONCEPT
+• "Are they from Europe?" = "Are they European?" → SAME CONCEPT
+• Choose ONE form and stick with it
+
+🎯 WORLD LEADERS DOMAIN COHERENCE:
+• Stay within human political leaders domain
+• All questions must relate to people and their leadership roles
+• Focus on: demographics, geography, career, time periods, achievements
+• Narrow down systematically: Era → Geography → Role → Specific achievements → Individual`;
   }
 
   protected getCategorySpecificDeductions(): string {
