@@ -36,11 +36,14 @@ export class DecisionTree {
     
     // Filter out already-asked questions and logically redundant questions
     const askedQuestions = conversationHistory.map(h => h.question.toLowerCase())
+    const uncertainQuestions = Array.from(facts.uncertainQuestions || new Set<string>()) as string[]
+    const allPreviousQuestions: string[] = [...askedQuestions, ...uncertainQuestions]
+    
     const unaskedNodes = candidateNodes.filter(node => {
       const nodeQ = node.question.toLowerCase()
       
-      // Skip if already asked
-      if (askedQuestions.some(asked => this.questionsAreSimilar(asked, nodeQ))) {
+      // Skip if already asked (including "Don't know" responses)
+      if (allPreviousQuestions.some(asked => this.questionsAreSimilar(asked, nodeQ))) {
         return false
       }
       
@@ -54,7 +57,7 @@ export class DecisionTree {
     
     if (unaskedNodes.length === 0) {
       // Fallback to generic exploration
-      return this.generateFallbackQuestion(category, possibilitySpace, askedQuestions)
+      return this.generateFallbackQuestion(category, possibilitySpace, allPreviousQuestions)
     }
     
     // Select the node with highest information gain
@@ -684,7 +687,7 @@ export class DecisionTree {
   private static generateFallbackQuestion(
     category: string, 
     space: PossibilitySpace, 
-    askedQuestions: string[]
+    allPreviousQuestions: string[]
   ): string {
     
     // Generate dynamic fallback questions to avoid hardcoded patterns
@@ -709,7 +712,7 @@ export class DecisionTree {
     
     // Filter out semantically similar questions that have already been asked
     const unasked = dynamicFallbacks.filter(q => 
-      !askedQuestions.some(asked => this.questionsAreSimilar(asked, q.toLowerCase()))
+      !allPreviousQuestions.some(asked => this.questionsAreSimilar(asked, q.toLowerCase()))
     )
     
     if (unasked.length > 0) {
@@ -739,6 +742,7 @@ export class DecisionTree {
     const facts: Record<string, any> = {
       confirmedYes: new Set<string>(),
       confirmedNo: new Set<string>(),
+      uncertainQuestions: new Set<string>(),
       deducedFacts: new Set<string>()
     }
     
@@ -747,6 +751,7 @@ export class DecisionTree {
       const a = answer.toLowerCase().trim()
       const isYes = a.startsWith('y') || a === 'yes' || a.includes('yeah') || a.includes('yep')
       const isNo = a.startsWith('n') || a === 'no' || a.includes('nope')
+      const isDontKnow = a === "don't know" || a === "dont know" || a === "i don't know" || a === "i dont know" || a === "not sure" || a === "uncertain"
       
       if (isYes) {
         facts.confirmedYes.add(q)
@@ -756,6 +761,9 @@ export class DecisionTree {
         facts.confirmedNo.add(q)
         // Add logical deductions
         this.addLogicalDeductions(q, false, facts)
+      } else if (isDontKnow) {
+        facts.uncertainQuestions.add(q)
+        // No logical deductions for uncertain answers
       }
       
       // Extract specific categories of information
