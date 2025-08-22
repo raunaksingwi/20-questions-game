@@ -83,7 +83,7 @@ function runUnitTests() {
     { q1: 'Are they from Europe?', q2: 'Are they alive?', expected: false, reason: 'Different concepts' },
     { q1: 'Is it big?', q2: 'Is it expensive?', expected: false, reason: 'Size vs cost' },
     { q1: 'Are they male?', q2: 'Are they tall?', expected: false, reason: 'Gender vs height' },
-    { q1: 'Were they president?', q2: 'Were they controversial?', expected: false, reason: 'Role vs opinion' },
+    { q1: 'Were they president?', q2: 'Did they face impeachment?', expected: false, reason: 'Role vs historical event' },
     { q1: 'Is it electronic?', q2: 'Is it fragile?', expected: false, reason: 'Electronic vs durability' }
   ]
   

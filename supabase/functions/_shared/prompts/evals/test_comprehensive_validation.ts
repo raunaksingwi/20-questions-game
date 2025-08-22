@@ -71,7 +71,7 @@ async function testComprehensiveValidation() {
         // Should PASS
         { question: 'Are they still alive?', shouldPass: true, reason: 'Valid life status question' },
         { question: 'Did they serve in the 20th century?', shouldPass: true, reason: 'Valid time period question' },
-        { question: 'Were they controversial?', shouldPass: true, reason: 'Valid opinion/reputation question' },
+        { question: 'Did they face impeachment?', shouldPass: true, reason: 'Valid factual historical question' },
         
         // Should FAIL - Semantic duplicates
         { question: 'Are they European?', shouldPass: false, reason: 'Semantic duplicate of "Are they from Europe?"' },

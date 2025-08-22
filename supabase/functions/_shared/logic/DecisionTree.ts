@@ -81,6 +81,9 @@ export class DecisionTree {
       case 'objects':
         nodes.push(...this.generateObjectQuestions(facts, remaining))
         break
+      case 'world leaders':
+        nodes.push(...this.generateWorldLeaderQuestions(facts, remaining))
+        break
       case 'cricketers':
         nodes.push(...this.generateCricketerQuestions(facts, remaining))
         break
@@ -330,6 +333,99 @@ export class DecisionTree {
     return nodes
   }
   
+  private static generateWorldLeaderQuestions(facts: Record<string, any>, remaining: number): DecisionNode[] {
+    const nodes: DecisionNode[] = []
+    
+    // Life status questions
+    if (!facts.life_status) {
+      nodes.push({
+        question: "Are they still alive?",
+        eliminates_on_yes: ['deceased_leaders'],
+        eliminates_on_no: ['living_leaders'],
+        information_gain: this.calculateGain(remaining, 0.3),
+        priority: 10
+      })
+    }
+    
+    // Geographic questions
+    if (!facts.geography) {
+      nodes.push({
+        question: "Are they from Europe?",
+        eliminates_on_yes: ['non_european_leaders'],
+        eliminates_on_no: ['european_leaders'],
+        information_gain: this.calculateGain(remaining, 0.25),
+        priority: 9
+      })
+      
+      nodes.push({
+        question: "Are they from Asia?",
+        eliminates_on_yes: ['non_asian_leaders'],
+        eliminates_on_no: ['asian_leaders'],
+        information_gain: this.calculateGain(remaining, 0.3),
+        priority: 8
+      })
+      
+      nodes.push({
+        question: "Are they from Africa?",
+        eliminates_on_yes: ['non_african_leaders'],
+        eliminates_on_no: ['african_leaders'],
+        information_gain: this.calculateGain(remaining, 0.15),
+        priority: 7
+      })
+    }
+    
+    // Role-based questions
+    if (!facts.leadership_role) {
+      nodes.push({
+        question: "Were they a president?",
+        eliminates_on_yes: ['non_presidents'],
+        eliminates_on_no: ['presidents'],
+        information_gain: this.calculateGain(remaining, 0.4),
+        priority: 8
+      })
+      
+      nodes.push({
+        question: "Were they a prime minister?",
+        eliminates_on_yes: ['non_prime_ministers'],
+        eliminates_on_no: ['prime_ministers'],
+        information_gain: this.calculateGain(remaining, 0.3),
+        priority: 7
+      })
+    }
+    
+    // Era-based questions
+    if (!facts.time_period) {
+      nodes.push({
+        question: "Did they serve in the 20th century?",
+        eliminates_on_yes: ['pre_1900_leaders', 'post_2000_leaders'],
+        eliminates_on_no: ['20th_century_leaders'],
+        information_gain: this.calculateGain(remaining, 0.7),
+        priority: 6
+      })
+      
+      nodes.push({
+        question: "Did they serve in the 1960s?",
+        eliminates_on_yes: ['non_1960s_leaders'],
+        eliminates_on_no: ['1960s_leaders'],
+        information_gain: this.calculateGain(remaining, 0.1),
+        priority: 5
+      })
+    }
+    
+    // Political system questions
+    if (!facts.political_system) {
+      nodes.push({
+        question: "Did they lead a democratic country?",
+        eliminates_on_yes: ['authoritarian_leaders'],
+        eliminates_on_no: ['democratic_leaders'],
+        information_gain: this.calculateGain(remaining, 0.6),
+        priority: 4
+      })
+    }
+    
+    return nodes
+  }
+  
   private static generateGenericQuestions(facts: Record<string, any>, remaining: number): DecisionNode[] {
     return [
       {
@@ -361,18 +457,67 @@ export class DecisionTree {
     
     return Math.abs(currentEntropy + expectedEntropy) // Higher is better
   }
+
+  /**
+   * Returns category-appropriate fallback questions when no items remain
+   */
+  private static getCategorySpecificFallbackQuestions(category: string): string[] {
+    switch (category.toLowerCase()) {
+      case 'world leaders':
+        return [
+          "Are they from India?",
+          "Are they from China?", 
+          "Did they serve in the 1960s?",
+          "Were they a prime minister?",
+          "Did they lead during a war?",
+          "Did they serve under a constitution?"
+        ]
+      case 'animals':
+        return [
+          "Is it a carnivore?",
+          "Does it live in Africa?",
+          "Is it larger than a cat?",
+          "Does it have four legs?",
+          "Is it a domesticated animal?",
+          "Can it swim?"
+        ]
+      case 'objects':
+        return [
+          "Is it made of plastic?",
+          "Is it used for communication?",
+          "Is it smaller than a book?",
+          "Is it found in kitchens?",
+          "Does it need electricity?",
+          "Can you hold it in one hand?"
+        ]
+      case 'cricket players':
+      case 'football players':
+      case 'nba players':
+        return [
+          "Are they currently active?",
+          "Are they from India?",
+          "Have they won a World Cup?",
+          "Have they been team captain?",
+          "Did they play before 2010?",
+          "Have they played over 100 matches?"
+        ]
+      default:
+        return [
+          "Was it invented before 1950?",
+          "Was it invented after 2000?",
+          "Does it use electricity?",
+          "Is it found in nature?",
+          "Does it cost over $100?",
+          "Is it sold in stores?"
+        ]
+    }
+  }
   
   private static makeEducatedGuess(space: PossibilitySpace): string {
     // If no items remain due to over-elimination, ask concrete backup questions
     if (space.remaining.length === 0) {
-      const fallbackQuestions = [
-        "Is it made of plastic?",
-        "Is it black in color?",
-        "Is it used for communication?",
-        "Is it smaller than a book?",
-        "Is it used in offices?",
-        "Does it connect to other devices?"
-      ]
+      // Use category-specific fallback questions instead of generic object questions
+      const fallbackQuestions = this.getCategorySpecificFallbackQuestions(space.category)
       return fallbackQuestions[Math.floor(Math.random() * fallbackQuestions.length)]
     }
     

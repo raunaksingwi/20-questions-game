@@ -32,7 +32,7 @@ ${this.getOutputFormat()}
 
 ${conversationHistory}
 
-${shouldGuess ? 'Based on the information gathered, make a specific guess about the exact item.' : 'Work through the structured reasoning steps above, then output only the next strategic yes/no question.'}`;
+${shouldGuess ? '🎯 MANDATORY: You are now in GUESSING MODE. You MUST guess a specific name. Format: "Is it [SPECIFIC NAME]?" (e.g., "Is it Nelson Mandela?" or "Is it Indira Gandhi?"). Do NOT ask general property questions anymore!' : 'Work through the structured reasoning steps above, then output only the next strategic yes/no question.'}`;
   }
 
   private shouldMakeSpecificGuess(questionsAsked: number, conversationHistory: string): boolean {
@@ -64,11 +64,11 @@ ${shouldGuess ? 'Based on the information gathered, make a specific guess about 
       case 'football players':
       case 'nba players':
         // People categories - start guessing much earlier since there are fewer possibilities
-        if (questionsAsked >= 6) return true
+        if (questionsAsked >= 5) return true
         // Or very early if we have good constraints
-        if (questionsAsked >= 4 && constraintsCount >= 3) return true
-        // Or immediately if highly specific
-        if (questionsAsked >= 3 && (history.includes('alive: no') || history.includes('retired') || history.includes('president') || history.includes('quarterback') || history.includes('captain'))) return true
+        if (questionsAsked >= 3 && constraintsCount >= 2) return true
+        // Or immediately if highly specific (e.g., narrow time period + geography)
+        if (questionsAsked >= 2 && (history.includes('alive: no') || history.includes('asia') || history.includes('1960s'))) return true
         break
     }
     
@@ -101,24 +101,29 @@ ${shouldGuess ? 'Based on the information gathered, make a specific guess about 
   }
 
   private getGuessingGuidance(questionsAsked: number): string {
-    return `🎯 SPECIFIC GUESSING MODE (Question ${questionsAsked + 1}/20):
+    return `🎯 MANDATORY SPECIFIC GUESSING MODE (Question ${questionsAsked + 1}/20):
 
-You have enough information to start making educated guesses! Time to be decisive and identify the specific item.
+⚠️ CRITICAL: You MUST now make specific item guesses. No more general property questions!
 
-DECISIVE GUESSING STRATEGY:
-• Review ALL confirmed YES/NO answers from the conversation
-• Identify the 2-3 most likely specific items that match ALL confirmed facts
-• Choose the MOST PROBABLE item from your analysis
-• Make your guess confidently - users prefer decisive attempts over endless questions
-• If your first guess is wrong, adjust and try the next most likely item
+MANDATORY GUESSING REQUIREMENTS:
+• You have gathered enough information to identify the specific item
+• You MUST ask questions in format: "Is it [SPECIFIC ITEM NAME]?"
+• NO MORE general questions like "Did they...?" or "Were they...?"
+• ONLY specific identification attempts are allowed now
 
-🎯 CONFIDENCE GUIDANCE:
-• ${questionsAsked >= 10 ? 'You have substantial information - be confident in your guessing!' : 'You have enough constraints to make educated guesses!'}
-• It's better to guess and be wrong than to frustrate users with too many questions
-• Leave room for 2-3 guess attempts before reaching question 20
+GUESSING STRATEGY (MANDATORY):
+1. Review ALL confirmed facts from the conversation
+2. List the top 3 most likely specific items that match ALL facts
+3. Start with the MOST PROBABLE item
+4. Frame as: "Is it [NAME]?" (e.g., "Is it Nelson Mandela?")
 
-CRITICAL: Frame your guess as: "Is it [SPECIFIC ITEM NAME]?"
-NO MORE general property questions - only specific item identification guesses!`;
+🎯 CONFIDENCE REQUIREMENTS:
+• ${questionsAsked >= 10 ? 'With 10+ questions, you have substantial information - make confident guesses!' : 'You have enough constraints - start guessing specific names!'}
+• Better to guess wrong and adjust than ask more general questions
+• You have ${20 - questionsAsked - 1} attempts left for specific guesses
+
+⚠️ MANDATORY FORMAT: "Is it [SPECIFIC NAME OF PERSON/ANIMAL/OBJECT]?"
+🚫 FORBIDDEN: Any general property questions - only specific identification allowed!`;
   }
 
   private getCoreRules(): string {
@@ -311,14 +316,14 @@ CRITICAL CONTRADICTION CHECKS - MANDATORY BEFORE ASKING:
 🚨 CRITICAL CATEGORY ENFORCEMENT - THESE QUESTIONS ARE FORBIDDEN:
 ${this.getCategoryName().toLowerCase() === 'animals' ? `
 ANIMALS ONLY - NO questions about:
-• Human attributes: "Are they famous?", "Do they have a job?", "Are they married?"
+• Human attributes: "Do they have awards?", "Do they have a job?", "Are they married?"
 • Object properties: "Are they electronic?", "Are they made of plastic?", "Do they need batteries?"
 • Impossible for animals: "Are they alive?" (redundant - all animals are alive)
 ANIMALS ONLY - ASK about: species, habitat, diet, size, behavior, domestication, classification
 ` : ''}${this.getCategoryName().toLowerCase() === 'objects' ? `
 OBJECTS ONLY - NO questions about:
 • Biological attributes: "Are they alive?", "Do they breathe?", "Do they have babies?"
-• Human attributes: "Are they male?", "Do they have a job?", "Are they famous?"
+• Human attributes: "Are they male?", "Do they have a job?", "Do they have awards?"
 • Animal behaviors: "Do they hunt?", "Are they wild?", "Do they migrate?"
 OBJECTS ONLY - ASK about: material, size, function, technology, purpose, location, cost
 ` : ''}${this.getCategoryName().toLowerCase().includes('leaders') || this.getCategoryName().toLowerCase().includes('players') ? `
@@ -386,7 +391,7 @@ CRITICAL: Work through ALL these steps systematically before asking your questio
 ❌ NEVER ask about HUMAN attributes: "Are they alive?" (redundant), "Are they human?" (wrong category), "Do they have a job?" (animals don't work)
 ❌ NEVER ask about OBJECT properties: "Are they electronic?", "Are they made of metal?", "Do they need batteries?" (animals are biological)
 ❌ NEVER ask about HUMAN activities: "Do they drive?", "Do they read?", "Do they cook?" (animals don't do human activities)
-❌ NEVER ask about HUMAN relationships: "Are they married?", "Are they famous?", "Are they politicians?" (animals don't have human social structures)
+❌ NEVER ask about HUMAN relationships: "Are they married?", "Do they have awards?", "Are they politicians?" (animals don't have human social structures)
 
 ✅ ANIMALS ONLY - ASK ABOUT: species, habitat, diet, size, behavior, domestication, physical features, classification`
   }
@@ -479,7 +484,7 @@ CRITICAL: Work through ALL these steps systematically before asking your questio
 
 ✅ DIFFERENT CONCEPTS - These are UNIQUE questions:
 ✅ "Are they from Europe?" vs "Are they alive?" (geography vs life status)
-✅ "Were they president?" vs "Were they controversial?" (role vs opinion)
+✅ "Were they president?" vs "Did they serve in wartime?" (role vs historical context)
 ✅ "Are they male?" vs "Are they over 50?" (gender vs age)`
   }
 
@@ -488,11 +493,11 @@ CRITICAL: Work through ALL these steps systematically before asking your questio
 ❌ "Is it large?" = "Is it big?" = "Is it huge?" = "Is it massive?"
 ❌ "Is it important?" = "Is it significant?" = "Is it notable?" = "Is it special?"
 ❌ "Is it old?" = "Is it ancient?" = "Is it from long ago?" = "Is it historical?"
-❌ "Is it popular?" = "Is it well-known?" = "Is it famous?" = "Is it common?"
+❌ "Was it invented recently?" = "Is it new?" = "Is it modern?" = "Is it from this century?"
 
 ✅ DIFFERENT CONCEPTS - These are UNIQUE questions:
 ✅ "Is it large?" vs "Is it important?" (physical size vs significance)
-✅ "Is it old?" vs "Is it popular?" (age vs reputation)
+✅ "Is it old?" vs "Does it cost money?" (age vs economics)
 ✅ "Is it from Europe?" vs "Is it expensive?" (geography vs cost)`
   }
 }
@@ -970,8 +975,8 @@ CATEGORY: WORLD LEADERS - ONLY ASK QUESTIONS APPROPRIATE FOR PEOPLE!
 - Geography: "Are they from Europe?" "Are they from Asia?" "Are they from Africa?"
 - Career/Role: "Are they a president?" "Are they a prime minister?" "Are they retired?"
 - Time periods: "Did they serve before 1990?" "Are they from the 20th century?"
-- Achievements: "Did they win awards?" "Have they won championships?" "Are they famous?"
-- Characteristics: "Are they controversial?" "Are they considered great?"
+- Achievements: "Did they win a Nobel Prize?" "Have they won championships?" "Did they receive state honors?"
+- Historical context: "Did they face impeachment?" "Did they serve during a recession?"
 
 🎯 WORLD LEADERS-SPECIFIC INFORMATION GAIN STRATEGY:
 • "Are they alive?" vs "Are they historical?" → Eliminates ~70% of leaders

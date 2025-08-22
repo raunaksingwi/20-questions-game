@@ -17,10 +17,10 @@ async function testCrossContaminationComprehensive() {
       title: 'ANIMALS Category - Testing Biological/Human/Object Questions',
       shouldBlockQuestions: [
         // Human attributes (people contamination)
-        'Are they alive?', 'Are they human?', 'Are they famous?', 'Do they have a job?', 
+        'Are they alive?', 'Are they human?', 'Do they have awards?', 'Do they have a job?', 
         'Are they married?', 'Do they have children?', 'Are they politicians?',
         'Were they born in 1950?', 'Are they retired?', 'Do they speak English?',
-        'Are they wealthy?', 'Do they have a college degree?', 'Are they celebrities?',
+        'Did they receive honors?', 'Do they have a college degree?', 'Do they hold office?',
         
         // Object properties (object contamination)
         'Are they electronic?', 'Are they made of metal?', 'Are they expensive?',
@@ -52,7 +52,7 @@ async function testCrossContaminationComprehensive() {
         
         // Human attributes (people contamination)
         'Are they male?', 'Are they female?', 'Do they have names?',
-        'Are they married?', 'Do they have jobs?', 'Are they famous?',
+        'Are they married?', 'Do they have jobs?', 'Do they have awards?',
         'Do they speak languages?', 'Are they educated?', 'Do they vote?',
         
         // Animal behaviors (animal contamination)
@@ -91,7 +91,7 @@ async function testCrossContaminationComprehensive() {
       shouldAllowQuestions: [
         // Valid people questions
         'Are they male?', 'Are they from Europe?', 'Were they president?',
-        'Are they still alive?', 'Did they serve in wartime?', 'Are they controversial?',
+        'Are they still alive?', 'Did they serve in wartime?', 'Did they face impeachment?',
         'Were they democratically elected?', 'Are they over 70?', 'Did they write books?'
       ]
     },

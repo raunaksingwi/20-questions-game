@@ -441,13 +441,13 @@ export class FactualAnswerEvaluator extends BaseEvaluator {
         { pattern: 'athlete|sports?.*player|cricket|football|basketball|tennis', answer: 'No' },
         { pattern: 'dead|alive', answer: 'No' }, // deceased
         { pattern: 'male', answer: 'Yes' },
-        { pattern: 'famous', answer: 'Yes' },
+        { pattern: 'awards|nobel.?prize', answer: 'Yes' },
         { pattern: 'relativity', answer: 'Yes' },
         { pattern: 'person|human', answer: 'Yes' },
         { pattern: 'leader|president|prime.?minister', answer: 'No' },
         { pattern: 'world.?leader', answer: 'No' },
         { pattern: 'animal', answer: 'No' },
-        { pattern: 'controversial', answer: 'Sometimes' },
+        { pattern: 'impeachment|proceedings', answer: 'No' },
         { pattern: 'smartest|intelligent', answer: 'Sometimes' },
         { pattern: 'well.?known|known', answer: 'Yes' }
       ],
@@ -492,7 +492,7 @@ export class FactualAnswerEvaluator extends BaseEvaluator {
         { pattern: 'athlete|sports.*player', answer: 'Yes' },
         { pattern: 'best.*player', answer: 'Sometimes' },
         { pattern: 'fast', answer: 'Sometimes' },
-        { pattern: 'popular', answer: 'Sometimes' }
+        { pattern: 'awards|recognition', answer: 'Sometimes' }
       ],
       'dog': [
         { pattern: 'mammal', answer: 'Yes' },
@@ -517,7 +517,7 @@ export class FactualAnswerEvaluator extends BaseEvaluator {
         { pattern: 'furniture', answer: 'No' },
         { pattern: 'expensive', answer: 'Sometimes' },
         { pattern: 'large', answer: 'Sometimes' },
-        { pattern: 'popular', answer: 'Sometimes' }
+        { pattern: 'awards|recognition', answer: 'Sometimes' }
       ],
       'barack obama': [
         { pattern: 'person|human', answer: 'Yes' },
@@ -527,7 +527,7 @@ export class FactualAnswerEvaluator extends BaseEvaluator {
         { pattern: 'sports.*player|athlete', answer: 'No' },
         { pattern: 'male', answer: 'Yes' },
         { pattern: 'politician', answer: 'Yes' },
-        { pattern: 'popular', answer: 'Sometimes' },
+        { pattern: 'awards|recognition', answer: 'Sometimes' },
         { pattern: 'tall', answer: 'Sometimes' },
         { pattern: 'best.*president', answer: 'Sometimes' }
       ],

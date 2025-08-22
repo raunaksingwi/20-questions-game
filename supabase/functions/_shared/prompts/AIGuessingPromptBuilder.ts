@@ -551,21 +551,27 @@ export class AIGuessingPromptBuilder {
     currentQuestionNumber: number,
     suggestedQuestion?: string
   ): string {
+    // CRITICAL: Category constraints must come FIRST to prevent contamination
+    const categoryConstraints = this.buildCategoryConstraints(category)
     const categorizedSummary = this.buildCategorizedSummary(facts)
     const logicalDeductions = this.buildLogicalDeductions(category, facts)
     const repetitionPrevention = this.buildRepetitionPrevention(allAskedQuestions)
     const redundancyCheck = this.buildRedundancyCheck(facts)
     const specialResponseHandling = this.buildSpecialResponseHandling(facts, currentQuestionNumber)
     const domainNarrowingAnalysis = this.buildDomainNarrowingAnalysis(facts)
-    const categoryConstraints = this.buildCategoryConstraints(category)
 
-    const suggestionSection = suggestedQuestion 
+    // Validate suggested question against category before including it
+    const suggestionSection = suggestedQuestion && this.isQuestionAppropriateForCategory(suggestedQuestion, category)
       ? `RECOMMENDED QUESTION: "${suggestedQuestion}"\nThis question was suggested by decision tree analysis for optimal information gain.\nUse this question unless it's clearly redundant with what you already know.`
-      : ''
+      : suggestedQuestion
+        ? `⚠️ DECISION TREE SUGGESTED INAPPROPRIATE QUESTION - IGNORED\nGenerate your own category-appropriate question instead.`
+        : ''
 
     return `${baseSystemPrompt}
 
-${categorizedSummary}${logicalDeductions}${repetitionPrevention}${redundancyCheck}${specialResponseHandling}${domainNarrowingAnalysis}${categoryConstraints}
+${categoryConstraints}
+
+${categorizedSummary}${logicalDeductions}${repetitionPrevention}${redundancyCheck}${specialResponseHandling}${domainNarrowingAnalysis}
 
 ${suggestionSection}
 
@@ -624,7 +630,7 @@ Think step by step, then ask your next strategic yes/no question.
 - "Were they a president?" / "Were they a prime minister?" / "Were they a monarch?"
 - "Did they serve before 1990?" / "Were they active in the 21st century?" / "Did they serve in the 20th century?"
 - "Did they win a Nobel Prize?" / "Did they lead during a war?" / "Were they democratically elected?"
-- "Are they considered controversial?" / "Were they a military leader?"
+- "Did they face impeachment proceedings?" / "Were they a military leader before politics?"
 
 CRITICAL: ONLY ask questions that apply to HUMAN POLITICAL LEADERS!`
         break
@@ -803,5 +809,45 @@ CRITICAL: Every question must be appropriate for "${category}" and not duplicate
     }
     
     return constraints
+  }
+
+  /**
+   * Validates if a suggested question is appropriate for the given category
+   */
+  static isQuestionAppropriateForCategory(question: string, category: string): boolean {
+    const lowerQuestion = question.toLowerCase()
+    const lowerCategory = category.toLowerCase()
+    
+    switch (lowerCategory) {
+      case 'world leaders':
+        // Object/material questions are inappropriate for people
+        const objectQuestions = [
+          'made of', 'plastic', 'metal', 'wood', 'material', 'electronic', 'digital',
+          'smaller than', 'bigger than', 'size', 'portable', 'handheld', 'hold it',
+          'used for', 'communication', 'tool', 'furniture', 'device', 'machine',
+          'color', 'black', 'white', 'red', 'blue', 'weigh', 'heavy', 'light',
+          'famous', 'well-known', 'popular', 'controversial', 'important', 'significant'
+        ]
+        return !objectQuestions.some(phrase => lowerQuestion.includes(phrase))
+        
+      case 'animals':
+        // Political/human questions are inappropriate for animals
+        const politicalQuestions = [
+          'president', 'prime minister', 'elected', 'political', 'served',
+          'office', 'government', 'vote', 'democratic', 'leader'
+        ]
+        return !politicalQuestions.some(phrase => lowerQuestion.includes(phrase))
+        
+      case 'objects':
+        // Biological/living questions are inappropriate for objects
+        const biologicalQuestions = [
+          'alive', 'living', 'breathe', 'eat', 'carnivore', 'herbivore',
+          'mammal', 'bird', 'reptile', 'wild', 'domesticated', 'fur', 'feathers'
+        ]
+        return !biologicalQuestions.some(phrase => lowerQuestion.includes(phrase))
+        
+      default:
+        return true // Allow all questions for unknown categories
+    }
   }
 }

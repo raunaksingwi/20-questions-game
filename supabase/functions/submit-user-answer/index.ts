@@ -148,6 +148,12 @@ const handler = async (req: Request) => {
         const q = questionsByNumber[n]
         if (q) allAskedQuestions.push(q)
       })
+    
+    // Also track the question that's about to be generated to prevent immediate repetition
+    const recentQuestions = messages
+      .filter(msg => msg.role === 'assistant' && msg.question_number && msg.question_number > 0)
+      .slice(-3) // Check last 3 questions for immediate repetition
+      .map(msg => msg.content)
 
     const totalQuestionsUsed = questionsCountedForLimit
     
@@ -423,7 +429,8 @@ const handler = async (req: Request) => {
     }
     
     const normalizedNextQuestion = normalizeQuestion(nextQuestion)
-    const isRepeatedQuestion = allAskedQuestions.some(existingQ => {
+    const allQuestionsToCheck = [...allAskedQuestions, ...recentQuestions]
+    const isRepeatedQuestion = allQuestionsToCheck.some(existingQ => {
       const normalizedExisting = normalizeQuestion(existingQ)
       
       // Exact match after normalization
@@ -432,9 +439,9 @@ const handler = async (req: Request) => {
         return true
       }
       
-      // High similarity match (lowered threshold to 60% for better detection)
+      // High similarity match (lowered threshold to 70% for better detection)
       const similarity = calculateSimilarity(normalizedExisting, normalizedNextQuestion)
-      if (similarity > 0.60) {
+      if (similarity > 0.70) {
         console.log(`[submit-user-answer] High similarity repetition detected (${Math.round(similarity * 100)}%): "${existingQ}" vs "${nextQuestion}"`)
         return true
       }

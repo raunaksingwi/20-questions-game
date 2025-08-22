@@ -305,15 +305,15 @@ export class GoldenTestSets {
         category: 'world leaders',
         questionsByNumber: {
           1: 'Are they alive?',
-          2: 'Are they famous?',
-          3: 'Are they controversial?'
+          2: 'Did they win awards?',
+          3: 'Did they face impeachment proceedings?'
         },
         answersByNumber: {
           1: 'Kind of',
           2: 'Not really',
           3: 'It depends on who you ask'
         },
-        allAskedQuestions: ['Are they alive?', 'Are they famous?', 'Are they controversial?'],
+        allAskedQuestions: ['Are they alive?', 'Did they win awards?', 'Did they face impeachment proceedings?'],
         currentQuestionNumber: 3,
         input: {}
       },
@@ -588,7 +588,7 @@ export class GoldenTestSets {
         category: 'world leaders',
         questionsByNumber: {
           1: 'Are they alive?',
-          2: 'Are they controversial?',
+          2: 'Did they face impeachment proceedings?',
           3: 'Did they serve long?',
           4: 'Are they well-known?',
           5: 'Did they change history?'
@@ -600,7 +600,7 @@ export class GoldenTestSets {
           4: 'Yes',
           5: 'Don\'t know'
         },
-        allAskedQuestions: ['Are they alive?', 'Are they controversial?', 'Did they serve long?', 'Are they well-known?', 'Did they change history?'],
+        allAskedQuestions: ['Are they alive?', 'Did they face impeachment proceedings?', 'Did they serve long?', 'Did they win awards?', 'Did they change history?'],
         currentQuestionNumber: 5,
         input: {}
       }
@@ -928,11 +928,11 @@ export class GoldenTestSets {
       'world leaders': [
         'Are they alive?', 'Are they from Europe?', 'Were they a president?', 'Are they male?',
         'Did they serve before 1990?', 'Were they democratically elected?', 'Did they lead during war?',
-        'Are they controversial?', 'Did they serve multiple terms?', 'Are they well-known?'
+        'Did they face impeachment proceedings?', 'Did they serve multiple terms?', 'Did they win awards?'
       ],
       'cricket players': [
         'Are they currently active?', 'Are they from India?', 'Are they a batsman?',
-        'Have they captained their country?', 'Did they play before 2010?', 'Are they famous?'
+        'Have they captained their country?', 'Did they play before 2010?', 'Did they win awards?'
       ],
       'football players': [
         'Are they currently active?', 'Are they a quarterback?', 'Have they won a Super Bowl?',
@@ -1180,7 +1180,7 @@ export class FactualAccuracyTests {
           }
         ],
         ambiguousQuestions: [
-          'Are they controversial?', // Depends on perspective
+          'Did they face impeachment proceedings?', // Factual historical record
           'Are they the smartest person ever?', // Subjective
           'Are they well-known?' // Subjective measure
         ]
@@ -1335,7 +1335,7 @@ export class FactualAccuracyTests {
         ambiguousQuestions: [
           'Is he the best player?', // Subjective opinion
           'Is he fast?', // Context dependent
-          'Is he popular?' // Subjective measure
+          'Did he win awards?' // Measurable achievement
         ]
       },
 
@@ -1427,7 +1427,7 @@ export class FactualAccuracyTests {
         ambiguousQuestions: [
           'Is it expensive?', // Varies by model and brand
           'Is it large?', // Relative to other phones
-          'Is it popular?' // Changes over time
+          'Was it sold commercially?' // Factual market presence
         ]
       },
 
@@ -1471,7 +1471,7 @@ export class FactualAccuracyTests {
           }
         ],
         ambiguousQuestions: [
-          'Is he popular?', // Subjective and varies
+          'Did he win awards?', // Measurable achievement
           'Is he tall?', // Relative measure
           'Is he the best president?' // Subjective opinion
         ]
@@ -1837,7 +1837,7 @@ export class FactualAccuracyTests {
         ],
         ambiguousQuestions: [
           'Is it expensive?', // Varies by model
-          'Is it popular?', // Growing popularity
+          'Is it sold commercially?', // Factual market presence
           'Is it heavy?' // Depends on specific model
         ]
       },

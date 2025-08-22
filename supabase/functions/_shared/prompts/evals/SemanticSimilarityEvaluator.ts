@@ -234,9 +234,9 @@ export class SemanticSimilarityEvaluator extends BaseEvaluator {
             reason: 'different concept - life status vs geography'
           },
           {
-            question: 'Were they controversial?',
+            question: 'Did they face impeachment?',
             shouldBeFlagged: false,
-            reason: 'different concept - opinion vs factual attributes'
+            reason: 'different concept - historical event vs role type'
           },
           {
             question: 'Did they win elections?',
@@ -477,7 +477,7 @@ export class SemanticSimilarityEvaluator extends BaseEvaluator {
         alreadyAskedQuestions: [
           'Did they serve as president during wartime?',
           'Were they democratically elected?',
-          'Are they considered controversial by historians?'
+          'Did they face impeachment proceedings?'
         ],
         testQuestions: [
           // Should be flagged as similar
@@ -497,7 +497,7 @@ export class SemanticSimilarityEvaluator extends BaseEvaluator {
             reason: 'concept - elected by people = democratically elected'
           },
           {
-            question: 'Do historians view them as controversial?',
+            question: 'Were impeachment proceedings initiated against them?',
             shouldBeFlagged: true,
             reason: 'grammar - active vs passive construction'
           },

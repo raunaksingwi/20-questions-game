@@ -726,8 +726,8 @@ export class SemanticSimilarityDetector {
       ['serve', 'served', 'serving', 'service'],
       ['wartime', 'war.*time', 'during.*war'],
       ['democratic', 'democracy', 'elected', 'election'],
-      ['popular', 'popularity', 'liked', 'well.*liked'],
-      ['controversial', 'controversy', 'disputed', 'debated'],
+      ['awards', 'award', 'recognition', 'honored'],
+      ['impeachment', 'impeached', 'proceedings', 'charges'],
       ['daily', 'everyday', 'day', 'regularly']
     ]
     
@@ -766,9 +766,9 @@ export class SemanticSimilarityDetector {
         reason: 'Starting wars vs serving during wars are different actions'
       },
       {
-        concept1: /popular.*voter|liked.*voter|voter.*like/,
+        concept1: /awards.*achievement|recognition.*achievement/,
         concept2: /elected|election|democratic/,
-        reason: 'Being popular vs being elected are different concepts'
+        reason: 'Winning awards vs being elected are different concepts'
       }
     ]
 
@@ -837,7 +837,7 @@ export class SemanticSimilarityDetector {
     // Check for exclusions first - concepts that shouldn't be considered similar
     const exclusions = [
       { pattern: /start.*war|begin.*war/, excludes: [/serve.*war/, /during.*war/, /wartime/] },
-      { pattern: /popular.*voter|popularity.*voter/, excludes: [/democratic/, /elected/] },
+      { pattern: /awards.*achievement|recognition.*achievement/, excludes: [/democratic/, /elected/] },
       { pattern: /win.*war|victory.*war/, excludes: [/serve.*war/, /during.*war/] }
     ]
     
@@ -1061,6 +1061,6 @@ export class CategoryQuestioningEvaluator extends QuestioningEvaluator {
   }
 
   private getUncertainHistory(category: string): string {
-    return 'Q1: Are they alive?\nA1: Don\'t know\nQ2: Are they from Europe?\nA2: Maybe\nQ3: Were they famous?\nA3: Don\'t know'
+    return 'Q1: Are they alive?\nA1: Don\'t know\nQ2: Are they from Europe?\nA2: Maybe\nQ3: Did they win awards?\nA3: Don\'t know'
   }
 }
