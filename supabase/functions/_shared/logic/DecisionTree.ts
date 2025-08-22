@@ -625,19 +625,23 @@ export class DecisionTree {
     const confirmedNo = facts.confirmedNo || new Set()
     const deducedFacts = facts.deducedFacts || new Set()
     
-    // Category-specific elimination logic
-    switch (category.toLowerCase()) {
-      case 'animals':
-        return this.isAnimalEliminated(itemLower, facts, confirmedYes, confirmedNo, deducedFacts)
-      case 'food':
-        return this.isFoodEliminated(itemLower, facts, confirmedYes, confirmedNo, deducedFacts)
-      case 'objects':
-        return this.isObjectEliminated(itemLower, facts, confirmedYes, confirmedNo, deducedFacts)
-      case 'cricketers':
-        return this.isCricketerEliminated(itemLower, facts, confirmedYes, confirmedNo, deducedFacts)
-      default:
-        return false
+    // Generic elimination logic - check if any confirmed facts contradict this item
+    // This is a simplified implementation that can be expanded with domain knowledge
+    
+    // For now, we'll consider an item eliminated if it has been explicitly ruled out
+    // More sophisticated elimination logic can be added based on category-specific rules
+    
+    // Check if item has been explicitly eliminated
+    if (confirmedNo.has(`is_${itemLower}`) || confirmedNo.has(itemLower)) {
+      return true
     }
+    
+    // Check deduced facts for elimination
+    if (deducedFacts.has(`not_${itemLower}`) || deducedFacts.has(`eliminated_${itemLower}`)) {
+      return true
+    }
+    
+    return false
   }
   
   private static calculateItemConfidence(item: string, facts: Record<string, any>, category: string): number {

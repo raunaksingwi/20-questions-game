@@ -1,10 +1,20 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import { GameHeader } from '../GameHeader';
+import { GameMode } from '../../types/types';
 
-// Skip this test suite due to React Native TurboModuleRegistry issues in test environment
-// The functionality is covered by integration tests and manual testing
-describe.skip('GameHeader', () => {
+// Mock Alert for testing
+jest.mock('react-native', () => ({
+  ...jest.requireActual('react-native'),
+  Alert: {
+    alert: jest.fn(),
+  },
+}));
+
+const mockedAlert = Alert.alert as jest.MockedFunction<typeof Alert.alert>;
+
+describe('GameHeader', () => {
   const defaultProps = {
     category: 'Animals',
     questionsRemaining: 15,
@@ -55,18 +65,18 @@ describe.skip('GameHeader', () => {
     expect(getByText('Q 20/20')).toBeTruthy();
   });
 
-  // Think Mode Tests
-  describe('Think Mode', () => {
-    const thinkModeProps = {
+  // AI Guessing Mode Tests
+  describe('AI Guessing Mode', () => {
+    const aiGuessingModeProps = {
       ...defaultProps,
-      mode: 'think' as const,
+      mode: GameMode.AI_GUESSING,
       questionsAsked: 5,
       onWinPress: jest.fn(),
       onQuitPress: jest.fn(),
     };
 
     it('renders Think badge and counter format', () => {
-      const { getByText } = render(<GameHeader {...thinkModeProps} />);
+      const { getByText } = render(<GameHeader {...aiGuessingModeProps} />);
       
       expect(getByText('Animals')).toBeTruthy();
       expect(getByText('Think')).toBeTruthy();
@@ -74,7 +84,7 @@ describe.skip('GameHeader', () => {
     });
 
     it('renders WIN and QUIT buttons', () => {
-      const { getByText } = render(<GameHeader {...thinkModeProps} />);
+      const { getByText } = render(<GameHeader {...aiGuessingModeProps} />);
       
       expect(getByText('WIN')).toBeTruthy();
       expect(getByText('Quit')).toBeTruthy();
@@ -82,7 +92,7 @@ describe.skip('GameHeader', () => {
 
     it('calls onWinPress when WIN button is pressed', () => {
       const onWinPressSpy = jest.fn();
-      const testProps = { ...thinkModeProps, onWinPress: onWinPressSpy };
+      const testProps = { ...aiGuessingModeProps, onWinPress: onWinPressSpy };
       const { getByText } = render(<GameHeader {...testProps} />);
       
       fireEvent.press(getByText('WIN'));
@@ -91,7 +101,7 @@ describe.skip('GameHeader', () => {
 
     it('calls onQuitPress when QUIT button is pressed and confirmed', () => {
       const onQuitPressSpy = jest.fn();
-      const testProps = { ...thinkModeProps, onQuitPress: onQuitPressSpy };
+      const testProps = { ...aiGuessingModeProps, onQuitPress: onQuitPressSpy };
       const { getByText } = render(<GameHeader {...testProps} />);
       
       fireEvent.press(getByText('Quit'));
@@ -116,7 +126,7 @@ describe.skip('GameHeader', () => {
     it('disables WIN button when disabled prop is true', () => {
       const onWinPressSpy = jest.fn();
       const { getByText } = render(
-        <GameHeader {...thinkModeProps} disabled={true} onWinPress={onWinPressSpy} />
+        <GameHeader {...aiGuessingModeProps} disabled={true} onWinPress={onWinPressSpy} />
       );
       
       // Check that WIN button exists and test disabled behavior
@@ -134,7 +144,7 @@ describe.skip('GameHeader', () => {
 
     it('updates question counter correctly', () => {
       const { getByText } = render(
-        <GameHeader {...thinkModeProps} questionsAsked={12} />
+        <GameHeader {...aiGuessingModeProps} questionsAsked={12} />
       );
       
       expect(getByText('Q 12/20')).toBeTruthy();
