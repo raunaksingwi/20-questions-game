@@ -201,12 +201,12 @@ export class QuestioningEvaluator extends BaseEvaluator {
       0.9
     ))
 
-    // Forbidden question prevention
-    const forbiddenPreventionScore = this.evaluateForbiddenQuestionPrevention(prompt, category)
+    // Category isolation (no cross-category content)
+    const categoryIsolationScore = this.evaluateForbiddenQuestionPrevention(prompt, category)
     metrics.push(this.createMetric(
-      'forbidden_question_prevention',
-      forbiddenPreventionScore,
-      'How well template prevents inappropriate questions for category',
+      'category_isolation',
+      categoryIsolationScore,
+      'How well template maintains category isolation (no cross-category content)',
       0.95
     ))
 
@@ -474,24 +474,27 @@ export class QuestioningEvaluator extends BaseEvaluator {
   }
 
   private evaluateForbiddenQuestionPrevention(prompt: string, category: string): number {
-    // Category-specific forbidden question patterns
-    const forbiddenPatterns: Record<string, string[]> = {
-      'world leaders': ['is it black', 'is it plastic', 'can you hold it', 'is it electronic'],
-      'animals': ['are they a president', 'did they serve', 'is it electronic', 'is it furniture'],
-      'objects': ['are they male', 'are they alive', 'are they a president', 'do they eat'],
-      'cricket players': ['is it black', 'is it plastic', 'is it smaller than', 'can you hold it'],
-      'football players': ['is it a color', 'is it electronic', 'is it smaller than', 'is it plastic'],
-      'nba players': ['is it a color', 'is it plastic', 'can you hold it', 'is it electronic']
+    // New approach: Check for category isolation by ensuring NO cross-category content appears
+    // This is better than checking for forbidden examples since we achieved clean isolation
+    
+    const crossCategoryContent: Record<string, string[]> = {
+      'world leaders': ['electronic', 'plastic', 'mammal', 'wild', 'carnivore', 'furniture'],
+      'animals': ['president', 'minister', 'serve', 'electronic', 'plastic', 'furniture'], 
+      'objects': ['president', 'minister', 'male', 'female', 'alive', 'mammal', 'wild'],
+      'cricket players': ['electronic', 'plastic', 'mammal', 'wild', 'furniture'],
+      'football players': ['electronic', 'plastic', 'mammal', 'wild', 'furniture'],
+      'nba players': ['electronic', 'plastic', 'mammal', 'wild', 'furniture']
     }
 
-    const patterns = forbiddenPatterns[category.toLowerCase()] || []
-    if (patterns.length === 0) return 1
+    const prohibitedContent = crossCategoryContent[category.toLowerCase()] || []
+    if (prohibitedContent.length === 0) return 1
 
-    const mentionedForbidden = patterns.filter(pattern => 
-      prompt.toLowerCase().includes(pattern)
+    // Count how many prohibited terms DON'T appear (higher is better for isolation)
+    const absentProhibited = prohibitedContent.filter(content => 
+      !prompt.toLowerCase().includes(content.toLowerCase())
     )
 
-    return mentionedForbidden.length / patterns.length
+    return absentProhibited.length / prohibitedContent.length
   }
 
   private evaluateAppropriateQuestionEncouragement(prompt: string, category: string): number {

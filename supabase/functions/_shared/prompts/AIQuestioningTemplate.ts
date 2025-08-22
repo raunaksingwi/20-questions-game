@@ -4,6 +4,7 @@ export abstract class AIQuestioningTemplate {
   protected abstract getQuestionProgression(): string
   protected abstract getExampleProgression(): string
   protected abstract getCategorySpecificDeductions(): string
+  protected abstract getCategorySpecificRules(): string
 
   generate(questionsAsked: number, conversationHistory: string, alreadyAskedQuestions: string[]): string {
     const shouldGuess = this.shouldMakeSpecificGuess(questionsAsked, conversationHistory)
@@ -89,95 +90,7 @@ IMPORTANT: Frame your guess as a yes/no question: "Is it [specific item name]?"`
 4. Never repeat questions or ask about confirmed facts
 5. Avoid vague, subjective, or compound questions
 
-🚫 CRITICAL CATEGORY VIOLATION PREVENTION - ABSOLUTE PROHIBITION:
-
-CATEGORY: ${this.getCategoryName().toUpperCase()} - ONLY ASK QUESTIONS APPROPRIATE FOR THIS CATEGORY!
-
-❌ NEVER ASK OBJECT QUESTIONS ABOUT PEOPLE/ANIMALS:
-- "Is it black?" → Only for objects, NEVER for people/animals
-- "Is it made of metal/plastic/wood?" → Only for objects, NEVER for people/animals
-- "Can you hold it?" → Only for objects, NEVER for people/animals
-- "Is it electronic?" → Only for objects, NEVER for people/animals
-- "Does it need electricity?" → Only for objects, NEVER for people/animals
-- "Is it portable?" → Only for objects, NEVER for people/animals
-- "Does it have buttons/a screen?" → Only for objects, NEVER for people/animals
-
-❌ NEVER ASK PEOPLE QUESTIONS ABOUT OBJECTS/ANIMALS:
-- "Are they male/female?" → Only for people, NEVER for objects/animals
-- "Are they from Europe/Asia/Africa?" → Only for people, NEVER for objects/animals
-- "Are they alive/dead?" → Only for people, NEVER for objects/animals
-- "Did they serve before 1990?" → Only for people, NEVER for objects/animals
-- "Are they a president/leader?" → Only for people, NEVER for objects/animals
-- "Did they win awards?" → Only for people, NEVER for objects/animals
-
-❌ NEVER ASK ANIMAL QUESTIONS ABOUT PEOPLE/OBJECTS:
-- "Does it eat meat?" → Only for animals, NEVER for people/objects
-- "Is it a mammal/bird/reptile?" → Only for animals, NEVER for people/objects
-- "Is it wild/domestic?" → Only for animals, NEVER for people/objects
-- "Does it have fur/feathers?" → Only for animals, NEVER for people/objects
-- "Can it fly/swim?" → Only for animals, NEVER for people/objects
-- "Does it hibernate?" → Only for animals, NEVER for people/objects
-
-🚫 ENFORCED CATEGORY BOUNDARIES FOR ${this.getCategoryName().toUpperCase()}:
-
-${this.getCategoryName().toLowerCase() === 'animals' ? `
-✅ APPROPRIATE QUESTIONS FOR ANIMALS CATEGORY - ONLY ASK THESE TYPES:
-- Biological classification: "Is it a mammal?" "Is it a bird?" "Is it a reptile?"
-- Habitat: "Is it wild?" "Does it live in water?" "Does it live in Africa?"
-- Physical features: "Does it have four legs?" "Can it fly?" "Does it have fur?"
-- Diet: "Does it eat meat?" "Is it herbivorous?" "Is it carnivorous?"
-- Behavior: "Is it nocturnal?" "Does it hunt in packs?" "Does it hibernate?"
-- Size: "Is it larger than a dog?" "Is it smaller than a cat?"
-
-❌ FORBIDDEN QUESTIONS FOR ANIMALS CATEGORY - NEVER ASK THESE:
-- Object questions: "Is it electronic?" "Is it made of metal?" "Can you hold it?"
-- People questions: "Are they male?" "Are they from Europe?" "Did they serve in office?"
-- Technology: "Does it need batteries?" "Does it have a screen?" "Is it portable?"
-- Human attributes: "Are they alive?" "Did they win awards?" "Are they famous?"` : ''}
-
-${this.getCategoryName().toLowerCase() === 'objects' ? `
-✅ APPROPRIATE QUESTIONS FOR OBJECTS CATEGORY - ONLY ASK THESE TYPES:
-- Technology: "Is it electronic?" "Does it need electricity?" "Does it have a screen?"
-- Material: "Is it made of metal?" "Is it made of plastic?" "Is it made of wood?"
-- Size/portability: "Can you hold it?" "Is it portable?" "Is it larger than a book?"
-- Function: "Is it a tool?" "Do people use it daily?" "Is it furniture?"
-- Location: "Is it found in a kitchen?" "Is it kept outdoors?" "Is it found in homes?"
-- Interface: "Does it have buttons?" "Does it have a handle?" "Does it have wheels?"
-
-❌ FORBIDDEN QUESTIONS FOR OBJECTS CATEGORY - NEVER ASK THESE:
-- Animal questions: "Does it eat meat?" "Is it a mammal?" "Does it have fur?"
-- People questions: "Are they male?" "Are they from Europe?" "Are they alive?"
-- Biological: "Does it breathe?" "Is it wild?" "Can it fly?" (unless about flying objects)
-- Human attributes: "Did they serve in office?" "Are they famous?" "Did they win awards?"` : ''}
-
-${this.getCategoryName().toLowerCase().includes('world leaders') || this.getCategoryName().toLowerCase().includes('players') ? `
-✅ APPROPRIATE QUESTIONS FOR PEOPLE CATEGORY - ONLY ASK THESE TYPES:
-- Demographics: "Are they male?" "Are they female?" "Are they still alive?"
-- Geography: "Are they from Europe?" "Are they from Asia?" "Are they from Africa?"
-- Career/Role: "Are they a president?" "Are they a prime minister?" "Are they retired?"
-- Time periods: "Did they serve before 1990?" "Are they from the 20th century?"
-- Achievements: "Did they win awards?" "Have they won championships?" "Are they famous?"
-- Characteristics: "Are they controversial?" "Are they considered great?"
-
-❌ FORBIDDEN QUESTIONS FOR PEOPLE CATEGORY - NEVER ASK THESE:
-- Object questions: "Is it electronic?" "Is it made of metal?" "Can you hold it?"
-- Animal questions: "Does it eat meat?" "Is it a mammal?" "Does it have fur?"
-- Technology: "Does it need batteries?" "Does it have a screen?" "Is it portable?"
-- Physical object properties: "Is it black?" "Is it round?" "Is it sharp?"` : ''}
-
-🚨 DOMAIN VIOLATION EXAMPLES - CRITICAL MISTAKES TO AVOID:
-${this.getCategoryName().toLowerCase() === 'animals' ? `
-• NEVER ask "Is it electronic?" about animals (objects domain violation)
-• NEVER ask "Are they a president?" about animals (people domain violation)
-• NEVER ask "Can you hold it?" about animals (objects domain violation)` : ''}
-${this.getCategoryName().toLowerCase() === 'objects' ? `
-• NEVER ask "Is it a mammal?" about objects (animals domain violation)  
-• NEVER ask "Are they male?" about objects (people domain violation)
-• NEVER ask "Does it eat meat?" about objects (animals domain violation)` : ''}
-${this.getCategoryName().toLowerCase().includes('leaders') || this.getCategoryName().toLowerCase().includes('players') ? `
-• NEVER ask "Is it made of metal?" about people (objects domain violation)
-• NEVER ask "Does it have fur?" about people (animals domain violation)
-• NEVER ask "Can you hold it?" about people (objects domain violation)` : ''}
+${this.getCategorySpecificRules()}
 
 🚫 AUTOMATIC QUESTION REJECTION CRITERIA - IMMEDIATE DISQUALIFICATION:
 
@@ -187,30 +100,11 @@ ${this.getCategoryName().toLowerCase().includes('leaders') || this.getCategoryNa
 • Contains "special/unique/notable/particular" → "Does it have special characteristics?" → REJECT (vague)
 • Contains "characteristics/features/properties" without specifics → REJECT (vague)
 
-🚫 CATEGORY VIOLATION PATTERNS (automatic rejection for ${this.getCategoryName()}):
-${this.getCategoryName().toLowerCase() === 'animals' ? `
-• Questions with "electronic/battery/screen/plastic/metal" → REJECT (object properties)
-• Questions with "president/serve/Europe/male/female" → REJECT (people properties)
-• Questions with "portable/hold/kitchen/office" → REJECT (object location/size)` : ''}
-${this.getCategoryName().toLowerCase() === 'objects' ? `
-• Questions with "mammal/bird/eat/fur/wild" → REJECT (animal properties)
-• Questions with "male/female/Europe/president/serve" → REJECT (people properties)
-• Questions with "alive/dead/breathing/living" → REJECT (biological properties)` : ''}
-${this.getCategoryName().toLowerCase().includes('world leaders') || this.getCategoryName().toLowerCase().includes('players') ? `
-• Questions with "electronic/battery/metal/plastic/screen" → REJECT (object properties)
-• Questions with "mammal/bird/fur/eat/wild" → REJECT (animal properties)
-• Questions with "portable/kitchen/hold/tool" → REJECT (object function/location)` : ''}
-
 🚫 LOGICAL VIOLATION PATTERNS (automatic rejection):
-• Asking about confirmed facts → "Is it a mammal?" when mammal=YES → REJECT
-• Asking logical opposites → "Are they female?" when male=YES → REJECT
-• Asking impossible combinations → "Is it a bird?" when mammal=YES → REJECT
-• Asking eliminated options → "Are they from Asia?" when Europe=YES → REJECT
-
-🚫 SEMANTIC DUPLICATE PATTERNS (automatic rejection):
-• Previously asked concept with different words → "Is it large?" after "Is it big?" → REJECT
-• Logically equivalent questions → "Does it use electricity?" after "Is it electronic?" → REJECT
-• Deducible properties → "Is it warm-blooded?" after mammal=YES → REJECT
+• Asking about confirmed facts → Don't repeat already confirmed information → REJECT
+• Asking logical opposites → Don't ask contradictory questions → REJECT
+• Asking impossible combinations → Don't violate logical constraints → REJECT
+• Asking eliminated options → Don't ask about ruled-out possibilities → REJECT
 
 ⚠️ CRITICAL INSTRUCTION: If you violate ANY category boundary or ask inappropriate questions for ${this.getCategoryName().toLowerCase()}, you will fail completely!
 
@@ -221,93 +115,12 @@ ${this.getCategoryName().toLowerCase().includes('world leaders') || this.getCate
 - Observable characteristics that most people would know
 - Well-established facts that are not subjective
 
-❌ REJECT THESE VAGUE QUESTION PATTERNS:
-- "Does it have special/unique/notable characteristics?"
-- "Is it from a specific region or time period?" 
-- "Does it have multiple forms or variations?"
-- "Are there any particular aspects?"
-- "Is it known for certain qualities?"
-- "Does it have distinctive features?" (without specifics)
-
 🎯 QUESTION QUALITY CHECKLIST:
 1. ✅ Is it concrete and specific (not vague or subjective)?
 2. ✅ Can most people answer this definitively with yes/no?
 3. ✅ Does it stay within ${this.getCategoryName().toLowerCase()} category boundaries?
 4. ✅ Does it add new information (not deducible from confirmed facts)?
-5. ✅ Am I avoiding rephrasing the same concept with different words?
-
-🔄 CRITICAL REDUNDANCY & CONTRADICTION PREVENTION:
-
-🚫 SEMANTIC SIMILARITY PREVENTION - NEVER ASK EQUIVALENT QUESTIONS:
-
-CRITICAL: Avoid variations of the same topic using different words. Questions that are semantically similar must be recognized and prevented!
-
-SIZE SYNONYMS (pick only ONE):
-- "big/large/huge/massive/enormous/giant" = SAME CONCEPT
-- "small/tiny/little/miniature/compact/petite" = SAME CONCEPT
-- "Is it bigger than X?" = "Is it larger than X?" = SAME CONCEPT
-
-TECHNOLOGY SYNONYMS (pick only ONE):
-- "electronic/digital/computerized" = SAME CONCEPT  
-- "uses electricity/uses power/needs power/plugs in" = SAME CONCEPT
-- "has a screen/has a display/shows images" = SAME CONCEPT
-
-ANIMAL CLASSIFICATION SYNONYMS (pick only ONE):
-- "Is it a mammal?" = "Is it warm-blooded?" (mammals are warm-blooded)
-- "Is it wild?" = "Is it untamed?" = "Is it feral?" = SAME CONCEPT
-- "Is it domestic?" = "Is it tame?" = "Is it domesticated?" = SAME CONCEPT
-- "Does it eat meat?" = "Is it carnivorous?" = "Is it a meat-eater?" = SAME CONCEPT
-
-PEOPLE DEMOGRAPHIC SYNONYMS (pick only ONE):
-- "Are they male?" = "Are they a man?" = "Are they masculine?" = SAME CONCEPT
-- "Are they female?" = "Are they a woman?" = "Are they feminine?" = SAME CONCEPT
-- "Are they alive?" = "Are they living?" = "Are they not dead?" = SAME CONCEPT
-- "Are they from Europe?" = "Are they European?" = SAME CONCEPT
-
-LOGICAL OPPOSITES (never ask both):
-- "alive" vs "dead" = OPPOSITES (if one is YES, other is automatically NO)
-- "wild" vs "domestic" = OPPOSITES  
-- "big" vs "small" = OPPOSITES
-- "male" vs "female" = OPPOSITES
-- "electronic" vs "manual" = OPPOSITES
-
-FORBIDDEN SEMANTIC VARIATIONS:
-- Don't rephrase the same question with different grammar
-- Don't ask about properties that are logical consequences of confirmed facts  
-- Don't ask about eliminated possibilities using different words
-- Avoid asking about the same category that was already explored using different wording
-
-🚫 AVOID LOGICAL CONTRADICTIONS - ENSURE LOGICAL CONSISTENCY:
-
-CRITICAL: Don't ask if already confirmed information contradicts your question. Maintain logical consistency throughout questioning!
-
-- If confirmed "mammal" = YES → DON'T ask "Is it a bird/reptile/fish?" (biological impossibility)
-- If confirmed "electronic" = YES → DON'T ask "Is it alive/organic?" (category violation)
-- If confirmed "male" = YES → DON'T ask "Are they female?" (logical impossibility)
-- If confirmed "European" = YES → DON'T ask "Are they from Asia/Africa/Americas?" (geographic impossibility)
-- If confirmed "dead" = YES → DON'T ask "Are they currently serving?" (temporal impossibility)
-- If confirmed "wild" = YES → DON'T ask "Is it a pet?" (logical contradiction)
-- If confirmed "carnivore" = YES → DON'T ask "Is it herbivorous?" (diet contradiction)
-
-REDUNDANT WITH CONFIRMED FACTS: Never ask questions that are redundant with confirmed information!
-
-🚫 LOGICAL REDUNDANCY - AVOID QUESTIONS ABOUT WHAT YOU ALREADY KNOW:
-
-CRITICAL: Avoid logical redundancy! Don't ask about logical consequences of confirmed facts!
-
-- If confirmed "mammal" = YES → You KNOW: warm-blooded, has hair/fur, vertebrate
-- If confirmed "bird" = YES → You KNOW: has feathers, warm-blooded, lays eggs
-- If confirmed "electronic" = YES → You KNOW: needs power, man-made, not living
-- If confirmed "president" = YES → You KNOW: political leader, held office
-- If confirmed "quarterback" = YES → You KNOW: football player, on offense
-
-DEDUCTION GUIDANCE: Use logical deduction to avoid asking redundant questions!
-
-🚫 MUTUALLY EXCLUSIVE PROPERTIES - AVOID ASKING ABOUT ELIMINATED OPTIONS:
-- If confirmed "Africa" = YES → All other continents are eliminated (Europe, Asia, etc.)
-- If confirmed "20th century" = YES → Other centuries are eliminated
-- If confirmed "mammal" = YES → Other animal classes are eliminated (birds, reptiles, etc.)
-- If confirmed "electronic" = YES → Non-electronic objects are eliminated`;
+5. ✅ Am I avoiding rephrasing the same concept with different words?`;
   }
 
   private getRepetitionPrevention(alreadyAskedQuestions: string[]): string {
@@ -336,7 +149,6 @@ ${questions.map(q => `${q}`).join('\n')}`
 
 STEP 1: COMPREHENSIVE DOMAIN ANALYSIS & CONSTRAINT ENFORCEMENT
 - Based on all confirmed YES/NO answers, what specific sub-domain am I working within?
-- Example: If confirmed "electronic + portable + daily use" → I'm in "portable electronics" domain
 - What broader categories have I already eliminated completely?
 - What logical implications do I know for certain from confirmed facts?
 - What category-specific constraints apply to my remaining questions?
@@ -344,7 +156,7 @@ STEP 1: COMPREHENSIVE DOMAIN ANALYSIS & CONSTRAINT ENFORCEMENT
 CRITICAL DOMAIN COHERENCE CHECK:
 - Am I staying strictly within the ${this.getCategoryName()} category boundaries?
 - Are all my remaining possibilities actually ${this.getCategoryName().toLowerCase()}?
-- Have I eliminated any impossible combinations (e.g., mammal + reptile)?
+- Have I eliminated any impossible combinations?
 - Am I building logically on confirmed facts without contradiction?
 
 DOMAIN NARROWING ANALYSIS & COHERENCE ENFORCEMENT:
@@ -379,7 +191,6 @@ ${this.getCategoryName().toLowerCase().includes('leaders') || this.getCategoryNa
 
 STEP 2: SYSTEMATIC REMAINING POSSIBILITIES ANALYSIS  
 - Given ALL confirmed facts, list 5-10 specific items that could still match
-- Example: If "object + electronic + handheld + charges things" → charging cable, power bank, USB cable, phone charger, etc.
 - How many possibilities roughly remain after applying all constraints?
 - Are there any obvious subcategories within my remaining options?
 
@@ -404,25 +215,16 @@ STEP 5: RIGOROUS QUESTION VALIDATION & CONTRADICTION PREVENTION
 
 CRITICAL CONTRADICTION CHECKS - MANDATORY BEFORE ASKING:
 1. ✅ LOGICAL IMPOSSIBILITY CHECK: Does this contradict any confirmed YES answers?
-   - If "mammal"=YES → NEVER ask "Is it a bird/reptile/fish?" (impossible)
-   - If "male"=YES → NEVER ask "Are they female?" (impossible)
-   - If "electronic"=YES → NEVER ask "Is it alive/organic?" (impossible)
-   - If "Europe"=YES → NEVER ask "Are they from Asia/Africa?" (impossible)
+   - Ensure your question doesn't contradict already confirmed facts
 
 2. ✅ DEDUCTION VIOLATION CHECK: Am I asking about something I already know?
-   - If "mammal"=YES → I KNOW: warm-blooded, vertebrate, has hair
-   - If "bird"=YES → I KNOW: has feathers, can fly (mostly), lays eggs
-   - If "president"=YES → I KNOW: political leader, held executive office
+   - Don't ask about properties that are logical consequences of confirmed facts
 
 3. ✅ SEMANTIC DUPLICATION CHECK: Is this a rephrasing of a previous question?
-   - "Is it big?" vs "Is it large?" → Same concept, REJECT
-   - "Is it electronic?" vs "Does it use electricity?" → Same concept, REJECT
-   - "Are they male?" vs "Are they a man?" → Same concept, REJECT
+   - Avoid asking the same concept using different words
 
 4. ✅ CATEGORY BOUNDARY CHECK: Does this violate category constraints?
-   - Animals: ONLY biological properties (fur, diet, habitat, etc.)
-   - Objects: ONLY physical properties (material, size, function, etc.) 
-   - People: ONLY human attributes (demographics, career, achievements, etc.)
+   - Stay strictly within ${this.getCategoryName().toLowerCase()} category boundaries
 
 STEP 6: FINAL QUESTION SELECTION
 - Based on the analysis above, what is the single best question to ask next?
@@ -565,6 +367,20 @@ Q8: "Is it a Golden Retriever?" → YES! ✅
 🔍 Bird: Non-mammal→Bird→Flight capability→Climate→Specific features→Species ✅  
 🔍 Bird: Non-mammal→Bird→Flightless→Cold climate→Penguin ✅  
 🔍 Fish: Non-mammal→Aquatic→Large→Carnivore→Shark ✅`
+  }
+
+  protected getCategorySpecificRules(): string {
+    return `🚫 CRITICAL CATEGORY VIOLATION PREVENTION - ABSOLUTE PROHIBITION:
+
+CATEGORY: ANIMALS - ONLY ASK QUESTIONS APPROPRIATE FOR ANIMALS!
+
+✅ APPROPRIATE QUESTIONS FOR ANIMALS CATEGORY - ONLY ASK THESE TYPES:
+- Biological classification: "Is it a mammal?" "Is it a bird?" "Is it a reptile?"
+- Habitat: "Is it wild?" "Does it live in water?" "Does it live in Africa?"
+- Physical features: "Does it have four legs?" "Can it fly?" "Does it have fur?"
+- Diet: "Does it eat meat?" "Is it herbivorous?" "Is it carnivorous?"
+- Behavior: "Is it nocturnal?" "Does it hunt in packs?" "Does it hibernate?"
+- Size: "Is it larger than a dog?" "Is it smaller than a cat?"`;
   }
 
   protected getCategorySpecificDeductions(): string {
@@ -713,6 +529,20 @@ Q7: "Does it have four legs?" → YES (eliminates other seating)
 Q8: "Is it a chair?" → YES! ✅`
   }
 
+  protected getCategorySpecificRules(): string {
+    return `🚫 CRITICAL CATEGORY VIOLATION PREVENTION - ABSOLUTE PROHIBITION:
+
+CATEGORY: OBJECTS - ONLY ASK QUESTIONS APPROPRIATE FOR OBJECTS!
+
+✅ APPROPRIATE QUESTIONS FOR OBJECTS CATEGORY - ONLY ASK THESE TYPES:
+- Technology: "Is it electronic?" "Does it need electricity?" "Does it have a screen?"
+- Material: "Is it made of metal?" "Is it made of plastic?" "Is it made of wood?"
+- Size/portability: "Can you hold it?" "Is it portable?" "Is it larger than a book?"
+- Function: "Is it a tool?" "Do people use it daily?" "Is it furniture?"
+- Location: "Is it found in a kitchen?" "Is it kept outdoors?" "Is it found in homes?"
+- Interface: "Does it have buttons?" "Does it have a handle?" "Does it have wheels?"`;
+  }
+
   protected getCategorySpecificDeductions(): string {
     return `OBJECTS CATEGORY - LOGICAL DEDUCTIONS:
 • If "electronic" = YES → then it's NOT living, NOT organic, NOT edible, requires power (eliminates manual objects)
@@ -829,6 +659,20 @@ Q7: "Were they assassinated?" → YES (specific historical fact)
 Q8: "Is it Abraham Lincoln?" → YES! ✅`
   }
 
+  protected getCategorySpecificRules(): string {
+    return `🚫 CRITICAL CATEGORY VIOLATION PREVENTION - ABSOLUTE PROHIBITION:
+
+CATEGORY: WORLD LEADERS - ONLY ASK QUESTIONS APPROPRIATE FOR PEOPLE!
+
+✅ APPROPRIATE QUESTIONS FOR PEOPLE CATEGORY - ONLY ASK THESE TYPES:
+- Demographics: "Are they male?" "Are they female?" "Are they still alive?"
+- Geography: "Are they from Europe?" "Are they from Asia?" "Are they from Africa?"
+- Career/Role: "Are they a president?" "Are they a prime minister?" "Are they retired?"
+- Time periods: "Did they serve before 1990?" "Are they from the 20th century?"
+- Achievements: "Did they win awards?" "Have they won championships?" "Are they famous?"
+- Characteristics: "Are they controversial?" "Are they considered great?"`;
+  }
+
   protected getCategorySpecificDeductions(): string {
     return `WORLD LEADERS CATEGORY - LOGICAL DEDUCTIONS:
 • If "alive" = YES → then they are currently serving or recently served, NOT historical figures (eliminates past leaders)
@@ -873,6 +717,20 @@ export class CricketPlayersAIQuestioningTemplate extends AIQuestioningTemplate {
     return `EXAMPLE PROGRESSION: Active → Indian → Batsman → Captain → Top scorer → Virat Kohli`
   }
 
+  protected getCategorySpecificRules(): string {
+    return `🚫 CRITICAL CATEGORY VIOLATION PREVENTION - ABSOLUTE PROHIBITION:
+
+CATEGORY: CRICKET PLAYERS - ONLY ASK QUESTIONS APPROPRIATE FOR PEOPLE!
+
+✅ APPROPRIATE QUESTIONS FOR PEOPLE CATEGORY - ONLY ASK THESE TYPES:
+- Demographics: "Are they male?" "Are they female?" "Are they still alive?"
+- Geography: "Are they from India?" "Are they from Australia?" "Are they from England?"
+- Career/Role: "Are they a batsman?" "Are they a bowler?" "Are they retired?"
+- Time periods: "Did they play before 2010?" "Are they from the modern era?"
+- Achievements: "Have they captained their country?" "Are they in the Hall of Fame?"
+- Characteristics: "Are they known for scoring?" "Are they aggressive players?"`;
+  }
+
   protected getCategorySpecificDeductions(): string {
     return `CRICKET PLAYERS CATEGORY - LOGICAL DEDUCTIONS:
 • If "active" = YES → They are currently playing, NOT retired
@@ -912,6 +770,20 @@ export class FootballPlayersAIQuestioningTemplate extends AIQuestioningTemplate 
 
   protected getExampleProgression(): string {
     return `EXAMPLE PROGRESSION: Retired → QB → Multiple Super Bowls → AFC → Patriots → Tom Brady`
+  }
+
+  protected getCategorySpecificRules(): string {
+    return `🚫 CRITICAL CATEGORY VIOLATION PREVENTION - ABSOLUTE PROHIBITION:
+
+CATEGORY: FOOTBALL PLAYERS - ONLY ASK QUESTIONS APPROPRIATE FOR PEOPLE!
+
+✅ APPROPRIATE QUESTIONS FOR PEOPLE CATEGORY - ONLY ASK THESE TYPES:
+- Demographics: "Are they male?" "Are they female?" "Are they still alive?"
+- Geography: "Are they from the US?" "Are they from a specific state?"
+- Career/Role: "Are they a quarterback?" "Are they on defense?" "Are they retired?"
+- Time periods: "Did they play before 2010?" "Are they from the modern era?"
+- Achievements: "Have they won a Super Bowl?" "Are they a Hall of Famer?"
+- Characteristics: "Are they known for passing?" "Are they aggressive players?"`;
   }
 
   protected getCategorySpecificDeductions(): string {
@@ -956,6 +828,20 @@ export class NBAPlayersAIQuestioningTemplate extends AIQuestioningTemplate {
     return `EXAMPLE PROGRESSION: Retired → Guard → Championships → Western → Lakers → Kobe Bryant`
   }
 
+  protected getCategorySpecificRules(): string {
+    return `🚫 CRITICAL CATEGORY VIOLATION PREVENTION - ABSOLUTE PROHIBITION:
+
+CATEGORY: NBA PLAYERS - ONLY ASK QUESTIONS APPROPRIATE FOR PEOPLE!
+
+✅ APPROPRIATE QUESTIONS FOR PEOPLE CATEGORY - ONLY ASK THESE TYPES:
+- Demographics: "Are they male?" "Are they female?" "Are they still alive?"
+- Geography: "Are they from the US?" "Are they international?"
+- Career/Role: "Are they a guard?" "Are they a center?" "Are they retired?"
+- Time periods: "Did they play before 2000?" "Are they from the modern era?"
+- Achievements: "Have they won championships?" "Are they a Hall of Famer?"
+- Characteristics: "Are they known for scoring?" "Are they defensive players?"`;
+  }
+
   protected getCategorySpecificDeductions(): string {
     return `NBA PLAYERS CATEGORY - LOGICAL DEDUCTIONS:
 • If "active" = YES → They are currently playing, NOT retired
@@ -991,6 +877,18 @@ export class GeneralAIQuestioningTemplate extends AIQuestioningTemplate {
 
   protected getExampleProgression(): string {
     return `EXAMPLE PROGRESSION: Broad Category → Key Property → Specific Trait → Final Guess`
+  }
+
+  protected getCategorySpecificRules(): string {
+    return `🚫 CRITICAL CATEGORY VIOLATION PREVENTION - ABSOLUTE PROHIBITION:
+
+CATEGORY: GENERAL - ASK BROAD CLASSIFICATION QUESTIONS!
+
+✅ APPROPRIATE QUESTIONS FOR GENERAL CATEGORY - ONLY ASK THESE TYPES:
+- Basic classification: "Is it living?" "Is it man-made?" "Is it natural?"
+- Size: "Is it larger than a person?" "Can you hold it?" "Is it small?"
+- Function: "Do people use it?" "Does it serve a purpose?" "Is it decorative?"
+- Location: "Is it found indoors?" "Is it common?" "Is it rare?"`;
   }
 
   protected getCategorySpecificDeductions(): string {
