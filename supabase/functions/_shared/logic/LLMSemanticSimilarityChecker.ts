@@ -91,15 +91,37 @@ ${previousQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
 NEW QUESTION: "${newQuestion}"
 
 SEMANTIC SIMILARITY EXAMPLES:
-❌ SIMILAR: "Are they from Europe?" vs "Are they European?" (same concept - geographic origin)
-❌ SIMILAR: "Is it big?" vs "Is it large?" (same concept - size)
-❌ SIMILAR: "Is it electronic?" vs "Does it use electricity?" (same concept - electrical device)
-❌ SIMILAR: "Were they president?" vs "Did they serve as president?" (same concept - presidential role)
-❌ SIMILAR: "Does it eat meat?" vs "Is it carnivorous?" (same concept - diet)
+
+❌ SIMILAR - SYNONYMS: "Are they from Europe?" vs "Are they European?" (same concept - geographic origin)
+❌ SIMILAR - SIZE WORDS: "Is it big?" vs "Is it large?" vs "Is it huge?" (same concept - size)
+❌ SIMILAR - CONCEPT MATCH: "Is it electronic?" vs "Does it use electricity?" (same concept - electrical device)
+❌ SIMILAR - GRAMMAR VARIATION: "Were they president?" vs "Did they serve as president?" (same concept - presidential role)
+❌ SIMILAR - CONCEPT SYNONYMS: "Does it eat meat?" vs "Is it carnivorous?" (same concept - diet)
+
+❌ SIMILAR - COMPLEX GRAMMAR: "Did they serve as president during wartime?" vs "Were they president during a war?" (same concept - wartime presidency)
+❌ SIMILAR - RELATED CONCEPTS: "Did they start any wars?" vs "Did they serve as president during wartime?" (related but DIFFERENT - starting vs serving during)
+❌ SIMILAR - PASSIVE/ACTIVE: "Are they considered controversial?" vs "Do historians view them as controversial?" (same concept - controversial reputation)
 
 ✅ DIFFERENT: "Are they from Europe?" vs "Are they alive?" (different concepts - geography vs life status)
+✅ DIFFERENT: "Did they start wars?" vs "Did they serve during wartime?" (different concepts - initiating vs serving during)
+✅ DIFFERENT: "Were they popular with voters?" vs "Were they democratically elected?" (different concepts - popularity vs election process)
 ✅ DIFFERENT: "Is it big?" vs "Is it expensive?" (different concepts - size vs cost)
 ✅ DIFFERENT: "Is it electronic?" vs "Is it fragile?" (different concepts - technology vs durability)
+
+CRITICAL ANALYSIS GUIDELINES:
+1. RELATED vs SAME: "Did they start wars?" and "Did they serve during wartime?" are RELATED but DIFFERENT concepts
+   - Starting = initiating conflict (aggressive action)
+   - Serving during = governing during existing conflict (circumstantial)
+   - VERDICT: NOT SIMILAR
+
+2. POPULARITY vs PROCESS: "Were they popular with voters?" and "Were they democratically elected?" are DIFFERENT
+   - Popular = well-liked (subjective opinion)  
+   - Elected = won election (objective process)
+   - VERDICT: NOT SIMILAR
+
+3. TRUE DUPLICATES: Only mark as similar if they ask the EXACT SAME INFORMATION
+   - "Are they European?" = "Are they from Europe?" (SAME - geographic origin)
+   - "Is it big?" = "Is it large?" (SAME - size descriptor)
 
 RESPOND IN THIS EXACT FORMAT:
 SIMILAR: [YES/NO]

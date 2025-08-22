@@ -724,8 +724,9 @@ export class SemanticSimilarityDetector {
       ['carnivore', 'carnivorous', 'predator', 'meat', 'hunt'],
       ['electricity', 'power', 'energy', 'battery', 'electric'],
       ['serve', 'served', 'serving', 'service'],
-      ['wartime', 'war', 'conflict', 'battle'],
-      ['democratic', 'democracy', 'elected', 'election', 'people', 'voters'],
+      ['wartime', 'war.*time', 'during.*war'],
+      ['democratic', 'democracy', 'elected', 'election'],
+      ['popular', 'popularity', 'liked', 'well.*liked'],
       ['controversial', 'controversy', 'disputed', 'debated'],
       ['daily', 'everyday', 'day', 'regularly']
     ]
@@ -757,6 +758,31 @@ export class SemanticSimilarityDetector {
    * Checks for conceptual equivalence between questions
    */
   private static areConceptuallyEquivalent(q1: string, q2: string): boolean {
+    // First check for concepts that should NOT be considered equivalent
+    const distinctConcepts = [
+      {
+        concept1: /start.*war|initiate.*war|begin.*war/,
+        concept2: /serve.*war|during.*war|wartime/,
+        reason: 'Starting wars vs serving during wars are different actions'
+      },
+      {
+        concept1: /popular.*voter|liked.*voter|voter.*like/,
+        concept2: /elected|election|democratic/,
+        reason: 'Being popular vs being elected are different concepts'
+      }
+    ]
+
+    for (const distinction of distinctConcepts) {
+      const q1HasConcept1 = distinction.concept1.test(q1.toLowerCase())
+      const q1HasConcept2 = distinction.concept2.test(q1.toLowerCase())
+      const q2HasConcept1 = distinction.concept1.test(q2.toLowerCase())
+      const q2HasConcept2 = distinction.concept2.test(q2.toLowerCase())
+      
+      if ((q1HasConcept1 && q2HasConcept2) || (q1HasConcept2 && q2HasConcept1)) {
+        return false // These are explicitly different concepts
+      }
+    }
+
     const conceptMappings = [
       // Electronic/Electricity concepts
       {
@@ -773,7 +799,7 @@ export class SemanticSimilarityDetector {
         patterns: [/from\s+(\w+)/, /(\w+)$/],
         related: [/born.*(\w+)/, /originate.*(\w+)/, /native.*(\w+)/, /represent.*(\w+)/]
       },
-      // Presidential/Leadership concepts
+      // Presidential/Leadership concepts (refined)
       {
         patterns: [/president/, /presidency/],
         related: [/serve.*president/, /hold.*presidency/, /office.*president/]

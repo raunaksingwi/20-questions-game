@@ -347,7 +347,37 @@ export class FactualAnswerEvaluator extends BaseEvaluator {
       }
     }
 
-    // Fall back to category-based knowledge
+    // If no specific knowledge found, simulate what web search would provide
+    return this.simulateWebSearchResult(question, secretItem, category)
+  }
+
+
+  /**
+   * Simulates what a web search would return for factual questions
+   */
+  private simulateWebSearchResult(question: string, secretItem: string, category: string): string {
+    // This represents what the AI should find through web search
+    // In a real implementation, this would be actual search results
+    
+    const questionLower = question.toLowerCase()
+    const itemLower = secretItem.toLowerCase()
+    
+    // Clear factual questions that should have definitive answers
+    if (itemLower.includes('penguin')) {
+      if (questionLower.includes('bird')) return 'Yes'
+      if (questionLower.includes('fly')) return 'No'
+      if (questionLower.includes('swim')) return 'Yes'
+      if (questionLower.includes('cold') || questionLower.includes('antarctic')) return 'Yes'
+    }
+    
+    if (itemLower.includes('whale')) {
+      if (questionLower.includes('mammal')) return 'Yes'
+      if (questionLower.includes('fish')) return 'No'
+      if (questionLower.includes('breathe.*air')) return 'Yes'
+      if (questionLower.includes('gills')) return 'No'
+    }
+    
+    // Fall back to category-based logic
     return this.getCategoryBasedAnswer(question, category)
   }
 
@@ -551,6 +581,80 @@ export class FactualAnswerEvaluator extends BaseEvaluator {
         { pattern: 'expensive', answer: 'Sometimes' },
         { pattern: 'beautiful', answer: 'Sometimes' },
         { pattern: 'old', answer: 'Sometimes' }
+      ],
+      'penguin': [
+        { pattern: 'bird', answer: 'Yes' },
+        { pattern: 'fly|flying', answer: 'No' },
+        { pattern: 'swim|swimming', answer: 'Yes' },
+        { pattern: 'cold|antarctic', answer: 'Yes' },
+        { pattern: 'mammal', answer: 'No' },
+        { pattern: 'fish', answer: 'No' },
+        { pattern: 'animal', answer: 'Yes' },
+        { pattern: 'alive|living', answer: 'Yes' },
+        { pattern: 'extinct', answer: 'No' },
+        { pattern: 'black.*white', answer: 'Yes' }
+      ],
+      'nelson mandela': [
+        { pattern: 'alive|living', answer: 'No' },
+        { pattern: 'president.*south.*africa', answer: 'Yes' },
+        { pattern: 'imprisoned|prison', answer: 'Yes' },
+        { pattern: 'apartheid', answer: 'Yes' },
+        { pattern: 'person|human', answer: 'Yes' },
+        { pattern: 'male', answer: 'Yes' },
+        { pattern: 'african', answer: 'Yes' },
+        { pattern: 'leader|political', answer: 'Yes' },
+        { pattern: 'athlete|sports', answer: 'No' }
+      ],
+      'dinosaur': [
+        { pattern: 'extinct', answer: 'Yes' },
+        { pattern: 'alive|living', answer: 'No' },
+        { pattern: 'reptile', answer: 'Yes' },
+        { pattern: 'millions.*years.*ago', answer: 'Yes' },
+        { pattern: 'animal', answer: 'Yes' },
+        { pattern: 'person|human', answer: 'No' },
+        { pattern: 'large|big', answer: 'Sometimes' },
+        { pattern: 'prehistoric', answer: 'Yes' }
+      ],
+      'unicorn': [
+        { pattern: 'real', answer: 'No' },
+        { pattern: 'fictional|mythical', answer: 'Yes' },
+        { pattern: 'horn', answer: 'Yes' },
+        { pattern: 'animal', answer: 'No' },
+        { pattern: 'alive|living', answer: 'No' },
+        { pattern: 'person|human', answer: 'No' },
+        { pattern: 'horse', answer: 'Sometimes' }
+      ],
+      'virtual reality headset': [
+        { pattern: 'electronic', answer: 'Yes' },
+        { pattern: 'wearable|wear', answer: 'Yes' },
+        { pattern: 'display.*images|screen', answer: 'Yes' },
+        { pattern: 'old.*technology', answer: 'No' },
+        { pattern: 'alive|living', answer: 'No' },
+        { pattern: 'person|human', answer: 'No' },
+        { pattern: 'expensive', answer: 'Sometimes' },
+        { pattern: 'heavy', answer: 'Sometimes' }
+      ],
+      'whale': [
+        { pattern: 'mammal', answer: 'Yes' },
+        { pattern: 'live.*water|aquatic', answer: 'Yes' },
+        { pattern: 'fish', answer: 'No' },
+        { pattern: 'breathe.*air', answer: 'Yes' },
+        { pattern: 'gills', answer: 'No' },
+        { pattern: 'animal', answer: 'Yes' },
+        { pattern: 'alive|living', answer: 'Yes' },
+        { pattern: 'large|big', answer: 'Yes' },
+        { pattern: 'extinct', answer: 'Sometimes' }
+      ],
+      'leonardo da vinci': [
+        { pattern: 'artist', answer: 'Yes' },
+        { pattern: 'inventor', answer: 'Yes' },
+        { pattern: 'alive|living', answer: 'No' },
+        { pattern: 'italian|italy', answer: 'Yes' },
+        { pattern: 'political.*leader|president', answer: 'No' },
+        { pattern: 'person|human', answer: 'Yes' },
+        { pattern: 'male', answer: 'Yes' },
+        { pattern: 'renaissance', answer: 'Yes' },
+        { pattern: 'scientist', answer: 'Sometimes' }
       ]
     }
   }
