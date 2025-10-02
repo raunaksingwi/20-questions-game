@@ -1,6 +1,8 @@
 import React from 'react';
 import { render, waitFor, act } from '@testing-library/react-native';
 
+let latestGameInputProps: any;
+
 // Mock all the dependencies
 jest.mock('../../../shared/types', () => ({
   GameMode: {
@@ -73,13 +75,17 @@ jest.mock('../../components/MessagesList', () => ({
   },
 }));
 
-jest.mock('../../components/GameInput', () => ({
-  GameInput: function GameInput() {
-    const React = require('react');
-    const { View } = require('react-native');
-    return React.createElement(View, { testID: 'game-input' });
-  },
-}));
+jest.mock('../../components/GameInput', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    GameInput: (props: any) => {
+      latestGameInputProps = props;
+      return React.createElement(View, { testID: 'game-input' });
+    },
+  };
+});
 
 jest.mock('../../components/LoadingGame', () => ({
   LoadingGame: function LoadingGame() {
@@ -159,7 +165,8 @@ describe('GameScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+    latestGameInputProps = undefined;
+
     mockedUseGameState.mockReturnValue({
       state: defaultGameState,
       actions: defaultActions,
@@ -367,6 +374,29 @@ describe('GameScreen', () => {
           <GameScreen navigation={mockNavigation as any} route={newRoute as any} />
         );
       }).not.toThrow();
+    });
+  });
+
+  describe('Text input submission', () => {
+    it('trims question text before sending to game actions', async () => {
+      render(
+        <GameScreen navigation={mockNavigation as any} route={mockRoute as any} />
+      );
+
+      expect(latestGameInputProps).toBeDefined();
+
+      await act(async () => {
+        latestGameInputProps.setQuestion('  Does it fly?  ');
+      });
+
+      await act(async () => {
+        latestGameInputProps.onTextSubmit();
+      });
+
+      expect(defaultGameActions.sendQuestion).toHaveBeenCalledWith(
+        'Does it fly?',
+        '  Does it fly?  '
+      );
     });
   });
 });

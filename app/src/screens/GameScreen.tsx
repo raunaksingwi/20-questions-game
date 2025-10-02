@@ -88,7 +88,7 @@ export default function GameScreen({ route, navigation }: Props) {
     if (mode === GameMode.AI_GUESSING) {
       gameActions.submitUserAnswer(textToSubmit, 'text');
     } else {
-      gameActions.sendQuestion(undefined, question);
+      gameActions.sendQuestion(textToSubmit, question);
     }
     setQuestion('');
   };
