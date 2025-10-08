@@ -29,16 +29,18 @@ class GameService {
   // Cache for categories to avoid unnecessary API calls
   private categoriesCache: any[] | null = null;
   private categoriesCacheTimestamp: number = 0;
-  private readonly CACHE_DURATION = 30 * 60 * 1000; // 30 minutes - longer cache
-  private categoriesPromise: Promise<any[]> | null = null; // Promise deduplication
+  private readonly CACHE_DURATION = 6 * 60 * 60 * 1000;
+  private categoriesPromise: Promise<any[]> | null = null;
+  private gameCache = new Map<string, { value: Game | null; expiresAt: number }>();
+  private readonly GAME_CACHE_TTL = 60 * 1000;
   
   /**
    * Generic method to call Supabase edge functions with timeout and error handling.
    * Provides consistent API call pattern across all game operations with automatic retry logic.
    */
   private async callFunction<T, R>(functionName: string, data: T): Promise<R> {
-    const maxRetries = 3;
-    const baseDelay = 1000; // 1 second base delay
+    const maxRetries = 1;
+    const baseDelay = 1500;
     
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const startTime = Date.now()
@@ -181,6 +183,12 @@ class GameService {
    * Returns null if the game is not found or an error occurs.
    */
   async getGame(gameId: string): Promise<Game | null> {
+    const now = Date.now();
+    const cached = this.gameCache.get(gameId);
+    if (cached && cached.expiresAt > now) {
+      return cached.value;
+    }
+
     const { data, error } = await supabase
       .from('games')
       .select('*')
@@ -189,9 +197,11 @@ class GameService {
 
     if (error) {
       console.error('Error fetching game:', error)
+      this.gameCache.set(gameId, { value: null, expiresAt: now + this.GAME_CACHE_TTL })
       return null
     }
 
+    this.gameCache.set(gameId, { value: data, expiresAt: now + this.GAME_CACHE_TTL })
     return data
   }
 
@@ -247,7 +257,6 @@ class GameService {
     const { data, error } = await supabase
       .from('categories')
       .select('*')
-      .order('name')
 
     if (error) {
       console.error('Error fetching categories from DB:', error)
@@ -255,8 +264,15 @@ class GameService {
       return this.categoriesCache || []
     }
 
-    // Update cache
-    this.categoriesCache = data || [];
+    const sorted = (data || []).slice().sort((a: any, b: any) => {
+      if (typeof a.popularity_score === 'number' && typeof b.popularity_score === 'number' && b.popularity_score !== a.popularity_score) {
+        return b.popularity_score - a.popularity_score
+      }
+      const left = typeof a.name === 'string' ? a.name : ''
+      const right = typeof b.name === 'string' ? b.name : ''
+      return left.localeCompare(right)
+    })
+    this.categoriesCache = sorted;
     this.categoriesCacheTimestamp = Date.now();
     
     return this.categoriesCache;
