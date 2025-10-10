@@ -34,6 +34,10 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
   disabled = false,
 }) => {
   const isThinkMode = mode === GameMode.AI_GUESSING;
+  const quitConfirmationTitle = 'Quit Game?';
+  const quitConfirmationMessage = 'Are you sure you want to quit? Your progress will be lost.';
+  const quitButtonLabel = 'Quit';
+  const shouldDisableHint = disabled || hintsRemaining === 0;
   
   /**
    * Handles quit button press with confirmation dialog.
@@ -41,17 +45,18 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
    */
   const handleQuitPress = () => {
     if (Platform.OS === 'web') {
-      if (window.confirm('Are you sure you want to quit? Your progress will be lost.')) {
+      const isConfirmed = window.confirm(quitConfirmationMessage);
+      if (isConfirmed) {
         onQuitPress?.();
       }
     } else {
       Alert.alert(
-        'Quit Game?',
-        'Are you sure you want to quit? Your progress will be lost.',
+        quitConfirmationTitle,
+        quitConfirmationMessage,
         [
           { text: 'Cancel', style: 'cancel' },
           { 
-            text: 'Quit', 
+            text: quitButtonLabel, 
             style: 'destructive', 
             onPress: () => onQuitPress?.()
           }
@@ -100,7 +105,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
                 activeOpacity={0.8}
               >
                 <Text style={[styles.actionButtonText, styles.quitButtonText]}>
-                  Quit
+                  {quitButtonLabel}
                 </Text>
               </TouchableOpacity>
             </>
@@ -110,16 +115,16 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
                 style={[
                   styles.actionButton, 
                   styles.hintButton, 
-                  (disabled || hintsRemaining === 0) && styles.disabledButton
+                  shouldDisableHint && styles.disabledButton
                 ]}
                 onPress={onHintPress}
-                disabled={disabled || hintsRemaining === 0}
+                disabled={shouldDisableHint}
                 activeOpacity={0.8}
               >
                 <Text style={[
                   styles.actionButtonText, 
                   styles.hintButtonText, 
-                  (disabled || hintsRemaining === 0) && styles.disabledButtonText
+                  shouldDisableHint && styles.disabledButtonText
                 ]}>
                   Hint ({hintsRemaining})
                 </Text>
@@ -130,7 +135,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
                 activeOpacity={0.8}
               >
                 <Text style={[styles.actionButtonText, styles.quitButtonText]}>
-                  Quit
+                  {quitButtonLabel}
                 </Text>
               </TouchableOpacity>
             </>
