@@ -2,7 +2,7 @@
  * Home screen where users select game mode and category to start a new game.
  * Features animated transitions between different game modes and category selection.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,10 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-na
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { GameMode } from '../types/types';
+import { supabase } from '../services/supabase';
+import { StatsOverviewCard } from '../components/StatsOverviewCard';
+import { useGameStats } from '../hooks/useGameStats';
+import { gameService } from '../services/gameService';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -39,12 +43,24 @@ const CATEGORIES = [
  */
 export default function HomeScreen({ navigation }: Props) {
   const [selectedMode, setSelectedMode] = useState<GameMode>(GameMode.USER_GUESSING);
+  const [userId, setUserId] = useState<string | undefined>(undefined);
+  const [suggestedCategories, setSuggestedCategories] = useState<string[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   
   const screenWidth = Dimensions.get('window').width;
   
   // Animation values for categories slide-in
   const categoriesTranslateX = useSharedValue(0);
   const categoriesOpacity = useSharedValue(1);
+
+  const { stats, loading: statsLoading, error: statsError, refresh: refreshStats } = useGameStats({
+    userId,
+  });
+
+  const recentCategoriesKey = useMemo(
+    () => stats?.recentCategories?.join('|') ?? '',
+    [stats?.recentCategories]
+  );
   
   // Trigger animation when mode changes
   useEffect(() => {
@@ -57,6 +73,58 @@ export default function HomeScreen({ navigation }: Props) {
       categoriesOpacity.value = withTiming(1, { duration: 300 });
     });
   }, [selectedMode, screenWidth]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchUser = async () => {
+      try {
+        const response = await supabase.auth.getUser();
+        if (isMounted) {
+          setUserId(response?.data?.user?.id ?? undefined);
+        }
+      } catch (error) {
+        console.debug('[HomeScreen] Failed to fetch auth user', error);
+      }
+    };
+
+    fetchUser();
+    const interval = setInterval(fetchUser, 60000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadSuggestions = async () => {
+      setLoadingSuggestions(true);
+      try {
+        const recommendations = await gameService.getSuggestedCategories();
+        if (active) {
+          setSuggestedCategories(recommendations);
+        }
+      } catch (error) {
+        console.debug('[HomeScreen] Failed to load suggested categories', error);
+      } finally {
+        if (active) {
+          setLoadingSuggestions(false);
+        }
+      }
+    };
+
+    // Depend on a joined string to force re-computation when categories change.
+    if (recentCategoriesKey || !suggestedCategories.length) {
+      loadSuggestions();
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [recentCategoriesKey, suggestedCategories.length]);
   
   // Animated style for categories
   const categoriesAnimatedStyle = useAnimatedStyle(() => ({
@@ -88,6 +156,15 @@ export default function HomeScreen({ navigation }: Props) {
           <Text style={styles.subtitle}>
             Choose how you want to play!
           </Text>
+        </View>
+
+        <View style={styles.statsWrapper}>
+          <StatsOverviewCard
+            loading={statsLoading}
+            error={statsError}
+            stats={stats}
+            onRefresh={refreshStats}
+          />
         </View>
 
         <View style={styles.modeContainer}>
@@ -134,6 +211,31 @@ export default function HomeScreen({ navigation }: Props) {
 
         <Animated.View style={[styles.categoriesContainer, categoriesAnimatedStyle]}>
           <Text style={styles.sectionTitle}>Choose a Category</Text>
+          {suggestedCategories.length > 0 && (
+            <View style={styles.suggestedContainer}>
+              <Text style={styles.suggestedHeading}>Suggested for you</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.suggestedScroll}
+              >
+                {suggestedCategories.map((category) => (
+                  <TouchableOpacity
+                    key={`suggested-${category}`}
+                    style={styles.suggestedChip}
+                    onPress={() => startGame(category)}
+                  >
+                    <Text style={styles.suggestedText}>{category}</Text>
+                  </TouchableOpacity>
+                ))}
+                {loadingSuggestions && (
+                  <View style={styles.suggestedChipMuted}>
+                    <Text style={styles.suggestedTextMuted}>Updating…</Text>
+                  </View>
+                )}
+              </ScrollView>
+            </View>
+          )}
           <View style={styles.categoriesGrid}>
             {CATEGORIES.map((category) => (
               <TouchableOpacity
@@ -242,11 +344,50 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 10,
   },
+  statsWrapper: {
+    paddingHorizontal: 20,
+    paddingTop: Platform.select({ ios: 16, android: 12, default: 12 }),
+  },
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
     color: '#1f2937',
     marginBottom: 15,
+  },
+  suggestedContainer: {
+    marginBottom: 12,
+  },
+  suggestedHeading: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4b5563',
+    marginBottom: 8,
+  },
+  suggestedScroll: {
+    paddingRight: 6,
+    alignItems: 'center',
+  },
+  suggestedChip: {
+    backgroundColor: '#eef2ff',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginRight: 8,
+  },
+  suggestedChipMuted: {
+    backgroundColor: '#e5e7eb',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginRight: 8,
+  },
+  suggestedText: {
+    color: '#4338ca',
+    fontWeight: '600',
+  },
+  suggestedTextMuted: {
+    color: '#6b7280',
+    fontWeight: '500',
   },
   categoriesGrid: {
     flexDirection: 'row',

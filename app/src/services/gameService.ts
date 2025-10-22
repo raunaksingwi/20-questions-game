@@ -277,6 +277,44 @@ class GameService {
     this.categoriesCacheTimestamp = 0;
   }
 
+  /**
+   * Builds a personalized list of suggested categories derived from recent game history.
+   * Currently fetches a generous slice of the games table which could be tightened up later.
+   */
+  async getSuggestedCategories(limit = 5): Promise<string[]> {
+    try {
+      const { data, error } = await supabase
+        .from('games')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error || !data) {
+        if (error) {
+          console.error('Error loading suggested categories:', error);
+        }
+        return [];
+      }
+
+      const weighted: Record<string, number> = {};
+      for (const entry of data) {
+        const category = entry?.category;
+        if (!category) continue;
+
+        const weight = entry.status === 'won' ? 2 : 1;
+        weighted[category] = (weighted[category] ?? 0) + weight;
+      }
+
+      return Object.entries(weighted)
+        .sort((a, b) => b[1] - a[1])
+        .map(([category]) => category)
+        .slice(0, limit);
+    } catch (error) {
+      console.error('Unexpected error calculating suggested categories:', error);
+      return [];
+    }
+  }
+
   // Think Mode methods
   async startThinkRound(category: string, userId?: string): Promise<StartThinkRoundResponse> {
     return optimizedRequest('start-think-round', async () => {

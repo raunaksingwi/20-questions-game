@@ -3,30 +3,32 @@ import { render } from '@testing-library/react-native';
 import { Animated } from 'react-native';
 import AnimatedBar from '../AnimatedBar';
 
-// Mock Animated
-jest.mock('react-native', () => ({
-  ...jest.requireActual('react-native'),
-  Animated: {
-    ...jest.requireActual('react-native').Animated,
-    timing: jest.fn(() => ({
-      start: jest.fn((callback) => callback && callback()),
-    })),
-    Value: jest.fn(() => ({
-      interpolate: jest.fn(() => 50),
-      stopAnimation: jest.fn(),
-    })),
-  },
-}));
-
 describe('AnimatedBar', () => {
-  const mockAnimatedTiming = Animated.timing as jest.MockedFunction<typeof Animated.timing>;
+  let timingSpy: jest.SpyInstance;
+  let valueSpy: jest.SpyInstance;
   
   beforeEach(() => {
-    jest.clearAllMocks();
     jest.useFakeTimers();
+    timingSpy = jest.spyOn(Animated, 'timing').mockImplementation(() => ({
+      start: jest.fn((callback?: (result: { finished: boolean }) => void) => {
+        callback?.({ finished: true });
+      }),
+      stop: jest.fn(),
+      reset: jest.fn(),
+    }) as unknown);
+
+    valueSpy = jest.spyOn(Animated, 'Value').mockImplementation(
+      () =>
+        ({
+          interpolate: jest.fn(() => 50),
+          stopAnimation: jest.fn(),
+        }) as unknown
+    );
   });
 
   afterEach(() => {
+    timingSpy.mockRestore();
+    valueSpy.mockRestore();
     jest.useRealTimers();
   });
 
@@ -60,7 +62,7 @@ describe('AnimatedBar', () => {
     // Fast-forward timers to trigger animation
     jest.advanceTimersByTime(100);
 
-    expect(mockAnimatedTiming).toHaveBeenCalled();
+    expect(timingSpy).toHaveBeenCalled();
   });
 
   it('should stop animation when isAnimating is false', () => {
@@ -70,12 +72,10 @@ describe('AnimatedBar', () => {
 
     // Start with animation
     jest.advanceTimersByTime(100);
-    jest.clearAllMocks();
-
     // Stop animation
     rerender(<AnimatedBar isAnimating={false} />);
 
-    expect(mockAnimatedTiming).toHaveBeenCalledWith(
+    expect(timingSpy).toHaveBeenCalledWith(
       expect.any(Object),
       expect.objectContaining({
         toValue: 0.2,
@@ -90,14 +90,12 @@ describe('AnimatedBar', () => {
       <AnimatedBar isAnimating={true} volumeLevel={0.3} />
     );
 
-    jest.clearAllMocks();
-
     // Update volume level
     rerender(
       <AnimatedBar isAnimating={true} volumeLevel={0.8} />
     );
 
-    expect(mockAnimatedTiming).toHaveBeenCalled();
+    expect(timingSpy).toHaveBeenCalled();
   });
 
   it('should handle custom styling', () => {
@@ -125,7 +123,7 @@ describe('AnimatedBar', () => {
     
     // Fast-forward to trigger staggered animation
     jest.advanceTimersByTime(200);
-    expect(mockAnimatedTiming).toHaveBeenCalled();
+    expect(timingSpy).toHaveBeenCalled();
   });
 
   it('should clamp volume level to valid range', () => {
@@ -137,7 +135,7 @@ describe('AnimatedBar', () => {
     );
 
     jest.advanceTimersByTime(100);
-    expect(mockAnimatedTiming).toHaveBeenCalled();
+    expect(timingSpy).toHaveBeenCalled();
   });
 
   it('should handle cleanup on unmount', () => {
@@ -147,7 +145,7 @@ describe('AnimatedBar', () => {
       stopAnimation: mockStopAnimation,
     };
     
-    (Animated.Value as jest.Mock).mockReturnValue(mockAnimatedValue);
+    valueSpy.mockImplementation(() => mockAnimatedValue as unknown);
 
     const { unmount } = render(
       <AnimatedBar isAnimating={true} />

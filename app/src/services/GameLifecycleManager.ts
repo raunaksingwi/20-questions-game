@@ -4,6 +4,7 @@ import { audioManager } from './AudioManager';
 import { GameMessage } from '../types/types';
 import { GameState, GameStateActions } from '../hooks/useGameState';
 import { DEFAULT_GAME_CONFIG } from './GameConfig';
+import { performanceOptimizer } from '../utils/performanceOptimizer';
 
 export class GameLifecycleManager {
   constructor(
@@ -12,6 +13,7 @@ export class GameLifecycleManager {
   ) {}
 
   async startNewGame(category: string, onNavigateBack?: () => void): Promise<void> {
+    const metric = performanceOptimizer.startTimer('lifecycle:start-game');
     try {
       // Batch initial state reset
       this.actions.setBatchState({
@@ -43,10 +45,12 @@ export class GameLifecycleManager {
         messages: [welcomeMessage as GameMessage],
         loading: false
       });
+      performanceOptimizer.endTimer(metric, true);
     } catch (error) {
       Alert.alert('Error', 'Failed to start game. Please try again.');
       onNavigateBack?.();
       this.actions.setLoading(false);
+      performanceOptimizer.endTimer(metric, false, error instanceof Error ? error.message : 'Failed to start game');
     }
   }
 

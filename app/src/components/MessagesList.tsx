@@ -30,6 +30,21 @@ export const MessagesList: React.FC<MessagesListProps> = ({
 }) => {
   const flatListRef = useRef<FlatList>(null);
 
+  const conversationMeta = React.useMemo(() => {
+    const totals = {
+      total: messages.length,
+      user: 0,
+      assistant: 0,
+    };
+
+    for (const message of messages) {
+      if (message.role === 'user') totals.user += 1;
+      if (message.role === 'assistant') totals.assistant += 1;
+    }
+
+    return totals;
+  }, [messages]);
+
   // Create data array including loading indicator
   const data = React.useMemo(() => {
     const items: MessageItem[] = [...messages];
@@ -103,6 +118,13 @@ export const MessagesList: React.FC<MessagesListProps> = ({
       maintainVisibleContentPosition={{
         minIndexForVisible: 0,
       }}
+      ListHeaderComponent={(
+        <View style={styles.metaContainer}>
+          <Text style={styles.metaText}>
+            Conversation: {conversationMeta.total} messages · You {conversationMeta.user} · AI {conversationMeta.assistant}
+          </Text>
+        </View>
+      )}
     />
   );
 };
@@ -139,5 +161,13 @@ const styles = StyleSheet.create({
   },
   userMessageText: {
     color: '#fff',
+  },
+  metaContainer: {
+    marginBottom: 8,
+  },
+  metaText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    textAlign: 'center',
   },
 });

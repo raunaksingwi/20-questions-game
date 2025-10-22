@@ -3,16 +3,9 @@ import { render, fireEvent } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import { GameHeader } from '../GameHeader';
 import { GameMode } from '../../types/types';
+import type { AlertButton } from 'react-native';
 
-// Mock Alert for testing
-jest.mock('react-native', () => ({
-  ...jest.requireActual('react-native'),
-  Alert: {
-    alert: jest.fn(),
-  },
-}));
-
-const mockedAlert = Alert.alert as jest.MockedFunction<typeof Alert.alert>;
+const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
 describe('GameHeader', () => {
   const defaultProps = {
@@ -22,7 +15,7 @@ describe('GameHeader', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    alertSpy.mockClear();
   });
 
   it('renders correctly', () => {
@@ -107,7 +100,7 @@ describe('GameHeader', () => {
       fireEvent.press(getByText('Quit'));
       
       // Verify Alert.alert was called
-      expect(mockedAlert).toHaveBeenCalledWith(
+      expect(alertSpy).toHaveBeenCalledWith(
         'Quit Game?',
         'Are you sure you want to quit? Your progress will be lost.',
         [
@@ -117,8 +110,9 @@ describe('GameHeader', () => {
       );
       
       // Simulate user pressing "Quit" in the alert
-      const quitCallback = mockedAlert.mock.calls[0][2][1].onPress;
-      quitCallback();
+      const buttons = alertSpy.mock.calls[0][2] as AlertButton[];
+      const quitCallback = buttons?.[1]?.onPress;
+      quitCallback?.();
       
       expect(onQuitPressSpy).toHaveBeenCalled();
     });
