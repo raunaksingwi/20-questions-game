@@ -7,11 +7,13 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/HomeScreen';
 import GameScreen from '../screens/GameScreen';
+import StatsScreen from '../screens/StatsScreen';
 import { GameMode } from '../types/types';
 
 export type RootStackParamList = {
   Home: undefined;
   Game: { category: string; mode: GameMode };
+  Stats: { userId: string };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -35,15 +37,20 @@ export default function AppNavigator() {
           },
         }}
       >
-        <Stack.Screen 
-          name="Home" 
-          component={HomeScreen} 
+        <Stack.Screen
+          name="Home"
+          component={HomeScreen}
           options={{ title: '20 Questions' }}
         />
-        <Stack.Screen 
-          name="Game" 
-          component={GameScreen} 
+        <Stack.Screen
+          name="Game"
+          component={GameScreen}
           options={{ title: 'Ask Your Questions' }}
+        />
+        <Stack.Screen
+          name="Stats"
+          component={StatsScreen}
+          options={{ title: 'Your Statistics' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

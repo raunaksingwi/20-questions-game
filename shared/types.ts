@@ -260,3 +260,96 @@ export interface FinalizeThinkResultResponse {
   secret_item?: string;
 }
 
+// Player Statistics types
+/**
+ * Interface representing aggregate statistics for a specific category.
+ */
+export interface CategoryStats {
+  /** Name of the category */
+  category: string;
+  /** Total number of games played in this category */
+  games_played: number;
+  /** Number of games won in this category */
+  games_won: number;
+  /** Number of games lost in this category */
+  games_lost: number;
+  /** Win rate as a percentage (0-100) */
+  win_rate: number;
+  /** Average number of questions used per game */
+  avg_questions_used: number;
+  /** Average number of hints used per game */
+  avg_hints_used: number;
+}
+
+/**
+ * Interface representing a summary of a single game.
+ */
+export interface GameSummary {
+  /** Unique identifier for the game */
+  id: string;
+  /** Category of the secret item */
+  category: string;
+  /** Game mode used */
+  mode: GameMode;
+  /** Final status of the game */
+  status: GameStatus;
+  /** The secret item that was being guessed */
+  secret_item: string;
+  /** Number of questions asked in this game */
+  questions_asked: number;
+  /** Number of hints used in this game */
+  hints_used: number;
+  /** Timestamp when the game was created */
+  created_at: string;
+  /** Total number of messages in the conversation */
+  message_count: number;
+  /** First user question or answer from the game */
+  first_interaction?: string;
+}
+
+/**
+ * Interface representing overall player performance statistics.
+ */
+export interface PlayerStats {
+  /** Total number of games played across all categories */
+  total_games: number;
+  /** Total number of games won */
+  total_wins: number;
+  /** Total number of games lost */
+  total_losses: number;
+  /** Overall win rate as a percentage (0-100) */
+  overall_win_rate: number;
+  /** Average number of questions used across all games */
+  avg_questions_per_game: number;
+  /** Average number of hints used across all games */
+  avg_hints_per_game: number;
+  /** Statistics broken down by category */
+  category_breakdown: CategoryStats[];
+  /** List of recent games with summaries */
+  recent_games: GameSummary[];
+  /** User's favorite category (most played) */
+  favorite_category: string;
+  /** AI-generated insight about the player's style */
+  playing_style_insight?: string;
+}
+
+/**
+ * Request interface for fetching player statistics.
+ */
+export interface GetPlayerStatsRequest {
+  /** ID of the user to fetch statistics for */
+  user_id: string;
+  /** Optional limit for number of recent games to return */
+  recent_games_limit?: number;
+  /** Optional search term for finding similar games */
+  search_term?: string;
+}
+
+/**
+ * Response interface for player statistics endpoint.
+ */
+export interface GetPlayerStatsResponse {
+  /** Comprehensive player statistics */
+  stats: PlayerStats;
+}
+
